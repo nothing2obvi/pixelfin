@@ -12,8 +12,16 @@ I built this entirely with **ChatGPT**, because I have **literally zero coding e
 
 ## Screenshots
 
+### All Images
+![Screenshot_All.Images_Table](assets/Screenshot_All.Images_Table.png)
+![Screenshot_All.Images_Entry.png](assets/Screenshot_All.Images_Entry.png)
 
+### Certain Images
+![Screenshot_Certain.Images_Table](assets/Screenshot_Certain.Images_Table.png)
+![Screenshot_Certain.Images_Entry.png](assets/Screenshot_Certain.Images_Entry.png)
 
+### Lightbox
+![Screenshot_Lightbox](assets/Screenshot_Lightbox.png)
 
 ## 🙋 About This Project
 
@@ -27,7 +35,6 @@ If you try it out:
 - Depending on the size of the library, it can take some time.   
 
 This tool works for me, and I actively use it to manage artwork in my own Jellyfin setup. If you’re more experienced, you’ll almost certainly see ways to improve it. Contributions, fixes, and feedback are all very welcome, but I honestly wouldn't know how to act upon them without help. I'm just being real with you. I’d love to collaborate with anyone who finds this interesting.
- 
 
 ---
 
@@ -46,7 +53,7 @@ This tool works for me, and I actively use it to manage artwork in my own Jellyf
 	- Clickable images with a lightbox viewer (Prev / Next / Close)
 - **Direct links to Jellyfin**
 	
-	Each item’s title links directly to its page in Jellyfin’s web UI so you can take action and make edits
+	Each item’s title links directly to its page in Jellyfin’s web UI so you can take action and make edits.
 	
 - **Image resolution display**
 	
