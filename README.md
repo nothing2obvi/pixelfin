@@ -1,3 +1,5 @@
+![Pixelfin](assets/Pixelfin.png)
+
 # Pixelfin – Jellyfin Image Inspector
 
 Do you want your images on your Jellyfin instance to be perfect?
