@@ -103,13 +103,6 @@ http://localhost:1280
 
 If you prefer Docker, you can run it without installing Python locally.
 
-### Build the image
-
-```bash
-docker build -t ghcr.io/nothing2obvi/pixelfin:latest .
-
-```
-
 ### Run the container
 
 ```bash
@@ -117,6 +110,7 @@ docker run -d \
   -p 1280:1280 \
   -v $(pwd)/output:/app/output \ # where HTML files go
   -v $(pwd)/assets:/app/assets \
+  -v $(pwd)/history.json:/app/history.json \
   ghcr.io/nothing2obvi/pixelfin:latest
 
 ```
