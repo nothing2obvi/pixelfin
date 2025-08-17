@@ -170,7 +170,7 @@ docker compose up -d
 
 - **Top summary table** – shows each item with checkmarks where images are missing
 - **Entries below** – each item gets its own block with:
-	- Left column: Primary / Thumb / ClearArt / Menu
+	- Left column: Primary, Thumb, ClearArt, Menu
 	- Right column: Backdrop, Banner, Box, BoxRear, Disc, Logo
 	- Missing image placeholders in red
 	- Resolution labels under each image
