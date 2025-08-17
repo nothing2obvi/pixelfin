@@ -111,6 +111,7 @@ docker run -d \
   -v $(pwd)/output:/app/output \ # where HTML files go
   -v $(pwd)/assets:/app/assets \
   -v $(pwd)/history.json:/app/history.json \
+  --name pixelfin \
   ghcr.io/nothing2obvi/pixelfin:latest
 
 ```
