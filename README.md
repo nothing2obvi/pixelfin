@@ -15,7 +15,7 @@ I built this entirely with **ChatGPT**, because I have **literally zero coding e
 ## Screenshots
 
 ### All Images
-![Screenshot_All.Images_Table](assets/Screenshot_All.Images_Table.png)
+![Screenshot_All.Images_Table](assets/Screenshot_All.Images_Table_v2.png)
 ![Screenshot_All.Images_Entry.png](assets/Screenshot_All.Images_Entry.png)
 
 ### Certain Images
