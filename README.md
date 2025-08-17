@@ -6,17 +6,25 @@ Do you ever wonder which image types you're missing?
 
 Pixelfin is a little Flask app + generator script that lets you quickly produce HTML galleries of your Jellyfin libraries, showing which image types (Primary, ClearArt, Backdrops, Logos, etc.) are present — and which ones are missing. It creates a clear, scrollable gallery with clickable images and a missing-image summary table.
 
-I built this entirely with **ChatGPT**, because I have literally zero coding experience. It works for me, and I personally use it to keep track of artwork across my Jellyfin setup. If you’re better at coding than me (which is basically everyone), feel free to improve it or collaborate — I’d love that.
+I built this entirely with **ChatGPT**, because I have **literally zero coding experience**. It works for me, and I personally use it to keep track of artwork across my Jellyfin setup. If you’re better at coding than me (which is basically everyone), feel free to improve it or collaborate — I’d love that.
 
 ---
+
+## Screenshots
+
+
+
+
 ## 🙋 About This Project
 
-This project is **functional, not perfect or polished**.  
+This project is **functional, not perfect or polished**.
+ 
 I have **literally zero coding experience** — everything here was stitched together with the help of ChatGPT. I thought it might be useful to someone else, so I decided to share it. Please be kind and patient if you run into rough edges.
 
 If you try it out:
 - Sometimes things just need a **restart**.  
-- Make sure `history.json` exists as an **empty file**, not a folder.   
+- Make sure `history.json` exists as an **empty file**, not a folder.
+- Depending on the size of the library, it can take some time.   
 
 This tool works for me, and I actively use it to manage artwork in my own Jellyfin setup. If you’re more experienced, you’ll almost certainly see ways to improve it. Contributions, fixes, and feedback are all very welcome, but I honestly wouldn't know how to act upon them without help. I'm just being real with you. I’d love to collaborate with anyone who finds this interesting.
  
@@ -38,7 +46,7 @@ This tool works for me, and I actively use it to manage artwork in my own Jellyf
 	- Clickable images with a lightbox viewer (Prev / Next / Close)
 - **Direct links to Jellyfin**
 	
-	Each item’s title links directly to its page in Jellyfin’s web UI.
+	Each item’s title links directly to its page in Jellyfin’s web UI so you can take action and make edits
 	
 - **Image resolution display**
 	
@@ -89,7 +97,7 @@ If you prefer Docker, you can run it without installing Python locally.
 ### Build the image
 
 ```bash
-docker build -t ghcr.io/<your-username>/pixelfin:latest .
+docker build -t ghcr.io/nothing2obvi/pixelfin:latest .
 
 ```
 
@@ -100,7 +108,7 @@ docker run -d \
   -p 1280:1280 \
   -v $(pwd)/output:/app/output \ # where HTML files go
   -v $(pwd)/assets:/app/assets \
-  ghcr.io/<your-username>/pixelfin:latest
+  ghcr.io/nothing2obvi/pixelfin:latest
 
 ```
 
@@ -117,15 +125,15 @@ Here’s a simple `docker-compose.yml`:
 ```yaml
 services:
   pixelfin:
-	image: ghcr.io/nothing2obvi/pixelfin:latest
-	container_name: pixelfin
-	ports:
-	  - "1280:1280"
-	volumes:
-	  - ./output:/app/output # where HTML files go
-	  - ./assets:/app/assets
-	  - ./history.json:/app/history.json
-	restart: unless-stopped
+    image: ghcr.io/nothing2obvi/pixelfin:latest
+    container_name: pixelfin
+    ports:
+      - "1280:1280"
+    volumes:
+      - ./output:/app/output # where HTML files go
+      - ./assets:/app/assets
+      - ./history.json:/app/history.json
+    restart: unless-stopped
 ```
 
 Run it with:
@@ -138,7 +146,7 @@ docker compose up -d
 
 ## 🛠 How It Works
 
-1. Start the app (`python app.py` or via Docker).
+1. Start the app (`python app.py` or via Docker). See `About this Project` if it's not working.
 2. Fill in:
 	- **Server URL** – your Jellyfin base URL (e.g. `http://192.168.1.100:8096`)
 	- **Library Name** – the library you want to inspect (e.g. `Movies`)
@@ -168,8 +176,6 @@ docker compose up -d
 
 ## ⚠️ Limitations
 
-- I don’t know how to code, so this is all ChatGPT’s work stitched together by me
-- The design is functional, not polished
 - Error handling is minimal
 - Only tested with my setup (Mac + Jellyfin 10.10.7)
 - Only tested with the following library types: Shows, Movies, Music Videos, Music
