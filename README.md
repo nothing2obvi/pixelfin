@@ -49,7 +49,7 @@ This tool works for me, and I actively use it to manage artwork in my own Jellyf
 - **Automatic galleries (generate_html.py)**
 	- Each item in the library with its images
 	- Missing images highlighted with placeholders
-	- A summary table at the top listing which image types each item is missing
+	- A summary table at the top listing which image types each item is missing; clicking on a title directs you to that entry
 	- Clickable images with a lightbox viewer (Prev / Next / Close)
 - **Direct links to Jellyfin**
 	
