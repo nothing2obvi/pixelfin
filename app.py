@@ -254,7 +254,7 @@ def index():
 			if PIXELFIN_BASE64:
 				with open(output_file, "r", encoding="utf-8") as f:
 					content = f.read()
-				content = content.replace("<body", f"<body>\n<img src='data:image/png;base64,{PIXELFIN_BASE64}' style='max-width:300px;' />", 1)
+				content = content.replace("<body>", f"<body>\n<img src='data:image/png;base64,{PIXELFIN_BASE64}' style='max-width:300px;' />", 1)
 				with open(output_file, "w", encoding="utf-8") as f:
 					f.write(content)
 
