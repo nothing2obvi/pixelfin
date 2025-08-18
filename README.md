@@ -45,7 +45,6 @@ If you try it out:
 - Make sure `history.json` exists as an **empty file**, not a folder.
 - If it doesn't work when first starting it up, try **restarting** it.
 - Depending on the size of the library, it can take some time to generate the HTML file.
-- I'm aware of the stray `>` underneath the logo on the generated HTML file. Believe me, I've tried to remove it.  
 
 This tool works for me, and I actively use it to manage artwork in my own Jellyfin setup. If you’re more experienced, you’ll almost certainly see ways to improve it. Contributions, fixes, and feedback are all very welcome, but I honestly wouldn't know how to act upon them without help. I'm just being real with you. I’d love to collaborate with anyone who finds this interesting.
 
