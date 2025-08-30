@@ -35,6 +35,9 @@ I vibe-coded this project entirely with ChatGPT, because I have literally zero c
 ### Certain Image Types - Entry with Missing Images
 ![Screenshot_Certain.Images_Entry_Missing](assets/Screenshot_Certain.Images_Entry_Missing.png)
 
+### Certain Image Types - Low Resolution Images
+![Screenshot_Low.Resolution](assets/Screenshot_Low.Resolution.png)
+
 ### Lightbox with Navigation
 ![Screenshot_Lightbox](assets/Screenshot_Lightbox.png)
 
