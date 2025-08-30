@@ -39,7 +39,7 @@ I vibe-coded this project entirely with ChatGPT, because I have literally zero c
 ![Screenshot_Low.Resolution](assets/Screenshot_Low.Resolution.png)
 
 ### Lightbox with Navigation
-![Screenshot_Lightbox](assets/Screenshot_Lightbox.png)
+![Screenshot_Lightbox](assets/Screenshot_Lightbox_v2.png)
 
 ## 🙋 About This Project
 
