@@ -4,6 +4,8 @@ services:
     container_name: pixelfin
     ports:
       - "1280:1280"
+    environment:
+      - TZ=America/Chicago
     volumes:
       - ./output:/app/output
       - ./assets:/app/assets

@@ -51,6 +51,10 @@ FORM_HTML = """
 <meta charset="utf-8">
 <title>Pixelfin</title>
 <link rel="icon" type="image/png" href="/assets/Pixelfin_Favicon.png" />
+<style>
+  table.res-table { border-collapse: collapse; margin-top: 10px; }
+  table.res-table th, table.res-table td { border:1px solid #ccc; padding:5px; text-align:center; }
+</style>
 </head>
 <body>
 {% if pixelfin %}
@@ -80,11 +84,26 @@ FORM_HTML = """
   Background Color: <input type=color name=bgcolor value="{{selected.bgcolor}}"><br><br>
   Text Color: <input type=color name=textcolor value="{{selected.textcolor}}"><br><br>
   Table Background Color: <input type=color name=tablebgcolor value="{{selected.tablebgcolor}}"><br><br>
+
   <b>Image Types:</b><br>
   {% for code, label in image_types.items() %}
 	<input type=checkbox name=images value="{{ code }}" {% if code in selected.images %}checked{% endif %}> {{ label }}<br>
   {% endfor %}
   <br>
+
+  <b>Minimum Resolution (leave blank to allow any):</b>
+  <table class="res-table">
+	<tr><th>Image Type</th><th>Min Width</th><th>Min Height</th></tr>
+	{% for code, label in image_types.items() %}
+	  <tr>
+		<td>{{ label }}</td>
+		<td><input type="number" name="minres_{{ code }}_w" value="{{ selected.minres[code][0] if code in selected.minres else '' }}" style="width:80px;"></td>
+		<td><input type="number" name="minres_{{ code }}_h" value="{{ selected.minres[code][1] if code in selected.minres else '' }}" style="width:80px;"></td>
+	  </tr>
+	{% endfor %}
+  </table>
+  <br>
+
   API Key: <input type=text name=apikey value="{{selected.apikey}}" required><br><br>
   <input type=submit value="Generate">
 </form>
@@ -137,7 +156,8 @@ def save_history(server, library, settings):
 	history['last_used'] = {
 		'server': server,
 		'apikey': settings['apikey'],
-		'images': settings['images']
+		'images': settings['images'],
+		'minres': settings.get('minres', {})
 	}
 	with open(HISTORY_FILE, 'w') as f:
 		json.dump(history, f)
@@ -175,7 +195,8 @@ def index():
 		'textcolor': '#ffffff',
 		'tablebgcolor': '#000000',
 		'images': last_used.get('images', list(IMAGE_TYPE_OPTIONS.keys())),
-		'apikey': last_used.get('apikey','')
+		'apikey': last_used.get('apikey',''),
+		'minres': last_used.get('minres', {})
 	}
 
 	if request.method == "POST" or request.args.get("library"):
@@ -189,7 +210,8 @@ def index():
 			'textcolor': request.form.get("textcolor", lib_settings.get('textcolor', '#ffffff')),
 			'tablebgcolor': request.form.get("tablebgcolor", lib_settings.get('tablebgcolor', '#000000')),
 			'images': request.form.getlist("images") or lib_settings.get('images', list(IMAGE_TYPE_OPTIONS.keys())),
-			'apikey': request.form.get("apikey", lib_settings.get('apikey', last_used.get('apikey','')))
+			'apikey': request.form.get("apikey", lib_settings.get('apikey', last_used.get('apikey',''))),
+			'minres': lib_settings.get('minres', last_used.get('minres', {}))
 		})
 
 	if request.method == "POST":
@@ -201,12 +223,24 @@ def index():
 		tablebgcolor = selected['tablebgcolor']
 		selected_images = selected['images']
 
+		# collect min resolution inputs
+		minres = {}
+		for code in IMAGE_TYPE_OPTIONS:
+			try:
+				w = int(request.form.get(f"minres_{code}_w") or 0)
+				h = int(request.form.get(f"minres_{code}_h") or 0)
+				if w > 0 and h > 0:
+					minres[code] = (w, h)
+			except ValueError:
+				continue
+
 		save_history(server, library, {
 			'apikey': apikey,
 			'bgcolor': bgcolor,
 			'textcolor': textcolor,
 			'tablebgcolor': tablebgcolor,
-			'images': selected_images
+			'images': selected_images,
+			'minres': minres
 		})
 
 		safe_library = library.replace(" ", "")
@@ -219,18 +253,23 @@ def index():
 		log_queue = queue.Queue()
 
 		def run_generate_html():
+			args = [
+				"python", "generate_html.py",
+				"--server", server,
+				"--apikey", apikey,
+				"--library", library,
+				"--output", output_file,
+				"--bgcolor", bgcolor,
+				"--textcolor", textcolor,
+				"--tablebgcolor", tablebgcolor,
+				"--images", ','.join(selected_images)
+			]
+			if minres:
+				minres_str = ";".join([f"{code}:{w}x{h}" for code,(w,h) in minres.items()])
+				args += ["--minres", minres_str]
+
 			proc = subprocess.Popen(
-				[
-					"python", "generate_html.py",
-					"--server", server,
-					"--apikey", apikey,
-					"--library", library,
-					"--output", output_file,
-					"--bgcolor", bgcolor,
-					"--textcolor", textcolor,
-					"--tablebgcolor", tablebgcolor,
-					"--images", ','.join(selected_images)
-				],
+				args,
 				stdout=subprocess.PIPE,
 				stderr=subprocess.STDOUT,
 				text=True
@@ -254,7 +293,7 @@ def index():
 			if PIXELFIN_BASE64:
 				with open(output_file, "r", encoding="utf-8") as f:
 					content = f.read()
-				content = content.replace("<body", f"<body>\n<img src='data:image/png;base64,{PIXELFIN_BASE64}' style='max-width:300px;' />", 1)
+				content = content.replace("<body>", f"<body>\n<img src='data:image/png;base64,{PIXELFIN_BASE64}' style='max-width:300px;' />", 1)
 				with open(output_file, "w", encoding="utf-8") as f:
 					f.write(content)
 

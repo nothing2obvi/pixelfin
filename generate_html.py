@@ -24,12 +24,44 @@ IMAGE_TYPES_MAP = {
 	'm': 'Menu',
 	't': 'Thumb'
 }
+# Reverse map for lookup by ImageTypeName
+IMAGE_TYPES_REVERSE = {v: k for k, v in IMAGE_TYPES_MAP.items()}
 
 # Columns and display order
 # Left: Primary → Thumb → ClearArt → Menu (all full width)
 LEFT_TYPES = ['p', 't', 'c', 'm']
 # Right: Backdrop (full) → Banner (full) → Box → BoxRear → Disc (row, 1/3 each) → Logo (60% width, left)
 RIGHT_TYPES = ['bd', 'bn', 'b', 'br', 'd', 'l']
+
+def parse_minres_arg(minres_str):
+	"""
+	Parse --minres like "bd:3840x2160;p:2000x3000" into dict {code: (w,h)}
+	"""
+	result = {}
+	if not minres_str:
+		return result
+	parts = [p.strip() for p in minres_str.split(';') if p.strip()]
+	for part in parts:
+		try:
+			code, wh = part.split(':', 1)
+			w, h = wh.lower().split('x', 1)
+			w = int(w)
+			h = int(h)
+			if code in IMAGE_TYPES_MAP and w > 0 and h > 0:
+				result[code] = (w, h)
+		except Exception:
+			continue
+	return result
+
+def check_low_res(code, width, height, minres):
+	"""
+	Return True if this (w,h) is below the minimum for image 'code'.
+	If no minimum is configured for the code, returns False.
+	"""
+	if not code or code not in minres:
+		return False
+	min_w, min_h = minres[code]
+	return (width and height) and (width < min_w or height < min_h)
 
 def get_first_user_id(base_url, api_key):
 	url = urljoin(base_url.rstrip('/') + '/', 'Users')
@@ -117,7 +149,8 @@ def find_image_tags(item, image_type, base_url, api_key, first_only=False):
 			tags.append((image_type, url, width, height))
 	return tags
 
-def generate_html(items, image_types, base_url, api_key, output_file, bgcolor, textcolor, tablebgcolor, library_type, library_name, timestamp):
+def generate_html(items, image_types, base_url, api_key, output_file, bgcolor, textcolor, tablebgcolor,
+				  library_type, library_name, timestamp, minres):
 	html = [f'''<html>
 <head>
 <meta charset="utf-8">
@@ -153,7 +186,7 @@ h2 {{ font-size: 28px; margin: 20px 0 20px 0; text-align: center; }}
 table {{ border-collapse: collapse; margin-bottom: 40px; width: 100%; background-color: {tablebgcolor}; }}
 th, td {{ border: 1px solid #ccc; padding: 8px; text-align: left; font-size: 18px; color: {textcolor}; }}
 th {{ background-color: rgba(200,200,200,0.2); }}
-/* Missing list pinned to bottom of left column */
+/* Missing/low list pinned to bottom of left column */
 .missing-list {{ color:red; font-weight:bold; text-align:center; margin-top:auto; }}
 /* Visual placeholder boxes for missing images */
 .placeholder {{ border:2px dashed red; border-radius:5px; color:red; font-weight:bold; display:flex; align-items:center; justify-content:center; height:150px; }}
@@ -163,6 +196,7 @@ a:hover {{ text-decoration: underline; }}
 .scroll-top {{ text-align:center; margin-top:10px; }}
 .entry-title {{ margin-bottom:15px; }}
 .resolution {{ font-size:14px; opacity:0.9; }}
+.lowres {{ color: #ff6767; font-weight: bold; }}
 </style>
 </head>
 <body>
@@ -174,30 +208,49 @@ a:hover {{ text-decoration: underline; }}
 	items.sort(key=lambda x: str(x.get('Name', '')).lower())
 
 	# Summary Table
-	html.append('<h2>Missing Image Types Summary</h2>')
+	html.append('<h2>Missing / Low Resolution Images Summary</h2>')
 	html.append('<table><tr><th>Item Name</th>')
 	for code in image_types:
 		html.append(f'<th>{IMAGE_TYPES_MAP.get(code, code)}</th>')
 	html.append('</tr>')
 
-	missing_summary = {}
+	# Track per-item issues for quick reuse
+	per_item_issues = {}  # itemId -> {'missing': [typeName], 'lowres': [typeName]}
+
 	for item in items:
 		missing_types = []
+		lowres_types = []
+
 		for code in image_types:
 			image_type = IMAGE_TYPES_MAP.get(code)
-			tags = find_image_tags(item, image_type, base_url, api_key, first_only=True)
+			tags = find_image_tags(item, image_type, base_url, api_key, first_only=False)
 			if not tags:
 				missing_types.append(image_type)
-		missing_summary[item['Id']] = missing_types
+			else:
+				# If ANY tag of this type is below min, the type is considered low-res for summary
+				for _, _, w, h in tags:
+					if check_low_res(code, w, h, minres):
+						lowres_types.append(image_type)
+						break
+
+		per_item_issues[item['Id']] = {'missing': missing_types, 'lowres': lowres_types}
+
 		safe_name = str(item.get("Name", ""))
 		html.append(f'<tr><td><a href="#item_{item["Id"]}">{safe_name}</a></td>')
 		for code in image_types:
-			html.append(f'<td>{"Yes" if IMAGE_TYPES_MAP.get(code) in missing_types else ""}</td>')
+			tname = IMAGE_TYPES_MAP.get(code)
+			mark_yes = (tname in missing_types) or (tname in lowres_types)
+			html.append(f'<td>{"Yes" if mark_yes else ""}</td>')
 		html.append('</tr>')
 	html.append('</table>')
 
 	left_codes = [c for c in LEFT_TYPES if c in image_types]
 	right_codes = [c for c in RIGHT_TYPES if c in image_types]
+
+	def caption_html(itype, w, h, low):
+		extra = " - LOW RESOLUTION" if low else ""
+		cls = "resolution lowres" if low else "resolution"
+		return f'<div class="{cls}">{itype} {w}x{h}{extra}</div>'
 
 	for item in items:
 		link_url = f"{base_url.rstrip('/')}/web/index.html#!/details?id={item['Id']}"
@@ -205,33 +258,41 @@ a:hover {{ text-decoration: underline; }}
 		html.append(f'<div class="movie" id="item_{item["Id"]}"><h2 class="entry-title"><a target="_blank" href="{link_url}">{safe_name}</a></h2>')
 		html.append('<div class="image-row">')
 
+		# Gather issue lists for this item (missing + lowres)
+		item_missing = per_item_issues[item['Id']]['missing']
+		item_lowres = per_item_issues[item['Id']]['lowres']
+
 		# LEFT COLUMN (1/3 width)
 		html.append('<div class="left-column">')
-		all_missing = []
-		for code in left_codes + right_codes:
-			image_type_name = IMAGE_TYPES_MAP.get(code)
-			tags = find_image_tags(item, image_type_name, base_url, api_key)
-			if not tags:
-				all_missing.append(image_type_name)
 
+		# Render left-column types (with LOW RESOLUTION marking)
 		for code in left_codes:
 			image_type_name = IMAGE_TYPES_MAP.get(code)
 			tags = find_image_tags(item, image_type_name, base_url, api_key)
 			if tags:
 				for itype, url, w, h in tags:
-					caption = f"{safe_name} - {itype} ({w}x{h})"
+					low = check_low_res(code, w, h, minres)
+					# add "- LOW RESOLUTION" to alt so lightbox caption shows it too
+					alt_caption = f"{safe_name} - {itype} ({w}x{h})" + (" - LOW RESOLUTION" if low else "")
 					html.append(f'''
 <div class="image-grid">
   <a href="#lightbox" onclick="openLightbox('{item["Id"]}', this.querySelector('img').src); return false;">
-	<img src="{url}" alt="{caption}" loading="lazy">
+	<img src="{url}" alt="{alt_caption}" loading="lazy">
   </a>
-  <div class="resolution">{itype} {w}x{h}</div>
+  {caption_html(itype, w, h, low)}
 </div>''')
 			else:
 				html.append(f'<div class="placeholder">Missing: {image_type_name}</div>')
 
-		if all_missing:
-			html.append('<div class="missing-list">Missing:<br>' + ", ".join(all_missing) + '</div>')
+		# Issue list at bottom of left column: include missing AND low-res
+		issues_lines = []
+		if item_missing:
+			issues_lines.append("Missing:<br>" + ", ".join(item_missing))
+		if item_lowres:
+			issues_lines.append("Low Resolution:<br>" + ", ".join(item_lowres))
+		if issues_lines:
+			html.append('<div class="missing-list">' + "<br><br>".join(issues_lines) + '</div>')
+
 		html.append('</div>')  # left-column
 
 		# RIGHT COLUMN (2/3 width)
@@ -242,13 +303,14 @@ a:hover {{ text-decoration: underline; }}
 			tags = find_image_tags(item, 'Backdrop', base_url, api_key)
 			if tags:
 				for itype, url, w, h in tags:
-					caption = f"{safe_name} - {itype} ({w}x{h})"
+					low = check_low_res('bd', w, h, minres)
+					alt_caption = f"{safe_name} - {itype} ({w}x{h})" + (" - LOW RESOLUTION" if low else "")
 					html.append(f'''
 <div class="image-grid">
   <a href="#lightbox" onclick="openLightbox('{item["Id"]}', this.querySelector('img').src); return false;">
-	<img src="{url}" class="banner-full" alt="{caption}" loading="lazy">
+	<img src="{url}" class="banner-full" alt="{alt_caption}" loading="lazy">
   </a>
-  <div class="resolution">{itype} {w}x{h}</div>
+  {caption_html(itype, w, h, low)}
 </div>''')
 			else:
 				html.append('<div class="placeholder">Missing: Backdrop</div>')
@@ -258,13 +320,14 @@ a:hover {{ text-decoration: underline; }}
 			tags = find_image_tags(item, 'Banner', base_url, api_key)
 			if tags:
 				for itype, url, w, h in tags:
-					caption = f"{safe_name} - {itype} ({w}x{h})"
+					low = check_low_res('bn', w, h, minres)
+					alt_caption = f"{safe_name} - {itype} ({w}x{h})" + (" - LOW RESOLUTION" if low else "")
 					html.append(f'''
 <div class="image-grid">
   <a href="#lightbox" onclick="openLightbox('{item["Id"]}', this.querySelector('img').src); return false;">
-	<img src="{url}" class="banner-full" alt="{caption}" loading="lazy">
+	<img src="{url}" class="banner-full" alt="{alt_caption}" loading="lazy">
   </a>
-  <div class="resolution">{itype} {w}x{h}</div>
+  {caption_html(itype, w, h, low)}
 </div>''')
 			else:
 				html.append('<div class="placeholder">Missing: Banner</div>')
@@ -277,13 +340,14 @@ a:hover {{ text-decoration: underline; }}
 				tags = find_image_tags(item, image_type_name, base_url, api_key)
 				if tags:
 					for itype, url, w, h in tags:
-						caption = f"{safe_name} - {itype} ({w}x{h})"
+						low = check_low_res(code, w, h, minres)
+						alt_caption = f"{safe_name} - {itype} ({w}x{h})" + (" - LOW RESOLUTION" if low else "")
 						html.append(f'''
 <div class="image-grid">
   <a href="#lightbox" onclick="openLightbox('{item["Id"]}', this.querySelector('img').src); return false;">
-	<img src="{url}" alt="{caption}" loading="lazy">
+	<img src="{url}" alt="{alt_caption}" loading="lazy">
   </a>
-  <div class="resolution">{itype} {w}x{h}</div>
+  {caption_html(itype, w, h, low)}
 </div>''')
 				else:
 					html.append(f'<div class="image-grid"><div class="placeholder">Missing: {image_type_name}</div></div>')
@@ -294,13 +358,14 @@ a:hover {{ text-decoration: underline; }}
 			tags = find_image_tags(item, 'Logo', base_url, api_key)
 			if tags:
 				for itype, url, w, h in tags:
-					caption = f"{safe_name} - {itype} ({w}x{h})"
+					low = check_low_res('l', w, h, minres)
+					alt_caption = f"{safe_name} - {itype} ({w}x{h})" + (" - LOW RESOLUTION" if low else "")
 					html.append(f'''
 <div class="image-grid">
   <a href="#lightbox" onclick="openLightbox('{item["Id"]}', this.querySelector('img').src); return false;">
-	<img src="{url}" class="logo-img" alt="{caption}" loading="lazy">
+	<img src="{url}" class="logo-img" alt="{alt_caption}" loading="lazy">
   </a>
-  <div class="resolution">{itype} {w}x{h}</div>
+  {caption_html(itype, w, h, low)}
 </div>''')
 			else:
 				html.append('<div class="placeholder">Missing: Logo</div>')
@@ -311,7 +376,7 @@ a:hover {{ text-decoration: underline; }}
 		html.append('<div class="scroll-top"><a href="#top">↑ Scroll to Top</a></div>')
 		html.append('</div>')  # movie
 
-	# LIGHTBOX (restored)
+	# LIGHTBOX
 	html.append('''
 <div id="lightbox" class="lightbox" onclick="clickOutside(event)">
   <div class="lightbox-content">
@@ -380,9 +445,12 @@ if __name__ == '__main__':
 	parser.add_argument('--tablebgcolor', default='#333')
 	# Default order matches requested layout; no duplicate "box"
 	parser.add_argument('--images', default='p,t,c,m,bd,bn,b,br,d,l')
+	# NEW: minimum resolutions string, e.g. "bd:3840x2160;p:2000x3000"
+	parser.add_argument('--minres', default='', help='Semicolon-separated list like "bd:3840x2160;p:2000x3000"')
 	args = parser.parse_args()
 
 	image_types = args.images.split(',')
+	minres = parse_minres_arg(args.minres)
 
 	try:
 		user_id = get_first_user_id(args.server, args.apikey)
@@ -394,7 +462,7 @@ if __name__ == '__main__':
 		timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 		generate_html(items, image_types, args.server, args.apikey, args.output,
 					  args.bgcolor, args.textcolor, args.tablebgcolor,
-					  library_type, args.library, timestamp)
+					  library_type, args.library, timestamp, minres)
 	except requests.HTTPError as e:
 		print(f"HTTP error: {e}")
 		sys.exit(1)
