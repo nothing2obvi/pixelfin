@@ -1,0 +1,12 @@
+services:
+  pixelfin:
+    image: ghcr.io/nothing2obvi/pixelfin:latest
+    container_name: pixelfin
+    ports:
+      - "1280:1280"
+    environment:
+      - TZ=America/Chicago
+    volumes:
+      - ./output:/app/output
+      - ./history.json:/app/history.json
+    restart: unless-stopped
