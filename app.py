@@ -50,7 +50,7 @@ FORM_HTML = """
 <head>
 <meta charset="utf-8">
 <title>Pixelfin</title>
-<link rel="icon" type="image/png" href="/assets/Pixelfin_Favicon.png" />
+<link rel="icon" type="image/png" href="{{ url_for('serve_assets', filename='Pixelfin_Favicon.png') }}" />
 <style>
   table.res-table { border-collapse: collapse; margin-top: 10px; }
   table.res-table th, table.res-table td { border:1px solid #ccc; padding:5px; text-align:center; }
