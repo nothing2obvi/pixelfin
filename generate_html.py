@@ -1,15 +1,31 @@
-#!/usr/bin/env python3
 import requests
 import argparse
 import sys
 import os
 import warnings
+import tempfile
+import json
 from urllib.parse import urljoin
 from io import BytesIO
-from PIL import Image
+from PIL import Image, ImageFile
 from datetime import datetime
+from typing import Dict, Tuple, Iterable, Generator, List, Optional
+from zipfile import ZipFile, ZIP_DEFLATED
+import re
+import mimetypes
 
+# Keep original warning suppression behavior
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
+
+# Reuse parser to avoid full image load
+ImageFile.LOAD_TRUNCATED_IMAGES = True
+
+# Base directory of this script (used to resolve relative output paths safely)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# ----------------------------------------------------------------------
+# ORIGINAL CONSTANTS (PRESERVED)
+# ----------------------------------------------------------------------
 
 # Map short codes to Jellyfin image types
 IMAGE_TYPES_MAP = {
@@ -33,10 +49,39 @@ LEFT_TYPES = ['p', 't', 'c', 'm']
 # Right: Backdrop (full) → Banner (full) → Box → BoxRear → Disc (row, 1/3 each) → Logo (60% width, left)
 RIGHT_TYPES = ['bd', 'bn', 'b', 'br', 'd', 'l']
 
+# Defaults used for ZIP filename overrides (base names, no extension)
+DEFAULT_ZIP_BASENAMES = {
+	'p': 'cover',
+	't': 'thumbnail',
+	'bd': 'backdrop',
+	'c': 'clearart',
+	'bn': 'banner',
+	'b': 'box',
+	'br': 'boxrear',
+	'd': 'disc',
+	'l': 'logo',
+	'm': 'menu'
+}
+
+# ----------------------------------------------------------------------
+# NEW: Shared requests session with timeouts for efficiency & stability
+# ----------------------------------------------------------------------
+
+_DEFAULT_TIMEOUT = (10, 30)  # (connect, read) seconds; conservative but safe
+_session: Optional[requests.Session] = None
+
+def _get_session() -> requests.Session:
+	global _session
+	if _session is None:
+		_session = requests.Session()
+		_session.headers.update({'User-Agent': 'generate_html.py (memory-friendly)'})
+	return _session
+
+# ----------------------------------------------------------------------
+# ORIGINAL FUNCTIONS (with memory-friendly internal improvements)
+# ----------------------------------------------------------------------
+
 def parse_minres_arg(minres_str):
-	"""
-	Parse --minres like "bd:3840x2160;p:2000x3000" into dict {code: (w,h)}
-	"""
 	result = {}
 	if not minres_str:
 		return result
@@ -54,10 +99,6 @@ def parse_minres_arg(minres_str):
 	return result
 
 def check_low_res(code, width, height, minres):
-	"""
-	Return True if this (w,h) is below the minimum for image 'code'.
-	If no minimum is configured for the code, returns False.
-	"""
 	if not code or code not in minres:
 		return False
 	min_w, min_h = minres[code]
@@ -66,7 +107,7 @@ def check_low_res(code, width, height, minres):
 def get_first_user_id(base_url, api_key):
 	url = urljoin(base_url.rstrip('/') + '/', 'Users')
 	headers = {'X-Emby-Token': api_key}
-	resp = requests.get(url, headers=headers)
+	resp = _get_session().get(url, headers=headers, timeout=_DEFAULT_TIMEOUT)
 	resp.raise_for_status()
 	for user in resp.json():
 		if not user.get('IsHidden', False):
@@ -76,7 +117,7 @@ def get_first_user_id(base_url, api_key):
 def get_library_id(base_url, api_key, user_id, library_name):
 	url = urljoin(base_url.rstrip('/') + '/', f'Users/{user_id}/Views')
 	headers = {'X-Emby-Token': api_key}
-	resp = requests.get(url, headers=headers)
+	resp = _get_session().get(url, headers=headers, timeout=_DEFAULT_TIMEOUT)
 	resp.raise_for_status()
 	for item in resp.json()['Items']:
 		if item['Name'].lower() == library_name.lower():
@@ -85,54 +126,116 @@ def get_library_id(base_url, api_key, user_id, library_name):
 
 def get_library_items(base_url, api_key, user_id, library_id, library_type):
 	items = []
+	for it in get_library_items_iter(base_url, api_key, user_id, library_id, library_type,
+									 recursive=False, page_size=100):
+		items.append(it)
+	return items
+
+# ----------------------------------------------------------------------
+# NEW: Generator-based item retrieval for low memory usage
+# ----------------------------------------------------------------------
+
+def _item_type_passes_filter(item_type: str, library_type: str) -> bool:
+	lib_type_lower = (library_type or '').lower()
+	type_lower = (item_type or '').lower()
+	if lib_type_lower == 'series' and type_lower != 'series':
+		return False
+	elif lib_type_lower == 'movie' and type_lower != 'movie':
+		return False
+	elif lib_type_lower == 'music':
+		return True
+	elif lib_type_lower == 'musicvideos':
+		return type_lower in ('artist', 'musicvideoalbum', 'folder')
+	return True
+
+def get_library_items_iter(base_url: str,
+						   api_key: str,
+						   user_id: str,
+						   library_id: str,
+						   library_type: str,
+						   recursive: bool = False,
+						   page_size: int = 100) -> Generator[dict, None, None]:
 	headers = {'X-Emby-Token': api_key}
 	start_index = 0
-	limit = 100
 	lib_type_lower = (library_type or '').lower()
-
 	while True:
 		url = urljoin(
 			base_url.rstrip('/') + '/',
-			f'Users/{user_id}/Items?ParentId={library_id}&Recursive=false&StartIndex={start_index}&Limit={limit}'
+			f'Users/{user_id}/Items?ParentId={library_id}&Recursive={"true" if recursive else "false"}&StartIndex={start_index}&Limit={page_size}'
 		)
-		resp = requests.get(url, headers=headers)
+		resp = _get_session().get(url, headers=headers, timeout=_DEFAULT_TIMEOUT)
 		resp.raise_for_status()
 		data = resp.json()
-		for item in data.get('Items', []):
+		page_items = data.get('Items', []) or []
+
+		for item in page_items:
 			type_lower = (item.get('Type') or '').lower()
 			if lib_type_lower == 'series' and type_lower != 'series':
 				continue
 			elif lib_type_lower == 'movie' and type_lower != 'movie':
 				continue
 			elif lib_type_lower == 'music':
-				items.append(item)
+				yield item
 				continue
 			elif lib_type_lower == 'musicvideos':
 				if type_lower in ('artist', 'musicvideoalbum', 'folder'):
-					items.append(item)
+					yield item
 				continue
-			items.append(item)
-		if len(data.get('Items', [])) < limit:
+			yield item
+
+		if len(page_items) < page_size:
 			break
-		start_index += limit
-	return items
+		start_index += page_size
+
+# ----------------------------------------------------------------------
+# MEMORY-FRIENDLY IMAGE SIZE PROBING
+# ----------------------------------------------------------------------
+
+def _probe_image_size_stream(resp_raw) -> Tuple[int, int]:
+	parser = ImageFile.Parser()
+	chunk_size = 16 * 1024
+	while True:
+		chunk = resp_raw.read(chunk_size)
+		if not chunk:
+			break
+		parser.feed(chunk)
+		try:
+			if parser.image:
+				return parser.image.size
+		except Exception:
+			pass
+	try:
+		img = parser.close()
+		if img:
+			return img.size
+	except Exception:
+		pass
+	return (0, 0)
 
 def get_image_resolution(url):
 	try:
-		resp = requests.get(url)
-		resp.raise_for_status()
-		img = Image.open(BytesIO(resp.content))
-		return img.size
+		with _get_session().get(url, stream=True, timeout=_DEFAULT_TIMEOUT) as resp:
+			resp.raise_for_status()
+			if hasattr(resp, 'raw') and resp.raw:
+				return _probe_image_size_stream(resp.raw)
+			prefix = resp.content[:64 * 1024]
+			parser = ImageFile.Parser()
+			parser.feed(prefix)
+			if parser.image:
+				return parser.image.size
+			try:
+				img = parser.close()
+				if img:
+					return img.size
+			except Exception:
+				pass
+			return (0, 0)
 	except Exception:
 		return (0, 0)
 
 def find_image_tags(item, image_type, base_url, api_key, first_only=False):
-	"""
-	Returns list of tuples: (ImageTypeName, url, width, height)
-	"""
 	image_tags_dict = item.get('ImageTags', {}) or {}
 	tags = []
-	# Tagged images (supports multiple)
 	for key, tag in image_tags_dict.items():
 		key_lower = (key or '').lower()
 		if key_lower.startswith((image_type or '').lower()):
@@ -141,7 +244,6 @@ def find_image_tags(item, image_type, base_url, api_key, first_only=False):
 			tags.append((image_type, url, width, height))
 			if first_only:
 				return tags
-	# Fallback untagged endpoint
 	if not tags:
 		url = f"{base_url.rstrip('/')}/Items/{item['Id']}/Images/{image_type}?api_key={api_key}"
 		width, height = get_image_resolution(url)
@@ -149,9 +251,62 @@ def find_image_tags(item, image_type, base_url, api_key, first_only=False):
 			tags.append((image_type, url, width, height))
 	return tags
 
-def generate_html(items, image_types, base_url, api_key, output_file, bgcolor, textcolor, tablebgcolor,
-				  library_type, library_name, timestamp, minres):
-	html = [f'''<html>
+# ----------------------------------------------------------------------
+# Utility helpers for ZIP creation
+# ----------------------------------------------------------------------
+
+_SAFE_NAME_RE = re.compile(r'[\\/:*?"<>|\r\n]+')
+
+def sanitize_folder_name(name: str) -> str:
+	s = _SAFE_NAME_RE.sub('_', name or '')
+	s = s.strip().strip('.')
+	return s or 'Untitled'
+
+def pick_extension(url: str, content_type: str | None) -> str:
+	# Prefer content-type if provided
+	if content_type:
+		if 'jpeg' in content_type:
+			return '.jpg'
+		if 'png' in content_type:
+			return '.png'
+		if 'webp' in content_type:
+			return '.webp'
+		if 'gif' in content_type:
+			return '.gif'
+		if 'bmp' in content_type:
+			return '.bmp'
+	# Fallback to URL suffix
+	ext = os.path.splitext(url.split('?',1)[0])[1].lower()
+	if ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp']:
+		return ext if ext != '.jpeg' else '.jpg'
+	# Default
+	return '.jpg'
+
+def stream_to_bytes(url: str) -> tuple[bytes, str]:
+	resp = _get_session().get(url, stream=True, timeout=_DEFAULT_TIMEOUT)
+	resp.raise_for_status()
+	content_type = resp.headers.get('Content-Type', '')
+	chunks = []
+	for chunk in resp.iter_content(chunk_size=64 * 1024):
+		if chunk:
+			chunks.append(chunk)
+	data = b''.join(chunks)
+	return data, pick_extension(url, content_type)
+
+# ----------------------------------------------------------------------
+# LOW-MEMORY HTML GENERATION (PRESERVED with safe-path fix)
+# ----------------------------------------------------------------------
+
+def _safe_name(item: dict) -> str:
+	return str(item.get("Name", ""))
+
+def _build_caption_html(itype: str, w: int, h: int, low: bool) -> str:
+	extra = " - LOW RESOLUTION" if low else ""
+	cls = "resolution lowres" if low else "resolution"
+	return f'<div class="{cls}">{itype} {w}x{h}{extra}</div>'
+
+def _write_html_header(fp, bgcolor, textcolor, tablebgcolor, library_name, timestamp):
+	fp.write(f'''<html>
 <head>
 <meta charset="utf-8">
 <title>Jellyfin Images - {library_name}</title>
@@ -203,181 +358,29 @@ a:hover {{ text-decoration: underline; }}
 <div class="backlink" id="top"><a href="/">← Back to Main Page</a></div>
 <h1>{library_name}</h1>
 <p>Generated: {timestamp}</p>
-''']
+''')
 
-	items.sort(key=lambda x: str(x.get('Name', '')).lower())
-
-	# Summary Table
-	html.append('<h2>Missing / Low Resolution Images Summary</h2>')
-	html.append('<table><tr><th>Item Name</th>')
+def _write_summary_table_open(fp, image_types: List[str]):
+	fp.write('<h2>Missing / Low Resolution Images Summary</h2>\n')
+	fp.write('<table><tr><th>Item Name</th>')
 	for code in image_types:
-		html.append(f'<th>{IMAGE_TYPES_MAP.get(code, code)}</th>')
-	html.append('</tr>')
+		fp.write(f'<th>{IMAGE_TYPES_MAP.get(code, code)}</th>')
+	fp.write('</tr>\n')
 
-	# Track per-item issues for quick reuse
-	per_item_issues = {}  # itemId -> {'missing': [typeName], 'lowres': [typeName]}
+def _write_summary_table_row(fp, item_id: str, safe_name: str, image_types: List[str],
+							 missing_types: List[str], lowres_types: List[str]):
+	fp.write(f'<tr><td><a href="#item_{item_id}">{safe_name}</a></td>')
+	for code in image_types:
+		tname = IMAGE_TYPES_MAP.get(code)
+		mark_yes = (tname in missing_types) or (tname in lowres_types)
+		fp.write(f'<td>{"Yes" if mark_yes else ""}</td>')
+	fp.write('</tr>\n')
 
-	for item in items:
-		missing_types = []
-		lowres_types = []
+def _write_summary_table_close(fp):
+	fp.write('</table>\n')
 
-		for code in image_types:
-			image_type = IMAGE_TYPES_MAP.get(code)
-			tags = find_image_tags(item, image_type, base_url, api_key, first_only=False)
-			if not tags:
-				missing_types.append(image_type)
-			else:
-				# If ANY tag of this type is below min, the type is considered low-res for summary
-				for _, _, w, h in tags:
-					if check_low_res(code, w, h, minres):
-						lowres_types.append(image_type)
-						break
-
-		per_item_issues[item['Id']] = {'missing': missing_types, 'lowres': lowres_types}
-
-		safe_name = str(item.get("Name", ""))
-		html.append(f'<tr><td><a href="#item_{item["Id"]}">{safe_name}</a></td>')
-		for code in image_types:
-			tname = IMAGE_TYPES_MAP.get(code)
-			mark_yes = (tname in missing_types) or (tname in lowres_types)
-			html.append(f'<td>{"Yes" if mark_yes else ""}</td>')
-		html.append('</tr>')
-	html.append('</table>')
-
-	left_codes = [c for c in LEFT_TYPES if c in image_types]
-	right_codes = [c for c in RIGHT_TYPES if c in image_types]
-
-	def caption_html(itype, w, h, low):
-		extra = " - LOW RESOLUTION" if low else ""
-		cls = "resolution lowres" if low else "resolution"
-		return f'<div class="{cls}">{itype} {w}x{h}{extra}</div>'
-
-	for item in items:
-		link_url = f"{base_url.rstrip('/')}/web/index.html#!/details?id={item['Id']}"
-		safe_name = str(item.get("Name", ""))
-		html.append(f'<div class="movie" id="item_{item["Id"]}"><h2 class="entry-title"><a target="_blank" href="{link_url}">{safe_name}</a></h2>')
-		html.append('<div class="image-row">')
-
-		# Gather issue lists for this item (missing + lowres)
-		item_missing = per_item_issues[item['Id']]['missing']
-		item_lowres = per_item_issues[item['Id']]['lowres']
-
-		# LEFT COLUMN (1/3 width)
-		html.append('<div class="left-column">')
-
-		# Render left-column types (with LOW RESOLUTION marking)
-		for code in left_codes:
-			image_type_name = IMAGE_TYPES_MAP.get(code)
-			tags = find_image_tags(item, image_type_name, base_url, api_key)
-			if tags:
-				for itype, url, w, h in tags:
-					low = check_low_res(code, w, h, minres)
-					# add "- LOW RESOLUTION" to alt so lightbox caption shows it too
-					alt_caption = f"{safe_name} - {itype} ({w}x{h})" + (" - LOW RESOLUTION" if low else "")
-					html.append(f'''
-<div class="image-grid">
-  <a href="#lightbox" onclick="openLightbox('{item["Id"]}', this.querySelector('img').src); return false;">
-	<img src="{url}" alt="{alt_caption}" loading="lazy">
-  </a>
-  {caption_html(itype, w, h, low)}
-</div>''')
-			else:
-				html.append(f'<div class="placeholder">Missing: {image_type_name}</div>')
-
-		# Issue list at bottom of left column: include missing AND low-res
-		issues_lines = []
-		if item_missing:
-			issues_lines.append("Missing:<br>" + ", ".join(item_missing))
-		if item_lowres:
-			issues_lines.append("Low Resolution:<br>" + ", ".join(item_lowres))
-		if issues_lines:
-			html.append('<div class="missing-list">' + "<br><br>".join(issues_lines) + '</div>')
-
-		html.append('</div>')  # left-column
-
-		# RIGHT COLUMN (2/3 width)
-		html.append('<div class="right-column">')
-
-		# Backdrop (full width)
-		if 'bd' in right_codes:
-			tags = find_image_tags(item, 'Backdrop', base_url, api_key)
-			if tags:
-				for itype, url, w, h in tags:
-					low = check_low_res('bd', w, h, minres)
-					alt_caption = f"{safe_name} - {itype} ({w}x{h})" + (" - LOW RESOLUTION" if low else "")
-					html.append(f'''
-<div class="image-grid">
-  <a href="#lightbox" onclick="openLightbox('{item["Id"]}', this.querySelector('img').src); return false;">
-	<img src="{url}" class="banner-full" alt="{alt_caption}" loading="lazy">
-  </a>
-  {caption_html(itype, w, h, low)}
-</div>''')
-			else:
-				html.append('<div class="placeholder">Missing: Backdrop</div>')
-
-		# Banner (full width)
-		if 'bn' in right_codes:
-			tags = find_image_tags(item, 'Banner', base_url, api_key)
-			if tags:
-				for itype, url, w, h in tags:
-					low = check_low_res('bn', w, h, minres)
-					alt_caption = f"{safe_name} - {itype} ({w}x{h})" + (" - LOW RESOLUTION" if low else "")
-					html.append(f'''
-<div class="image-grid">
-  <a href="#lightbox" onclick="openLightbox('{item["Id"]}', this.querySelector('img').src); return false;">
-	<img src="{url}" class="banner-full" alt="{alt_caption}" loading="lazy">
-  </a>
-  {caption_html(itype, w, h, low)}
-</div>''')
-			else:
-				html.append('<div class="placeholder">Missing: Banner</div>')
-
-		# Box, BoxRear, Disc in a single row (each ~1/3 width)
-		html.append('<div class="box-row">')
-		for code in ['b', 'br', 'd']:
-			if code in right_codes:
-				image_type_name = IMAGE_TYPES_MAP[code]
-				tags = find_image_tags(item, image_type_name, base_url, api_key)
-				if tags:
-					for itype, url, w, h in tags:
-						low = check_low_res(code, w, h, minres)
-						alt_caption = f"{safe_name} - {itype} ({w}x{h})" + (" - LOW RESOLUTION" if low else "")
-						html.append(f'''
-<div class="image-grid">
-  <a href="#lightbox" onclick="openLightbox('{item["Id"]}', this.querySelector('img').src); return false;">
-	<img src="{url}" alt="{alt_caption}" loading="lazy">
-  </a>
-  {caption_html(itype, w, h, low)}
-</div>''')
-				else:
-					html.append(f'<div class="image-grid"><div class="placeholder">Missing: {image_type_name}</div></div>')
-		html.append('</div>')  # .box-row
-
-		# Logo (60% width, left-aligned)
-		if 'l' in right_codes:
-			tags = find_image_tags(item, 'Logo', base_url, api_key)
-			if tags:
-				for itype, url, w, h in tags:
-					low = check_low_res('l', w, h, minres)
-					alt_caption = f"{safe_name} - {itype} ({w}x{h})" + (" - LOW RESOLUTION" if low else "")
-					html.append(f'''
-<div class="image-grid">
-  <a href="#lightbox" onclick="openLightbox('{item["Id"]}', this.querySelector('img').src); return false;">
-	<img src="{url}" class="logo-img" alt="{alt_caption}" loading="lazy">
-  </a>
-  {caption_html(itype, w, h, low)}
-</div>''')
-			else:
-				html.append('<div class="placeholder">Missing: Logo</div>')
-
-		html.append('</div>')  # right-column
-
-		html.append('</div>')  # image-row
-		html.append('<div class="scroll-top"><a href="#top">↑ Scroll to Top</a></div>')
-		html.append('</div>')  # movie
-
-	# LIGHTBOX
-	html.append('''
+def _write_lightbox(fp):
+	fp.write('''
 <div id="lightbox" class="lightbox" onclick="clickOutside(event)">
   <div class="lightbox-content">
 	<div class="lightbox-caption" id="lightbox-caption"></div>
@@ -427,12 +430,304 @@ document.addEventListener('keydown', function(e){
 </script>
 ''')
 
-	html.append('</body></html>')
+def _write_footer(fp):
+	fp.write('</body></html>\n')
 
+# ----------------------------------------------------------------------
+# CORE: generate_html (unchanged logic; added safe-path + optional timestamp)
+# ----------------------------------------------------------------------
+
+def generate_html(items, image_types, base_url, api_key, output_file, bgcolor, textcolor, tablebgcolor,
+				  library_type, library_name, timestamp, minres):
+	"""
+	Memory-friendly implementation that preserves the original output
+	while avoiding large in-memory structures.
+	"""
+	# Resolve output_file relative to script dir if not absolute
+	if not os.path.isabs(output_file):
+		output_file = os.path.join(BASE_DIR, output_file)
+
+	# Prepare directories and temp files
 	os.makedirs(os.path.dirname(output_file) or '.', exist_ok=True)
-	with open(output_file, 'w', encoding='utf-8') as f:
-		f.write('\n'.join(html))
+
+	# temp files for summary rows, issues, and body
+	tmp_dir = tempfile.mkdtemp(prefix="jf_html_")
+	summary_tmp_path = os.path.join(tmp_dir, "summary_rows.html")
+	body_tmp_path = os.path.join(tmp_dir, "body_sections.html")
+	index_tmp_path = os.path.join(tmp_dir, "items_index.jsonl")
+	issues_tmp_path = os.path.join(tmp_dir, "issues.jsonl")
+
+	left_codes = [c for c in LEFT_TYPES if c in image_types]
+	right_codes = [c for c in RIGHT_TYPES if c in image_types]
+
+	def iter_items_first_pass():
+		for it in items:
+			yield it
+
+	summary_rows = []
+	with open(index_tmp_path, 'w', encoding='utf-8') as index_fp, \
+		 open(issues_tmp_path, 'w', encoding='utf-8') as issues_fp:
+	
+		for item in iter_items_first_pass():
+			item_id = item.get('Id')
+			safe_name = _safe_name(item)
+	
+			index_fp.write(json.dumps({"Id": item_id, "Name": safe_name}) + "\n")
+	
+			missing_types = []
+			lowres_types = []
+	
+			for code in image_types:
+				image_type = IMAGE_TYPES_MAP.get(code)
+				tags = find_image_tags(item, image_type, base_url, api_key, first_only=False)
+				if not tags:
+					missing_types.append(image_type)
+				else:
+					for _, _, w, h in tags:
+						if check_low_res(code, w, h, minres):
+							lowres_types.append(image_type)
+							break
+	
+			issues_fp.write(json.dumps({
+				"Id": item_id,
+				"missing": missing_types,
+				"lowres": lowres_types
+			}) + "\n")
+	
+			# Collect rows instead of writing now
+			summary_rows.append((safe_name.lower(), item_id, safe_name, missing_types, lowres_types))
+
+	per_item_issues: Dict[str, Dict[str, List[str]]] = {}
+	with open(issues_tmp_path, 'r', encoding='utf-8') as f_issues:
+		for line in f_issues:
+			try:
+				rec = json.loads(line)
+				per_item_issues[rec["Id"]] = {
+					"missing": rec.get("missing", []),
+					"lowres": rec.get("lowres", []),
+				}
+			except Exception:
+				continue
+
+	minimal_index: List[Tuple[str, str]] = []
+	with open(index_tmp_path, 'r', encoding='utf-8') as f_idx:
+		for line in f_idx:
+			try:
+				rec = json.loads(line)
+				minimal_index.append((rec["Id"], rec.get("Name", "")))
+			except Exception:
+				continue
+
+	minimal_index.sort(key=lambda x: str(x[1]).lower())
+
+	is_list_input = isinstance(items, list)
+	id_to_item: Dict[str, dict] = {}
+	if is_list_input:
+		for it in items:
+			item_id = it.get('Id')
+			if item_id:
+				id_to_item[item_id] = it
+
+	with open(body_tmp_path, 'w', encoding='utf-8') as body_fp:
+		for item_id, safe_name in minimal_index:
+			issues = per_item_issues.get(item_id, {"missing": [], "lowres": []})
+			item_missing = issues.get("missing", [])
+			item_lowres = issues.get("lowres", [])
+
+			if is_list_input:
+				item = id_to_item.get(item_id, {"Id": item_id, "Name": safe_name})
+			else:
+				item = {"Id": item_id, "Name": safe_name}
+
+			link_url = f"{base_url.rstrip('/')}/web/index.html#!/details?id={item['Id']}"
+			body_fp.write(f'<div class="movie" id="item_{item["Id"]}"><h2 class="entry-title"><a target="_blank" href="{link_url}">{safe_name}</a></h2>\n')
+			body_fp.write('<div class="image-row">\n')
+
+			body_fp.write('<div class="left-column">\n')
+			for code in left_codes:
+				image_type_name = IMAGE_TYPES_MAP.get(code)
+				tags = find_image_tags(item, image_type_name, base_url, api_key)
+				if tags:
+					for itype, url, w, h in tags:
+						low = check_low_res(code, w, h, minres)
+						alt_caption = f"{safe_name} - {itype} ({w}x{h})" + (" - LOW RESOLUTION" if low else "")
+						body_fp.write(f'''
+<div class="image-grid">
+  <a href="#lightbox" onclick="openLightbox('{item["Id"]}', this.querySelector('img').src); return false;">
+	<img src="{url}" alt="{alt_caption}" loading="lazy">
+  </a>
+  {_build_caption_html(itype, w, h, low)}
+</div>''')
+				else:
+					body_fp.write(f'<div class="placeholder">Missing: {image_type_name}</div>\n')
+
+			issues_lines = []
+			if item_missing:
+				issues_lines.append("Missing:<br>" + ", ".join(item_missing))
+			if item_lowres:
+				issues_lines.append("Low Resolution:<br>" + ", ".join(item_lowres))
+			if issues_lines:
+				body_fp.write('<div class="missing-list">' + "<br><br>".join(issues_lines) + '</div>\n')
+
+			body_fp.write('</div>\n')  # left-column
+
+			body_fp.write('<div class="right-column">\n')
+
+			if 'bd' in right_codes:
+				tags = find_image_tags(item, 'Backdrop', base_url, api_key)
+				if tags:
+					for itype, url, w, h in tags:
+						low = check_low_res('bd', w, h, minres)
+						alt_caption = f"{safe_name} - {itype} ({w}x{h})" + (" - LOW RESOLUTION" if low else "")
+						body_fp.write(f'''
+<div class="image-grid">
+  <a href="#lightbox" onclick="openLightbox('{item["Id"]}', this.querySelector('img').src); return false;">
+	<img src="{url}" class="banner-full" alt="{alt_caption}" loading="lazy">
+  </a>
+  {_build_caption_html(itype, w, h, low)}
+</div>''')
+				else:
+					body_fp.write('<div class="placeholder">Missing: Backdrop</div>\n')
+
+			if 'bn' in right_codes:
+				tags = find_image_tags(item, 'Banner', base_url, api_key)
+				if tags:
+					for itype, url, w, h in tags:
+						low = check_low_res('bn', w, h, minres)
+						alt_caption = f"{safe_name} - {itype} ({w}x{h})" + (" - LOW RESOLUTION" if low else "")
+						body_fp.write(f'''
+<div class="image-grid">
+  <a href="#lightbox" onclick="openLightbox('{item["Id"]}', this.querySelector('img').src); return false;">
+	<img src="{url}" class="banner-full" alt="{alt_caption}" loading="lazy">
+  </a>
+  {_build_caption_html(itype, w, h, low)}
+</div>''')
+				else:
+					body_fp.write('<div class="placeholder">Missing: Banner</div>\n')
+
+			body_fp.write('<div class="box-row">\n')
+			for code in ['b', 'br', 'd']:
+				if code in right_codes:
+					image_type_name = IMAGE_TYPES_MAP[code]
+					tags = find_image_tags(item, image_type_name, base_url, api_key)
+					if tags:
+						for itype, url, w, h in tags:
+							low = check_low_res(code, w, h, minres)
+							alt_caption = f"{safe_name} - {itype} ({w}x{h})" + (" - LOW RESOLUTION" if low else "")
+							body_fp.write(f'''
+<div class="image-grid">
+  <a href="#lightbox" onclick="openLightbox('{item["Id"]}', this.querySelector('img').src); return false;">
+	<img src="{url}" alt="{alt_caption}" loading="lazy">
+  </a>
+  {_build_caption_html(itype, w, h, low)}
+</div>''')
+					else:
+						body_fp.write(f'<div class="image-grid"><div class="placeholder">Missing: {image_type_name}</div></div>\n')
+			body_fp.write('</div>\n')
+
+			if 'l' in right_codes:
+				tags = find_image_tags(item, 'Logo', base_url, api_key)
+				if tags:
+					for itype, url, w, h in tags:
+						low = check_low_res('l', w, h, minres)
+						alt_caption = f"{safe_name} - {itype} ({w}x{h})" + (" - LOW RESOLUTION" if low else "")
+						body_fp.write(f'''
+<div class="image-grid">
+  <a href="#lightbox" onclick="openLightbox('{item["Id"]}', this.querySelector('img').src); return false;">
+	<img src="{url}" class="logo-img" alt="{alt_caption}" loading="lazy">
+  </a>
+  {_build_caption_html(itype, w, h, low)}
+</div>''')
+				else:
+					body_fp.write('<div class="placeholder">Missing: Logo</div>\n')
+
+			body_fp.write('</div>\n')  # right-column
+
+			body_fp.write('</div>\n')  # image-row
+			body_fp.write('<div class="scroll-top"><a href="#top">↑ Scroll to Top</a></div>\n')
+			body_fp.write('</div>\n')  # movie
+
+	with open(output_file, 'w', encoding='utf-8') as out_fp:
+		_write_html_header(out_fp, bgcolor, textcolor, tablebgcolor, library_name, timestamp)
+		_write_summary_table_open(out_fp, image_types)
+		# write summary rows alphabetically
+		for _, item_id, safe_name, missing_types, lowres_types in sorted(summary_rows, key=lambda x: x[0]):
+			_write_summary_table_row(out_fp, item_id, safe_name, image_types, missing_types, lowres_types)
+		_write_summary_table_close(out_fp)
+		with open(body_tmp_path, 'r', encoding='utf-8') as body_fp:
+			for line in body_fp:
+				out_fp.write(line)
+		_write_lightbox(out_fp)
+		_write_footer(out_fp)
+
 	print(f"HTML file generated: {output_file}")
+
+# ----------------------------------------------------------------------
+# NEW: ZIP CREATION
+# ----------------------------------------------------------------------
+
+def create_zip(items, image_types: List[str], base_url: str, api_key: str,
+			   zip_output_file: str, library_name: str, zip_basename_overrides: Dict[str, str] | None = None):
+	"""
+	Create a ZIP archive with a folder per entry item, downloading image files
+	for the selected image types. Supports duplicate titles by appending numbers.
+	Resolves relative zip_output_file relative to script directory.
+	"""
+	if not os.path.isabs(zip_output_file):
+		zip_output_file = os.path.join(BASE_DIR, zip_output_file)
+
+	os.makedirs(os.path.dirname(zip_output_file) or '.', exist_ok=True)
+
+	# Build map for overrides (base names, no extension)
+	name_overrides = dict(DEFAULT_ZIP_BASENAMES)
+	if zip_basename_overrides:
+		for code, name in zip_basename_overrides.items():
+			if code in name_overrides and isinstance(name, str) and name.strip():
+				name_overrides[code] = name.strip()
+
+	# For duplicate title disambiguation
+	seen_names: Dict[str, int] = {}
+
+	with ZipFile(zip_output_file, 'w', compression=ZIP_DEFLATED) as zf:
+		for item in items:
+			title = _safe_name(item)
+			folder = sanitize_folder_name(title)
+
+			count = seen_names.get(folder, 0) + 1
+			seen_names[folder] = count
+			if count > 1:
+				folder = f"{folder} {count}"
+
+			# For each selected type, fetch tags (may be multiple)
+			for code in image_types:
+				image_type_name = IMAGE_TYPES_MAP.get(code)
+				if not image_type_name:
+					continue
+				tags = find_image_tags(item, image_type_name, base_url, api_key, first_only=False)
+				if not tags:
+					continue
+
+				base_name = name_overrides.get(code, DEFAULT_ZIP_BASENAMES.get(code, image_type_name.lower()))
+				# CHANGED: Append numbers to filenames ONLY when there are multiple images of that type.
+				multi = len(tags) > 1
+				for idx, (_, url, _, _) in enumerate(tags, start=1):
+					try:
+						data, ext = stream_to_bytes(url)
+						if multi:
+							filename = f"{base_name}{idx}{ext}"
+						else:
+							filename = f"{base_name}{ext}"
+						arcname = f"{folder}/{filename}"
+						zf.writestr(arcname, data)
+						print(f"Added: {arcname}")
+					except Exception as e:
+						print(f"Failed to add image for item '{title}' ({image_type_name}): {e}")
+
+	print(f"ZIP file created: {zip_output_file}")
+
+# ----------------------------------------------------------------------
+# ORIGINAL CLI (PRESERVED + new args for timestamp & zip)
+# ----------------------------------------------------------------------
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='Generate HTML gallery from Jellyfin library')
@@ -443,13 +738,17 @@ if __name__ == '__main__':
 	parser.add_argument('--bgcolor', default='#222')
 	parser.add_argument('--textcolor', default='#eee')
 	parser.add_argument('--tablebgcolor', default='#333')
-	# Default order matches requested layout; no duplicate "box"
 	parser.add_argument('--images', default='p,t,c,m,bd,bn,b,br,d,l')
-	# NEW: minimum resolutions string, e.g. "bd:3840x2160;p:2000x3000"
 	parser.add_argument('--minres', default='', help='Semicolon-separated list like "bd:3840x2160;p:2000x3000"')
+	# Optional explicit timestamp (used by app.py to pass TZ-aware string)
+	parser.add_argument('--timestamp', default=None, help='Optional timestamp string to embed in HTML')
+	# NEW: ZIP creation options
+	parser.add_argument('--zip-output', default=None, help='If provided, create ZIP at this path instead of/generally in addition to HTML')
+	parser.add_argument('--zipnames', default=None, help='JSON of code->basename (no extension) overrides for ZIP creation')
+
 	args = parser.parse_args()
 
-	image_types = args.images.split(',')
+	image_types = [c for c in args.images.split(',') if c in IMAGE_TYPES_MAP]
 	minres = parse_minres_arg(args.minres)
 
 	try:
@@ -458,11 +757,23 @@ if __name__ == '__main__':
 		if not library_id:
 			print(f"Library '{args.library}' not found for user.")
 			sys.exit(1)
+
 		items = get_library_items(args.server, args.apikey, user_id, library_id, library_type)
-		timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+		# ZIP mode (if requested). This is additive; you can request only ZIP (app.py does) or do both.
+		if args.zip_output:
+			try:
+				overrides = json.loads(args.zipnames) if args.zipnames else {}
+			except Exception:
+				overrides = {}
+			create_zip(items, image_types, args.server, args.apikey, args.zip_output, args.library, overrides)
+
+		# HTML generation (always allowed; app.py decides which to run)
+		timestamp = args.timestamp or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 		generate_html(items, image_types, args.server, args.apikey, args.output,
 					  args.bgcolor, args.textcolor, args.tablebgcolor,
 					  library_type, args.library, timestamp, minres)
+
 	except requests.HTTPError as e:
 		print(f"HTTP error: {e}")
 		sys.exit(1)

@@ -6,7 +6,7 @@ Do you want your images on your Jellyfin instance to be perfect?
 
 Do you ever wonder which image types you're missing or are low resolution?
 
-Pixelfin is a lightweight Flask app paired with a generator script that lets you quickly create HTML galleries of your Jellyfin libraries. It highlights which image types — such as Primary, ClearArt, Backdrops, Logos, and more — are present, which are missing, and which fall below a minimum resolution threshold you specify. The result is a clean, scrollable gallery with clickable images, accompanied by a summary table showing missing and low-resolution images.
+Pixelfin is a lightweight Flask app paired with a generator script that lets you quickly create HTML galleries of your Jellyfin libraries. It highlights which image types — such as Primary, ClearArt, Backdrops, Logos, and more — are present, which are missing, and which fall below a minimum resolution threshold you specify. The result is a clean, scrollable gallery with clickable images, accompanied by a summary table showing missing and low-resolution images. In addition, Pixelfin lets you bundle images into ZIP archives, choose exactly which ones to include, and even override filenames so you can save them under names that fit your own organization.
 
 I vibe-coded this project entirely with ChatGPT, because I have literally zero coding experience. It works for me, and I personally use it to keep track of artwork across my Jellyfin setup. If you’re more experienced with coding than I am (which is basically everyone), feel free to improve it or collaborate — I’d love that.
 
@@ -17,8 +17,8 @@ I vibe-coded this project entirely with ChatGPT, because I have literally zero c
 ### Main Page
 ![Screenshot_Main.Page](assets/Screenshot_Main.Page.png)
 
-### Minimum Resolution
-![Screenshot_Minimum.Resolution](assets/Screenshot_Minimum.Resolution.png)
+### Minimum Resolution and Filename Override
+![Screenshot_Minimum.Resolution.and.Filename.Override](assets/Screenshot_Minimum.Resolution.and.Filename.Override.png)
 
 ### All Image Types - Summary Table
 ![Screenshot_All.Images_Table](assets/Screenshot_All.Images_Table.png)
@@ -50,8 +50,7 @@ This project is **functional, not perfect or polished**.
 
 If you try it out:
 - If it won't start, make sure `history.json` exists as an **empty file**, not a folder. Then rebuild the container (not just restart it).
-- Depending on the size of the library, it can take some time to generate an HTML file or download an embedded HTML file.
-- You may want to set resource limits on the container. See the `docker-compose.yml` example below.   
+- Depending on the size of the library, it can take some time to generate an HTML file or download an embedded HTML file. 
 
 This tool works for me, and I actively use it to manage artwork in my own Jellyfin setup. If you’re more experienced, you’ll almost certainly see ways to improve it. Contributions, fixes, and feedback are all very welcome, but I honestly wouldn't know how to act upon them without help. I'm just being real with you. I’d love to collaborate with anyone who finds this interesting.
 
@@ -59,29 +58,32 @@ This tool works for me, and I actively use it to manage artwork in my own Jellyf
 
 ## ✨ Features
 
-- **Web interface (Flask app)**
-	- Enter your Jellyfin server, API key, and library name
-	- Choose colors for the gallery
-	- Select which image types to include
-	- Generate new HTML reports
-	- View previously generated galleries, download them with embedded images, or delete them
-	
-- **Automatic galleries (generate_html.py)**
-	- Each item in the library with its images
-	- Missing images highlighted with placeholders
-	- Low resolution images indicated with red captions
-	- A summary table at the top listing which image types each item is missing or is considered low resolution; clicking on a title directs you to that entry
-	- Clickable images with a lightbox viewer (Prev / Next / Close)
-	
-- **Direct links to Jellyfin**
-	- Each item’s title links directly to its page in Jellyfin’s web UI so you can take action and make edits
-	
-- **Image resolution display**
-	- Under every image, its image type and resolution is shown (e.g. Backdrop 1920×1080)
-	
-- **Actionable image callouts**
-	- For each entry, missing image or low resolution image types are listed in red so you don’t miss them
-	
+## Features
+
+### Interactive Web Interface
+- Connect with your Jellyfin server using your API key and selected library name  
+- Choose gallery colors and image types to include  
+- Generate new HTML reports or ZIP files with a single click  
+- Browse previously generated galleries, download them with embedded images, or delete them
+- Download or delete previously generated ZIP files
+
+### Clean, Actionable Galleries
+- Summary table at the top showing missing/low-resolution types; click an item’s title to jump directly to it  
+- Each library item displayed with its available images  
+- Missing images highlighted with red placeholders  
+- Low-resolution images flagged with red captions  
+- Clickable images with a lightbox viewer (Prev / Next / Close)  
+
+### Smart Image Details
+- Each item’s title links directly to its Jellyfin page for quick editing  
+- Image type and resolution shown beneath every image (e.g. *Backdrop 1920×1080*)  
+- Missing or low-resolution image types clearly listed in red so you never miss them  
+
+### Custom ZIP Exports
+- Bundle selected images into a downloadable archive  
+- Choose exactly which image types to include  
+- Override filenames so images are saved under your preferred naming scheme  
+- Perfect for exporting, reorganizing, or sharing artwork outside Jellyfin  
 
 ---
 
@@ -173,11 +175,6 @@ services:
       - ./output:/app/output # where HTML files go
       - ./history.json:/app/history.json
     restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: 1.00
-          memory: 2048M
 ```
 
 Run it with:
@@ -190,19 +187,25 @@ docker compose up -d
 
 ## 🛠 How It Works
 
-1. Start the app (`python app.py` or via Docker). See `About this Project` if it's not working.
-2. Fill in:
-	- **Server URL** – your Jellyfin base URL (e.g. `http://192.168.1.100:8096`)
-	- **Library Name** – the library you want to inspect (e.g. `Movies`)
-	- **API Key** – create this in Jellyfin’s admin dashboard
-	- Pick the colors, image types, and optional minimum resolution thresholds you want
-3. Hit **Generate**.
-	- A background thread calls `generate_html.py`, which talks to Jellyfin’s API, fetches all your items, and checks every image type.
-	- A timestamped `.html` file gets saved under `output/<LibraryName>/`.
-4. Browse results:
-	- View the gallery in your browser
-	- Click an item’s title to jump directly into Jellyfin and fix missing images
-	- Download an “embedded” version where all images are base64-encoded (for sharing/archiving)
+1. Start the app (`python app.py` or via Docker). See **About this Project** if it’s not working.  
+2. Fill in:  
+   - **Server URL** – your Jellyfin base URL (e.g. `http://192.168.1.100:8096`)  
+   - **Library Name** – the library you want to inspect (e.g. `Movies`)  
+   - **API Key** – create this in Jellyfin’s admin dashboard  
+   - Pick the colors, image types, and optional minimum resolution thresholds you want  
+3. Hit **Generate**.  
+   - A background thread runs `generate_html.py`, which talks to Jellyfin’s API, fetches all your items, and checks every image type.  
+   - A timestamped `.html` file gets saved under `output/<LibraryName>/`.  
+4. Browse results:  
+   - View the gallery in your browser  
+   - Click an item’s title to jump directly into Jellyfin and fix missing images  
+   - Download an “embedded” version where all images are base64-encoded (for sharing/archiving)  
+5. Create ZIP files of your images (optional):  
+   - Select which images you want to bundle into a `.zip` archive  
+   - Use the **Filename Override** column in the table to rename images before exporting  
+   - Handy for reorganizing or sharing artwork outside Jellyfin  
+   - ⚡ **Note:** The **Resolution** column is only used when generating HTML galleries, while the **Filename Override** column applies only when creating ZIP archives  
+
 
 ---
 
@@ -222,7 +225,7 @@ docker compose up -d
 ## ⚠️ Limitations
 
 - Error handling is minimal
-- Sometimes you might see bits of text like class="...", alt="...", or loading="lazy" appearing under images. This is just a rendering quirk and doesn’t affect how the gallery works.
+- In the embedded HTML files you will see bits of text like class="...", alt="...", or loading="lazy" appearing under images. This is just a rendering quirk and doesn’t affect how the gallery works.
 - Only tested with my setup (Mac + Jellyfin 10.10.7)
 - Only tested with the following library types: Shows, Movies, Music Videos, Music
 
@@ -232,7 +235,6 @@ docker compose up -d
 
 There's a ton of room to make this better, and I'd appreciate collaborators:
 
-- ZIP file functionality to archive images
 - Sleeker UI
 - A list on the main page of items that need attention
 - Ability to "check off" a media item as completed
