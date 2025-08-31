@@ -18,11 +18,11 @@ I vibe-coded this project entirely with ChatGPT, because I have literally zero c
 
 ## Screenshots
 
-### Main Page
-![Screenshot_Main.Page](assets/Screenshot_Main.Page.png)
+### Dark Mode
+![Screenshot_Dark](assets/Screenshot_Dark.png)
 
-### Minimum Resolution and Filename Override
-![Screenshot_Minimum.Resolution.and.Filename.Override](assets/Screenshot_Minimum.Resolution.and.Filename.Override.png)
+### Light Mode
+![Screenshot_Light](assets/Screenshot_Light.png)
 
 ### All Image Types - Summary Table
 ![Screenshot_All.Images_Table](assets/Screenshot_All.Images_Table.png)
@@ -67,6 +67,7 @@ This tool works for me, and I actively use it to manage artwork in my own Jellyf
 - Generate new HTML reports or ZIP files with a single click  
 - Browse previously generated galleries, download them with embedded images, or delete them
 - Download or delete previously generated ZIP files
+- Light and dark mode
 
 ### Clean, Actionable Galleries
 - Summary table at the top showing missing/low-resolution types; click an item’s title to jump directly to it  

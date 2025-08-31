@@ -11,6 +11,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy app files
 COPY app.py generate_html.py /app/
 COPY assets /app/assets
+COPY templates /app/templates
+
 
 # Expose the port
 EXPOSE 1280

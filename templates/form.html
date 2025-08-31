@@ -1,0 +1,217 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Pixelfin</title>
+<link rel="icon" type="image/png" href="{{ url_for('serve_assets', filename='Pixelfin_Favicon.png') }}" />
+<style>
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #111;
+    color: #eee;
+}
+.container {
+    max-width: 1000px;
+    margin: 20px auto;
+    padding: 25px;
+    border-radius: 12px;
+    background-color: #1a1a1a;
+    text-align: center;
+}
+.light-mode .container {
+    background-color: #f5f5f5;
+    color: #111;
+}
+img.pixelfin-logo {
+    display: block;
+    margin: 0 auto 25px auto;
+    max-width: 375px; /* 25% bigger */
+}
+
+/* Form Rows */
+.form-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 15px;
+}
+.form-row label {
+    margin-right: 10px;
+    min-width: 120px;
+    text-align: right;
+}
+
+/* Inputs */
+input[type=text], input[list], input[type=number], input[type=password] {
+    background-color: #222;
+    color: #eee;
+    border:1px solid #555;
+    padding:5px;
+    width:250px;
+    box-sizing: border-box;
+}
+.light-mode input[type=text], .light-mode input[list], .light-mode input[type=number], .light-mode input[type=password] {
+    background-color: #ccc;
+    color: #111;
+}
+input[type=color] {
+    width: 60px;
+    height: 30px;
+    border: none;
+    vertical-align: middle;
+}
+
+/* Color pickers + image selectors */
+.color-image-row {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 50px 30px;
+    margin: 20px auto;
+    align-items: flex-start;
+}
+.color-pickers {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.color-pickers .picker-row {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+}
+
+/* Image checkboxes evenly spaced */
+.checkbox-container {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(120px,1fr));
+    gap: 10px 20px;
+    max-width: 600px;
+    justify-items: center;
+}
+
+/* Table */
+table.res-table {
+    border-collapse: collapse;
+    width: 90%;
+    margin: 30px auto;
+}
+table.res-table th, table.res-table td {
+    border:1px solid #444;
+    padding:8px;
+    text-align:center;
+}
+table.res-table th { color:#eee; }
+.light-mode table.res-table th { color:#111; }
+
+/* Buttons */
+.btn-row {
+    display:flex;
+    justify-content:center;
+    gap:15px;
+    margin-top:25px;
+}
+.btn {
+    padding:10px 20px;
+    font-size:16px;
+    cursor:pointer;
+}
+.btn-toggle {
+    background-color: #b19cd9; /* light purple */
+    color:#111;
+    border:none;
+    font-weight:bold;
+}
+h3, h2 {
+    margin-bottom: 15px;
+}
+</style>
+<script>
+function toggleLightDark() {
+    document.body.classList.toggle("light-mode");
+}
+</script>
+</head>
+<body>
+<div class="container">
+{% if pixelfin %}
+<img src="data:image/png;base64,{{ pixelfin }}" class="pixelfin-logo" />
+{% endif %}
+
+<h2>Generate HTML / ZIP</h2>
+<form method="post">
+
+<!-- Server / Library / API Key stacked rows -->
+<div class="form-row"><label for="server">Server URL:</label><input name="server" list="servers" value="{{selected.server}}" required>
+<datalist id="servers">{% for s in history.servers %}<option value="{{s}}">{% endfor %}</datalist></div>
+
+<div class="form-row"><label for="library">Library Name:</label><input name="library" list="libraries" value="{{selected.library}}" required>
+<datalist id="libraries">{% for l in history.libraries %}<option value="{{l}}">{% endfor %}</datalist></div>
+
+<div class="form-row"><label for="apikey">API Key:</label><input type="text" name="apikey" value="{{selected.apikey}}" required></div>
+
+<!-- Color pickers + image selectors row -->
+<div class="color-image-row">
+    <div class="color-pickers">
+        <div class="picker-row">
+            <label>Background:</label><input type="color" name="bgcolor" value="{{selected.bgcolor}}">
+            <label>Text:</label><input type="color" name="textcolor" value="{{selected.textcolor}}">
+            <label>Table Background:</label><input type="color" name="tablebgcolor" value="{{selected.tablebgcolor}}">
+        </div>
+    </div>
+    <div class="checkbox-container">
+    {% for code, label in image_types|dictsort %}
+    <label><input type="checkbox" name="images" value="{{ code }}" {% if code in selected.images %}checked{% endif %}> {{ label }}</label>
+    {% endfor %}
+    </div>
+</div>
+
+<!-- Minimum Resolution / ZIP Filename Override -->
+<h3>Minimum Resolution / ZIP Filename Override</h3>
+<table class="res-table">
+<tr><th>Image Type</th><th>Min Width</th><th>Min Height</th><th>ZIP Name Override</th></tr>
+{% for code, label in image_types|dictsort %}
+<tr>
+<td>{{ label }}</td>
+<td><input type="number" name="minres_{{ code }}_w" value="{{ selected.minres[code][0] if code in selected.minres else '' }}"></td>
+<td><input type="number" name="minres_{{ code }}_h" value="{{ selected.minres[code][1] if code in selected.minres else '' }}"></td>
+<td><input type="text" name="zipname_{{ code }}" value="{{ selected.zipnames.get(code,'') }}" placeholder="{{ default_zip_basenames[code] }}"></td>
+</tr>
+{% endfor %}
+</table>
+
+<!-- Bottom buttons -->
+<div class="btn-row">
+<button type="button" class="btn btn-toggle" onclick="toggleLightDark()">Light / Dark</button>
+<button type="submit" name="action" value="html" class="btn">Generate HTML</button>
+<button type="submit" name="action" value="zip" class="btn">Create ZIP File</button>
+</div>
+</form>
+
+<h2>Previously Generated HTML and ZIP Files</h2>
+{% if generated %}
+{% for library, files in generated.items() %}
+<h3>{{ library }}</h3>
+<ul>
+{% for f in files %}
+<li>
+{{ f.filename }} - 
+{% if f.filename.endswith('.html') %}
+<a href="{{ f.path }}" target="_blank">View</a> | 
+<a href="{{ url_for('download_embedded', library=f.folder, filename=f.filename) }}">Download</a> |
+{% else %}
+<a href="{{ url_for('serve_output', library=f.folder, filename=f.filename) }}">Download</a> |
+{% endif %}
+<a href="{{ url_for('delete_file', library=f.folder, filename=f.filename) }}" onclick="return confirm('Delete this file?');">Delete</a>
+</li>
+{% endfor %}
+</ul>
+{% endfor %}
+{% else %}
+<p>No HTML or ZIP files generated yet.</p>
+{% endif %}
+</div>
+</body>
+</html>
