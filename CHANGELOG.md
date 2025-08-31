@@ -3,9 +3,20 @@
 All notable changes to this project will be documented in this file.  
 This project follows [Semantic Versioning](https://semver.org/).
 
+## v0.32 - 2025-08-31
+### Fixed
+- **Creation of `history.json`**: the file is now automatically created on first start if it doesn't exist.
+- Thanks to @avassor for suggesting improvements related to history handling.
+
+### ⚠ Breaking Change
+- `history.json` location updated to `/app/data/history.json`.
+  - Old location: `/app/history.json`
+  - New location: `/app/data/history.json`
+  - Impact: If you want to maintain your existing history, move your old `history.json` file to `/app/data/history.json`.
+
 ---
 
-## v0.32 — 2025-08-31
+## v0.31 — 2025-08-31
 ### Changed
 - **Main page layout updated**:
   - Centered server URL, library name, and API key in three rows.
@@ -40,3 +51,4 @@ This project follows [Semantic Versioning](https://semver.org/).
 - HTML gallery generation of Jellyfin libraries.
 - Downloadable **embedded HTMLs** (with images base64-encoded for sharing/archiving).
 - Indicators of **missing images** shown in both the gallery and summary table.
+- Removed extraneous `>` from [relevant feature/file]. Thanks to @LoV432 for contributing a fix.
