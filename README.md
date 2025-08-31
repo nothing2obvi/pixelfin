@@ -10,6 +10,8 @@ Pixelfin is a lightweight Flask app paired with a generator script that lets you
 
 I vibe-coded this project entirely with ChatGPT, because I have literally zero coding experience. It works for me, and I personally use it to keep track of artwork across my Jellyfin setup. If you’re more experienced with coding than I am (which is basically everyone), feel free to improve it or collaborate — I’d love that.
 
+[![Changelog](https://img.shields.io/badge/changelog-available-blue.svg)](CHANGELOG.md)
+
 ---
 
 ## Screenshots
@@ -53,13 +55,6 @@ If you try it out:
 - Depending on the size of the library, it can take some time to generate an HTML file or download an embedded HTML file. 
 
 This tool works for me, and I actively use it to manage artwork in my own Jellyfin setup. If you’re more experienced, you’ll almost certainly see ways to improve it. Contributions, fixes, and feedback are all very welcome, but I honestly wouldn't know how to act upon them without help. I'm just being real with you. I’d love to collaborate with anyone who finds this interesting.
-
----
-
-## 📜 Changelog
-See [CHANGELOG.md](CHANGELOG.md) for version history.
-
----
 
 ## ✨ Features
 
