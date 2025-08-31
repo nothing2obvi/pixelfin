@@ -51,6 +51,15 @@ I vibe-coded this project entirely with ChatGPT, because I have literally zero c
 ### Lightbox with Navigation
 ![Screenshot_Lightbox](assets/Screenshot_Lightbox_v2.png)
 
+### Pick Your Colors 1
+![Screenshot_Color1](assets/Screenshot_Color1.png)
+
+### Pick Your Colors 2
+[Screenshot_Color2](assets/Screenshot_Color2.png)
+
+### Pick Your Colors 3
+[Screenshot_Color3](assets/Screenshot_Color3.png)
+
 ## 🙋 About This Project
 
 This project is **functional, not perfect or polished**.
@@ -261,8 +270,8 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
 <table>
   <tbody>
     <tr>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/LoV432"><img src="https://avatars.githubusercontent.com/u/60856741?v=4?s=75" width="75px;" alt="LoV432"/><br /><sub><b>LoV432</b></sub></a><br /><a href="https://github.com/nothing2obvi/pixelfin/commits?author=LoV432" title="Code">💻</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/avassor"><img src="https://avatars.githubusercontent.com/u/10287940?v=4?s=75" width="75px;" alt="avassor"/><br /><sub><b>avassor</b></sub></a><br /><a href="#ideas-avassor" title="Ideas, Planning, & Feedback">🤔</a> <a href="https://github.com/nothing2obvi/pixelfin/pulls?q=is%3Apr+reviewed-by%3Aavassor" title="Reviewed Pull Requests">👀</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/LoV432"><img src="https://avatars.githubusercontent.com/u/60856741?v=4?s=100" width="100px;" alt="LoV432"/><br /><sub><b>LoV432</b></sub></a><br /><a href="https://github.com/nothing2obvi/pixelfin/commits?author=LoV432" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/avassor"><img src="https://avatars.githubusercontent.com/u/10287940?v=4?s=100" width="100px;" alt="avassor"/><br /><sub><b>avassor</b></sub></a><br /><a href="#ideas-avassor" title="Ideas, Planning, & Feedback">🤔</a> <a href="https://github.com/nothing2obvi/pixelfin/pulls?q=is%3Apr+reviewed-by%3Aavassor" title="Reviewed Pull Requests">👀</a></td>
     </tr>
   </tbody>
 </table>
