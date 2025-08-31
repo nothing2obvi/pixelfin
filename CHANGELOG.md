@@ -5,6 +5,18 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v0.32 — 2025-08-31
+### Changed
+- **Main page layout updated**:
+  - Centered server URL, library name, and API key in three rows.
+  - Pixelfin logo enlarged by 25% and centered.
+  - Color pickers (Background, Text, Table Background) arranged in a single row.
+  - Image type checkboxes spaced evenly and aligned next to color pickers.
+  - Minimum Resolution / ZIP Filename table widened and centered.
+  - Bottom buttons (Light/Dark, Generate HTML, Create ZIP) centered and uniform in size.
+
+---
+
 ## v0.3 — 2025-08-30
 ### Added
 - **Favicon** now appears in all pages of the app as well as generated HTML files.
