@@ -55,7 +55,7 @@ This project is **functional, not perfect or polished**.
 If you try it out:
 - If it won't start, make sure `history.json` exists as an **empty file**, not a folder. Then rebuild the container (not just restart it).
 - Depending on the size of the library, it can take some time to generate an HTML or ZIP file.
-- If it doesn't work on `http://localhost:1280` try `http://<local-ip>:1280`
+- If it doesn't work on http://localhost:1280 try `http://<local-ip>:1280`
 
 This tool works for me, and I actively use it to manage artwork in my own Jellyfin setup. If you’re more experienced, you’ll almost certainly see ways to improve it. Contributions, fixes, and feedback are all very welcome, but I honestly wouldn't know how to act upon them without help. I'm just being real with you. I’d love to collaborate with anyone who finds this interesting.
 
@@ -145,8 +145,8 @@ echo "{}" > history.json
 docker run -d \
   -p 1280:1280 \
   -e TZ=America/Chicago \
-  -v $(pwd)/output:/app/output \  # generated HTML files
-  -v $(pwd)/history.json:/app/history.json \  # persistent history
+  -v $(pwd)/output:/app/output \
+  -v $(pwd)/data:/app/data \
   ghcr.io/nothing2obvi/pixelfin:latest
 ```
 
@@ -156,7 +156,7 @@ docker run -d \
 
 3. Open Pixelfin
 
-Go to: http://localhost:1280 to access Pixelfin. If it doesn't work on `http://localhost:1280` try `http://<local-ip>:1280`
+Go to: http://localhost:1280 to access Pixelfin. If it doesn't work on http://localhost:1280 try `http://<local-ip>:1280`
 
 ---
 
@@ -174,8 +174,8 @@ services:
     environment:
       - TZ=America/Chicago
     volumes:
-      - ./output:/app/output # where HTML files go
-      - ./history.json:/app/history.json
+      - ./output:/app/output
+      - ./data:/app/data
     restart: unless-stopped
 ```
 
@@ -185,7 +185,7 @@ Run it with:
 docker compose up -d
 ```
 
-Go to: http://localhost:1280 to access Pixelfin. If it doesn't work on `http://localhost:1280` try `http://<local-ip>:1280`
+Go to: http://localhost:1280 to access Pixelfin. If it doesn't work on http://localhost:1280 try `http://<local-ip>:1280`
 
 ---
 

@@ -12,6 +12,27 @@ import re
 import requests
 import shutil
 from urllib.parse import quote
+import os
+import json
+
+HISTORY_FILE = "/app/data/history.json"
+
+# Ensure file exists
+if not os.path.exists(HISTORY_FILE):
+	open(HISTORY_FILE, "w").close()  # creates empty file
+
+def load_history():
+	if not os.path.exists(HISTORY_FILE):
+		open(HISTORY_FILE, "w").close()
+		return {}
+	with open(HISTORY_FILE, "r") as f:
+		content = f.read().strip()
+		if not content:  # empty file
+			return {}
+		try:
+			return json.loads(content)
+		except Exception:
+			return {}
 
 app = Flask(__name__, template_folder="templates")
 BASE_OUTPUT_DIR = "output"

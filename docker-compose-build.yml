@@ -9,5 +9,5 @@ services:
     volumes:
       - ./output:/app/output
       - ./assets:/app/assets
-      - ./history.json:/app/history.json
+      - ./data:/app/data
     restart: unless-stopped
