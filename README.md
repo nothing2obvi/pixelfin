@@ -6,6 +6,8 @@ Do you want your images on your Jellyfin instance to be perfect?
 
 Do you ever wonder which image types you're missing or are low resolution?
 
+Do you want an easy way to back up your Jellyfin library images?
+
 Pixelfin is a lightweight Flask app paired with a generator script that lets you quickly create HTML galleries of your Jellyfin libraries. It highlights which image types — such as Primary, ClearArt, Backdrops, Logos, and more — are present, which are missing, and which fall below a minimum resolution threshold you specify. The result is a clean, scrollable gallery with clickable images, accompanied by a summary table showing missing and low-resolution images. In addition, Pixelfin lets you bundle images into ZIP archives, choose exactly which ones to include, and even override filenames so you can save them under names that fit your own organization.
 
 I vibe-coded this project entirely with ChatGPT, because I have literally zero coding experience. It works for me, and I personally use it to keep track of artwork across my Jellyfin setup. If you’re more experienced with coding than I am (which is basically everyone), feel free to improve it or collaborate — I’d love that.
@@ -52,7 +54,7 @@ This project is **functional, not perfect or polished**.
 
 If you try it out:
 - If it won't start, make sure `history.json` exists as an **empty file**, not a folder. Then rebuild the container (not just restart it).
-- Depending on the size of the library, it can take some time to generate an HTML file or download an embedded HTML file. 
+- Depending on the size of the library, it can take some time to generate an HTML or ZIP file. 
 
 This tool works for me, and I actively use it to manage artwork in my own Jellyfin setup. If you’re more experienced, you’ll almost certainly see ways to improve it. Contributions, fixes, and feedback are all very welcome, but I honestly wouldn't know how to act upon them without help. I'm just being real with you. I’d love to collaborate with anyone who finds this interesting.
 
