@@ -38,6 +38,9 @@ I vibe-coded this project entirely with ChatGPT, because I have literally zero c
 ### Certain Image Types - Entry with Low Resolution Images
 ![Screenshot_Low.Resolution](assets/Screenshot_Low.Resolution.png)
 
+### Certain Image Types - Entry with Both a Missing Image and a Low Resolution Image
+![Screenshot_Missing.and.Low.Resolution](assets/Screenshot_Missing.and.Low.Resolution.png)
+
 ### Lightbox with Navigation
 ![Screenshot_Lightbox](assets/Screenshot_Lightbox_v2.png)
 
@@ -47,7 +50,8 @@ This project is **functional, not perfect or polished**.
 
 If you try it out:
 - If it won't start, make sure `history.json` exists as an **empty file**, not a folder. Then rebuild the container (not just restart it).
-- Depending on the size of the library, it can take some time and memory to generate an HTML file or download an embedded HTML file.   
+- Depending on the size of the library, it can take some time to generate an HTML file or download an embedded HTML file.
+- You may want to set resource limits on the container. See the `docker-compose.yml` example below.   
 
 This tool works for me, and I actively use it to manage artwork in my own Jellyfin setup. If you’re more experienced, you’ll almost certainly see ways to improve it. Contributions, fixes, and feedback are all very welcome, but I honestly wouldn't know how to act upon them without help. I'm just being real with you. I’d love to collaborate with anyone who finds this interesting.
 
@@ -169,6 +173,11 @@ services:
       - ./output:/app/output # where HTML files go
       - ./history.json:/app/history.json
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: 1.00
+          memory: 2048M
 ```
 
 Run it with:
