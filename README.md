@@ -56,6 +56,11 @@ This tool works for me, and I actively use it to manage artwork in my own Jellyf
 
 ---
 
+## 📜 Changelog
+See [CHANGELOG.md](CHANGELOG.md) for version history.
+
+---
+
 ## ✨ Features
 
 ## Features
