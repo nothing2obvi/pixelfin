@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.  
 This project follows [Semantic Versioning](https://semver.org/).
 
+---
+
+## v0.33 — 2025-08-31
+### Changed
+- **Color selections are now preserved**:
+  - Background, text, and table background colors are saved automatically.
+  - Selected colors are restored on page reload and when switching between libraries.
+
+
+---
+
 ## v0.32 - 2025-08-31
 ### Fixed
 - **Creation of `history.json`**: the file is now automatically created on first start if it doesn't exist.

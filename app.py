@@ -15,8 +15,7 @@ from urllib.parse import quote
 import os
 import json
 
-HISTORY_FILE = "/app/data/history.json"
-
+HISTORY_FILE = "data/history.json"
 # Ensure file exists
 if not os.path.exists(HISTORY_FILE):
 	open(HISTORY_FILE, "w").close()  # creates empty file
@@ -37,7 +36,6 @@ def load_history():
 app = Flask(__name__, template_folder="templates")
 BASE_OUTPUT_DIR = "output"
 ASSETS_DIR = "assets"
-HISTORY_FILE = "data/history.json"
 
 os.makedirs(BASE_OUTPUT_DIR, exist_ok=True)
 os.makedirs(ASSETS_DIR, exist_ok=True)
@@ -80,21 +78,31 @@ def load_history():
 			return {'servers': [], 'libraries': [], 'library_settings': {}, 'last_used': {}}
 
 def save_history(server, library, settings):
-	history = load_history()
-	if server not in history['servers']:
-		history['servers'].append(server)
-	if library not in history['libraries']:
-		history['libraries'].append(library)
-	history.setdefault('library_settings', {})[library] = settings
-	history['last_used'] = {
-		'server': server,
-		'apikey': settings['apikey'],
-		'images': settings['images'],
-		'minres': settings.get('minres', {}),
-		'zipnames': settings.get('zipnames', {})
-	}
-	with open(HISTORY_FILE, 'w') as f:
-		json.dump(history, f)
+			history = load_history()
+			
+			if server not in history.get('servers', []):
+				history.setdefault('servers', []).append(server)
+			
+			if library not in history.get('libraries', []):
+				history.setdefault('libraries', []).append(library)
+			
+			history.setdefault('library_settings', {})[library] = settings
+			
+			# ✅ Save last-used settings, including colors
+			history['last_used'] = {
+				'server': server,
+				'apikey': settings.get('apikey', ''),
+				'images': settings.get('images', list(IMAGE_TYPE_OPTIONS.keys())),
+				'minres': settings.get('minres', {}),
+				'zipnames': settings.get('zipnames', {}),
+				'bgcolor': settings.get('bgcolor', '#000000'),
+				'textcolor': settings.get('textcolor', '#ffffff'),
+				'tablebgcolor': settings.get('tablebgcolor', '#000000')
+			}
+			
+			with open(HISTORY_FILE, 'w') as f:
+				json.dump(history, f, indent=2)
+
 
 def list_generated_htmls():
 	result = {}
@@ -133,13 +141,13 @@ def index():
 	history = load_history()
 	last_used = history.get('last_used', {})
 	selected = {
-		'server': last_used.get('server',''),
-		'library':'',
-		'bgcolor':'#000000',
-		'textcolor':'#ffffff',
-		'tablebgcolor':'#000000',
+		'server': last_used.get('server', ''),
+		'library': '',
+		'bgcolor': last_used.get('bgcolor', '#000000'),
+		'textcolor': last_used.get('textcolor', '#ffffff'),
+		'tablebgcolor': last_used.get('tablebgcolor', '#000000'),
 		'images': last_used.get('images', list(IMAGE_TYPE_OPTIONS.keys())),
-		'apikey': last_used.get('apikey',''),
+		'apikey': last_used.get('apikey', ''),
 		'minres': last_used.get('minres', {}),
 		'zipnames': last_used.get('zipnames', {})
 	}
