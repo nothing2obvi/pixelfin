@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template_string, Response, send_from_directory, redirect, url_for
+from flask import Flask, request, render_template, Response, send_from_directory, redirect, url_for
 import subprocess
 import os
 import logging
@@ -13,7 +13,7 @@ import requests
 import shutil
 from urllib.parse import quote
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder="templates")
 BASE_OUTPUT_DIR = "output"
 ASSETS_DIR = "assets"
 HISTORY_FILE = "history.json"
@@ -34,132 +34,24 @@ DEFAULT_ZIP_BASENAMES = {
 	'bn': 'banner', 'b': 'box', 'br': 'boxrear', 'd': 'disc', 'l': 'logo', 'm': 'menu'
 }
 
-def load_pixelfin_base64():
-	pix_path = os.path.join(ASSETS_DIR, "Pixelfin.png")
-	if os.path.exists(pix_path):
-		with open(pix_path, "rb") as f:
+def load_pixelfin_base64(filename):
+	path = os.path.join(ASSETS_DIR, filename)
+	if os.path.exists(path):
+		with open(path, "rb") as f:
 			return base64.b64encode(f.read()).decode('utf-8')
 	return ""
 
-PIXELFIN_BASE64 = load_pixelfin_base64()
-PIXELFIN_FAVICON_BASE64 = ""
-favicon_path = os.path.join(ASSETS_DIR, "Pixelfin_Favicon.png")
-if os.path.exists(favicon_path):
-	with open(favicon_path, "rb") as f:
-		PIXELFIN_FAVICON_BASE64 = base64.b64encode(f.read()).decode('utf-8')
+PIXELFIN_BASE64 = load_pixelfin_base64("Pixelfin.png")
+PIXELFIN_FAVICON_BASE64 = load_pixelfin_base64("Pixelfin_Favicon.png")
 
-FORM_HTML = """<!doctype html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>Pixelfin</title>
-<link rel="icon" type="image/png" href="{{ url_for('serve_assets', filename='Pixelfin_Favicon.png') }}" />
-<style>
-table.res-table { border-collapse: collapse; margin-top: 10px; }
-table.res-table th, table.res-table td { border:1px solid #ccc; padding:5px; text-align:center; }
-input::placeholder { color:#888; opacity:1; }
-.btn-row { display:flex; gap:10px; align-items:center; margin-top:12px; }
-.btn { padding:6px 10px; font-size:14px; }
-.note { font-size: 12px; color: #666; }
-</style>
-</head>
-<body>
-{% if pixelfin %}
-<img src="data:image/png;base64,{{ pixelfin }}" style="max-width:300px;" />
-<br><br>
-{% endif %}
-<h2>Generate HTML / ZIP</h2>
-<form method=post>
-Server URL:
-<input name="server" list="servers" value="{{selected.server}}" required>
-<datalist id="servers">
-{% for s in history.servers %}
-  <option value="{{s}}">
-{% endfor %}
-</datalist>
-<br><br>
-
-Library Name:
-<input name="library" list="libraries" value="{{selected.library}}" required>
-<datalist id="libraries">
-{% for l in history.libraries %}
-  <option value="{{l}}">
-{% endfor %}
-</datalist>
-<br><br>
-
-Background Color: <input type=color name=bgcolor value="{{selected.bgcolor}}"><br><br>
-Text Color: <input type=color name=textcolor value="{{selected.textcolor}}"><br><br>
-Table Background Color: <input type=color name=tablebgcolor value="{{selected.tablebgcolor}}"><br><br>
-
-<b>Image Types:</b><br>
-{% for code, label in image_types.items() %}
-<input type=checkbox name=images value="{{ code }}" {% if code in selected.images %}checked{% endif %}> {{ label }}<br>
-{% endfor %}
-<br>
-
-<b>Minimum Resolutions or Filename Override for ZIP File Creation:</b>
-<div class="note">Leave width/height blank to allow any resolution. ZIP filename override is optional; defaults show as placeholders.</div>
-<table class="res-table">
-<tr><th>Image Type</th><th>Min Width</th><th>Min Height</th><th>ZIP Name Override (no extension)</th></tr>
-{% for code, label in image_types.items() %}
-<tr>
-<td>{{ label }}</td>
-<td><input type="number" name="minres_{{ code }}_w" value="{{ selected.minres[code][0] if code in selected.minres else '' }}" style="width:80px;"></td>
-<td><input type="number" name="minres_{{ code }}_h" value="{{ selected.minres[code][1] if code in selected.minres else '' }}" style="width:80px;"></td>
-<td>
-<input type="text" name="zipname_{{ code }}" value="{{ selected.zipnames.get(code,'') if selected.zipnames else '' }}" placeholder="{{ default_zip_basenames[code] }}" style="width:180px;">
-</td>
-</tr>
-{% endfor %}
-</table>
-<br>
-
-API Key: <input type=text name=apikey value="{{selected.apikey}}" required><br><br>
-<div class="btn-row">
-<button class="btn" type="submit" name="action" value="html">Generate HTML</button>
-<button class="btn" type="submit" name="action" value="zip">Create ZIP File</button>
-</div>
-</form>
-
-<h2>Previously Generated HTML and ZIP Files</h2>
-{% if generated %}
-{% for library, files in generated.items() %}
-<h3>{{ library }}</h3>
-<ul>
-{% for f in files %}
-<li>
-{{ f.filename }} - 
-{% if f.filename.endswith('.html') %}
-<a href="{{ f.path }}" target="_blank">View</a> | 
-{% endif %}
-{% if f.filename.endswith('.html') %}
-  <a href="{{ url_for('download_embedded', library=f.folder, filename=f.filename) }}">Download</a> |
-{% else %}
-  <a href="{{ url_for('serve_output', library=f.folder, filename=f.filename) }}">Download</a> |
-{% endif %}
-<a href="{{ url_for('delete_file', library=f.folder, filename=f.filename) }}" onclick="return confirm('Delete this file?');">Delete</a>
-</li>
-{% endfor %}
-</ul>
-{% endfor %}
-{% else %}
-<p>No HTML or ZIP files generated yet.</p>
-{% endif %}
-</body>
-</html>
-"""
-
-# ----------------- history helpers -----------------
+# ----------------- History Helpers -----------------
 def load_history():
 	if os.path.exists(HISTORY_FILE):
 		if os.path.isdir(HISTORY_FILE):
 			shutil.rmtree(HISTORY_FILE)
-			with open(HISTORY_FILE, "w") as f:
-				f.write("{}")
+			with open(HISTORY_FILE, "w") as f: f.write("{}")
 	else:
-		with open(HISTORY_FILE, "w") as f:
-			f.write("{}")
+		with open(HISTORY_FILE, "w") as f: f.write("{}")
 	with open(HISTORY_FILE, "r") as f:
 		try:
 			return json.load(f)
@@ -194,7 +86,12 @@ def list_generated_htmls():
 			files = []
 			for f in sorted(os.listdir(lib_folder), reverse=True):
 				if f.endswith((".html", ".zip")):
-					files.append({"filename": f,"name": f,"path": f"/output/{folder}/{quote(f)}","folder": folder})
+					files.append({
+						"filename": f,
+						"name": f,
+						"path": f"/output/{folder}/{quote(f)}",
+						"folder": folder
+					})
 			if files:
 				display_name = next((lib for lib in history.get('libraries', []) if lib.replace(" ", "") == folder), folder)
 				result[display_name] = files
@@ -209,14 +106,22 @@ def now_in_tz():
 	except Exception:
 		return datetime.now()
 
-# ----------------- routes -----------------
+# ----------------- Routes -----------------
 @app.route("/", methods=["GET", "POST"])
 def index():
 	history = load_history()
 	last_used = history.get('last_used', {})
-	selected = {'server': last_used.get('server',''), 'library':'','bgcolor':'#000000','textcolor':'#ffffff',
-				'tablebgcolor':'#000000','images':last_used.get('images', list(IMAGE_TYPE_OPTIONS.keys())),
-				'apikey':last_used.get('apikey',''),'minres':last_used.get('minres', {}),'zipnames':last_used.get('zipnames', {})}
+	selected = {
+		'server': last_used.get('server',''),
+		'library':'',
+		'bgcolor':'#000000',
+		'textcolor':'#ffffff',
+		'tablebgcolor':'#000000',
+		'images': last_used.get('images', list(IMAGE_TYPE_OPTIONS.keys())),
+		'apikey': last_used.get('apikey',''),
+		'minres': last_used.get('minres', {}),
+		'zipnames': last_used.get('zipnames', {})
+	}
 
 	if request.method == "POST" or request.args.get("library"):
 		server = request.form.get("server") or selected['server']
@@ -244,6 +149,7 @@ def index():
 		tablebgcolor = selected['tablebgcolor']
 		selected_images = selected['images']
 
+		# min resolution
 		minres = {}
 		for code in IMAGE_TYPE_OPTIONS:
 			try:
@@ -254,15 +160,22 @@ def index():
 			except ValueError:
 				continue
 
+		# zip filename overrides
 		zipnames = {}
 		for code in IMAGE_TYPE_OPTIONS:
 			val = request.form.get(f"zipname_{code}", "").strip()
 			if val:
 				zipnames[code] = val
 
-		save_history(server, library, {'apikey':apikey,'bgcolor':bgcolor,'textcolor':textcolor,
-									   'tablebgcolor':tablebgcolor,'images':selected_images,
-									   'minres':minres,'zipnames':zipnames})
+		save_history(server, library, {
+			'apikey':apikey,
+			'bgcolor':bgcolor,
+			'textcolor':textcolor,
+			'tablebgcolor':tablebgcolor,
+			'images':selected_images,
+			'minres':minres,
+			'zipnames':zipnames
+		})
 
 		safe_library = library
 		lib_folder = os.path.join(BASE_OUTPUT_DIR, safe_library)
@@ -323,7 +236,7 @@ def index():
 				yield line
 			yield "\n</pre>"
 
-			# inject into generated file
+			# inject pixelfin logo
 			if PIXELFIN_BASE64 and os.path.exists(output_file):
 				with open(output_file,"r",encoding="utf-8") as f: content=f.read()
 				content = content.replace("<head>", f"<head>\n<link rel='icon' type='image/png' href='data:image/png;base64,{PIXELFIN_FAVICON_BASE64}' />",1)
@@ -338,9 +251,15 @@ def index():
 			return
 		return Response(generate(), mimetype='text/html')
 
-	return render_template_string(FORM_HTML,image_types=IMAGE_TYPE_OPTIONS,generated=list_generated_htmls(),
-								  history=history,selected=selected,pixelfin=PIXELFIN_BASE64,
-								  default_zip_basenames=DEFAULT_ZIP_BASENAMES)
+	return render_template(
+		"form.html",
+		image_types=IMAGE_TYPE_OPTIONS,
+		generated=list_generated_htmls(),
+		history=history,
+		selected=selected,
+		pixelfin=PIXELFIN_BASE64,
+		default_zip_basenames=DEFAULT_ZIP_BASENAMES
+	)
 
 @app.route("/output/<library>/<filename>")
 def serve_output(library, filename):
