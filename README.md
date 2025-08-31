@@ -60,8 +60,6 @@ This tool works for me, and I actively use it to manage artwork in my own Jellyf
 
 ## ✨ Features
 
-## Features
-
 ### Interactive Web Interface
 - Connect with your Jellyfin server using your API key and selected library name  
 - Choose gallery colors and image types to include  
