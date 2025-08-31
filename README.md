@@ -161,21 +161,32 @@ Go to: http://localhost:1280 to access Pixelfin. If it doesn't work on `http://l
 
 ## 🐙 Docker Compose
 
-Here’s a simple `docker-compose.yml`:
+Here’s a `docker-compose.yml` to ensure the history.json file is created: 
 
 ```yaml
 services:
+  pixelfin-init:
+    image: alpine:latest
+    volumes:
+      - .:/host
+    command: sh -c "touch /host/history.json && chmod 644 /host/history.json"
+    restart: "no"
+
   pixelfin:
     image: ghcr.io/nothing2obvi/pixelfin:latest
     container_name: pixelfin
+    depends_on:
+      pixelfin-init:
+        condition: service_completed_successfully
     ports:
       - "1280:1280"
     environment:
       - TZ=America/Chicago
     volumes:
-      - ./output:/app/output # where HTML files go
+      - ./output:/app/output
       - ./history.json:/app/history.json
     restart: unless-stopped
+
 ```
 
 Run it with:
