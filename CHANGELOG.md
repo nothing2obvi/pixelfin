@@ -6,7 +6,7 @@ This project follows [Semantic Versioning](https://semver.org/).
 ## v0.32 - 2025-08-31
 ### Fixed
 - **Creation of `history.json`**: the file is now automatically created on first start if it doesn't exist.
-- Thanks to @avassor for suggesting improvements related to history handling.
+- Thanks to [@avassor](https://github.com/avassor) for suggesting improvements related to history handling.
 
 ### ⚠ Breaking Change
 - `history.json` location updated to `/app/data/history.json`.
@@ -51,4 +51,4 @@ This project follows [Semantic Versioning](https://semver.org/).
 - HTML gallery generation of Jellyfin libraries.
 - Downloadable **embedded HTMLs** (with images base64-encoded for sharing/archiving).
 - Indicators of **missing images** shown in both the gallery and summary table.
-- Removed extraneous `>` from [relevant feature/file]. Thanks to @LoV432 for contributing a fix.
+- Removed extraneous `>` from [relevant feature/file]. Thanks to [@LoV432](https://github.com/LoV432) for contributing a fix.
