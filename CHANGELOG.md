@@ -5,6 +5,20 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v0.34 — 2025-08-31
+
+### Added
+- Caption for the **Minimum Resolution / ZIP Filename Override** table explaining the purpose of min width/height and ZIP filename override.  
+- Heading next to the **image selection checkboxes**. 
+- Preservation of **color picker history** for background, text, and table colors across sessions.  
+
+### Changed
+- Link colors in **dark mode**:  
+  - Unvisited links are now **light blue**.  
+  - Visited links are now **light purple**.
+
+---
+
 ## v0.33 — 2025-08-31
 ### Changed
 - **Color selections are now preserved**:

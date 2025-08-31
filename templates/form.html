@@ -5,6 +5,17 @@
 <title>Pixelfin</title>
 <link rel="icon" type="image/png" href="{{ url_for('serve_assets', filename='Pixelfin_Favicon.png') }}" />
 <style>
+.spaced-header {
+    margin-top: 40px;  /* adds extra space above */
+    margin-bottom: 15px; /* keeps default bottom spacing */
+}
+.small-caption {
+    font-size: 0.9em;
+    color: #888;
+    margin-top: -5px;
+    margin-bottom: 10px;
+    text-align: center;
+}
 body {
     font-family: Arial, sans-serif;
     margin: 0;
@@ -127,6 +138,18 @@ table.res-table th { color:#eee; }
 h3, h2 {
     margin-bottom: 15px;
 }
+/* Dark mode link colors */
+body:not(.light-mode) a:link {
+    color: #00bfff; /* light blue for unvisited links */
+}
+body:not(.light-mode) a:visited {
+    color: #b19cd9; /* light purple for visited links */
+}
+
+/* Optional: keep default hover color consistent */
+body:not(.light-mode) a:hover {
+    color: #87cefa; /* slightly lighter blue on hover */
+}
 </style>
 <script>
 function toggleLightDark() {
@@ -154,6 +177,7 @@ function toggleLightDark() {
 
 <!-- Color pickers + image selectors row -->
 <div class="color-image-row">
+    <!-- Color Pickers -->
     <div class="color-pickers">
         <div class="picker-row">
             <label>Background:</label><input type="color" name="bgcolor" value="{{selected.bgcolor}}">
@@ -161,17 +185,30 @@ function toggleLightDark() {
             <label>Table Background:</label><input type="color" name="tablebgcolor" value="{{selected.tablebgcolor}}">
         </div>
     </div>
-    <div class="checkbox-container">
-    {% for code, label in image_types|dictsort %}
-    <label><input type="checkbox" name="images" value="{{ code }}" {% if code in selected.images %}checked{% endif %}> {{ label }}</label>
-    {% endfor %}
+
+    <!-- Header + Checkboxes -->
+    <div style="display:flex; align-items:center; gap:20px;">
+        <!-- Vertical Header -->
+        <div style="display:flex; flex-direction:column; justify-content:center; text-align:left; font-weight:bold; margin-left:-65px;">
+            <span>Image Type</span>
+            <span>Selection</span>
+        </div>
+
+        <!-- Checkboxes -->
+        <div class="checkbox-container">
+        {% for code, label in image_types|dictsort %}
+        <label><input type="checkbox" name="images" value="{{ code }}" {% if code in selected.images %}checked{% endif %}> {{ label }}</label>
+        {% endfor %}
+        </div>
     </div>
 </div>
-
 <!-- Minimum Resolution / ZIP Filename Override -->
-<h3>Minimum Resolution / ZIP Filename Override</h3>
+<h3 class="spaced-header">Minimum Resolution / ZIP Filename Override</h3>
+<p class="small-caption">
+  Minimum height and width are used only for HTML generation. ZIP Filename Override is used to rename images when creating ZIP files.
+</p>
 <table class="res-table">
-<tr><th>Image Type</th><th>Min Width</th><th>Min Height</th><th>ZIP Name Override</th></tr>
+<tr><th>Image Type</th><th>Min Width</th><th>Min Height</th><th>ZIP Filename Override</th></tr>
 {% for code, label in image_types|dictsort %}
 <tr>
 <td>{{ label }}</td>
