@@ -53,10 +53,10 @@ I vibe-coded this project entirely with ChatGPT, because I have literally zero c
 ![Screenshot_Color1](assets/Screenshot_Color1.png)
 
 ### Pick Your Colors 2
-[Screenshot_Color2](assets/Screenshot_Color2.png)
+![Screenshot_Color2](assets/Screenshot_Color2.png)
 
 ### Pick Your Colors 3
-[Screenshot_Color3](assets/Screenshot_Color3.png)
+![Screenshot_Color3](assets/Screenshot_Color3.png)
 
 ## 🙋 About This Project
 
