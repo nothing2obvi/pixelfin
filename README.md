@@ -222,7 +222,6 @@ Go to: http://localhost:1280 to access Pixelfin. If it doesn't work on http://lo
    - Handy for reorganizing or sharing artwork outside Jellyfin  
    - ⚡ **Note:** The **Resolution** column is only used when generating HTML galleries, while the **Filename Override** column applies only when creating ZIP archives  
 
-
 ---
 
 ## 📊 Example Gallery
@@ -235,13 +234,17 @@ Go to: http://localhost:1280 to access Pixelfin. If it doesn't work on http://lo
   - Low resolution images have red captions
   - Resolution labels under each image
   - “Scroll to top” links for easy navigation
+  
+## 📝 Note About Embedded HTML Files
+  
+- When opening the downloaded, embedded HTML files **directly from your filesystem**, you may see bits of text like `class="..."`, `alt="..."`, or `loading="lazy"` appearing beneath the images. This is just a browser rendering quirk and does not affect how the gallery works.
+- For a clean viewing experience, place the HTML files inside the `/output` directory of your Pixelfin instance — either within one of the existing library folders or a new folder you create (it must be inside a folder). The files will then appear on the main page, and selecting **View** will display them properly.
 
 ---
 
 ## ⚠️ Limitations
 
 - Error handling is minimal
-- In the embedded HTML files you will see bits of text like class="...", alt="...", or loading="lazy" appearing under images. This is just a rendering quirk and doesn’t affect how the gallery works.
 - Only tested with my setup (Mac + Jellyfin 10.10.7)
 - Only tested with the following library types: Shows, Movies, Music Videos, Music
 
