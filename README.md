@@ -54,7 +54,8 @@ This project is **functional, not perfect or polished**.
 
 If you try it out:
 - If it won't start, make sure `history.json` exists as an **empty file**, not a folder. Then rebuild the container (not just restart it).
-- Depending on the size of the library, it can take some time to generate an HTML or ZIP file. 
+- Depending on the size of the library, it can take some time to generate an HTML or ZIP file.
+- If it doesn't work on `http://localhost:1280` try `http://<local-ip>:1280`
 
 This tool works for me, and I actively use it to manage artwork in my own Jellyfin setup. If you’re more experienced, you’ll almost certainly see ways to improve it. Contributions, fixes, and feedback are all very welcome, but I honestly wouldn't know how to act upon them without help. I'm just being real with you. I’d love to collaborate with anyone who finds this interesting.
 
@@ -154,7 +155,7 @@ docker run -d \
 
 3. Open Pixelfin
 
-Go to: http://localhost:1280 to access Pixelfin.
+Go to: http://localhost:1280 to access Pixelfin. If it doesn't work on `http://localhost:1280` try `http://<local-ip>:1280`
 
 ---
 
@@ -182,6 +183,8 @@ Run it with:
 ```bash
 docker compose up -d
 ```
+
+Go to: http://localhost:1280 to access Pixelfin. If it doesn't work on `http://localhost:1280` try `http://<local-ip>:1280`
 
 ---
 
@@ -213,12 +216,12 @@ docker compose up -d
 
 - **Top summary table** – shows each item with checkmarks where images are missing
 - **Entries below** – each item gets its own block with:
-	- Left column: Primary, Thumb, ClearArt, Menu
-	- Right column: Backdrop, Banner, Box, BoxRear, Disc, Logo
-	- Missing image placeholders in red
-	- Low resolution images have red captions
-	- Resolution labels under each image
-	- “Scroll to top” links for easy navigation
+  - Left column: Primary, Thumb, ClearArt, Menu
+  - Right column: Backdrop, Banner, Box, BoxRear, Disc, Logo
+  - Missing image placeholders in red
+  - Low resolution images have red captions
+  - Resolution labels under each image
+  - “Scroll to top” links for easy navigation
 
 ---
 
