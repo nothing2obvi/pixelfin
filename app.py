@@ -37,7 +37,7 @@ def load_history():
 app = Flask(__name__, template_folder="templates")
 BASE_OUTPUT_DIR = "output"
 ASSETS_DIR = "assets"
-HISTORY_FILE = "history.json"
+HISTORY_FILE = "data/history.json"
 
 os.makedirs(BASE_OUTPUT_DIR, exist_ok=True)
 os.makedirs(ASSETS_DIR, exist_ok=True)
