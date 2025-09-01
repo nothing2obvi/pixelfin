@@ -5,6 +5,13 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v0.34.3 — 2025-09-01
+
+### Changed
+- "height and width" to "width and height"
+
+---
+
 ## v0.34.2 — 2025-08-31
 
 ### Added
