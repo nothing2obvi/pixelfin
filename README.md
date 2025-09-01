@@ -222,7 +222,8 @@ Go to: http://localhost:1280 to access Pixelfin. If it doesn't work on http://lo
    - Select which images you want to bundle into a `.zip` archive  
    - Use the **Filename Override** column in the table to rename images before exporting  
    - Handy for reorganizing or sharing artwork outside Jellyfin  
-   - ⚡ **Note:** The **Resolution** column is only used when generating HTML galleries, while the **Filename Override** column applies only when creating ZIP archives  
+
+⚡ **Note:** The **Resolution** column is only used when generating HTML galleries, while the **Filename Override** column applies only when creating ZIP archives  
 
 ---
 
