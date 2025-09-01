@@ -253,14 +253,18 @@ Go to: http://localhost:1280 to access Pixelfin. If it doesn't work on http://lo
 
 ---
 
-## 🤝 Want to Improve This?
+## 🤝 Want to Contribute?  
 
-There's a ton of room to make this better, and I'd appreciate collaborators. Some ideas include:
+Pixelfin is a work in progress, and contributions from the community are what make it better!  
 
-- Sleeker UI
-- A list on the main page of items that need attention
-- Ability to "check off" a media item as completed
-- Much more
+### Some Ideas for Features / Improvements
+- Enhance the UI and make it sleeker  
+- Add a way to "check off" media items as completed  
+- Create a dashboard tab showing completed vs. pending items, with links to each item in Jellyfin  
+- AI upscale low-resolution images to chosen resolutions (individually or in bulk) and update them directly in Jellyfin 
+- One-click to fill in gaps with images of selected resolutions  
+
+> Have an idea or want to help out? Open a **pull request** -- it’d awesome to see these features come to life together.
 
 ---
 
