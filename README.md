@@ -143,10 +143,10 @@ docker build -t ghcr.io/nothing2obvi/pixelfin:latest .
 
 ### Run the container
 
-1. **Create an empty `history.json` (if you don’t have one):**
+1. **Change directory to wherever you want Pixelfin to live:**
 
 ```bash
-echo "{}" > history.json
+cd /path/to/pixelfin
 ```
 
 2. Start the container
@@ -155,14 +155,14 @@ echo "{}" > history.json
 docker run -d \
   -p 1280:1280 \
   -e TZ=America/Chicago \
-  -v $(pwd)/output:/app/output \
-  -v $(pwd)/data:/app/data \
+  -v ./output:/app/output \
+  -v ./data:/app/data \
   ghcr.io/nothing2obvi/pixelfin:latest
 ```
 
-`output/` will store the generated HTML reports.
+`output/` will store the generated HTML and ZIP files.
 
-`history.json` will persist your server/library selections and other settings.
+`data/history.json` will persist your server/library selections and other settings.
 
 3. Open Pixelfin
 
