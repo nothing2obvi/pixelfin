@@ -249,11 +249,12 @@ Go to: http://localhost:1280 to access Pixelfin. If it doesn't work on http://lo
 
 ## 🤝 Want to Improve This?
 
-There's a ton of room to make this better, and I'd appreciate collaborators:
+There's a ton of room to make this better, and I'd appreciate collaborators. Some ideas include:
 
 - Sleeker UI
 - A list on the main page of items that need attention
 - Ability to "check off" a media item as completed
+- Much more
 
 ---
 
