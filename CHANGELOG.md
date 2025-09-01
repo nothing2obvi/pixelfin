@@ -5,6 +5,13 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v0.34.2 — 2025-08-31
+
+### Added
+- **View on GitHub** button
+
+---
+
 ## v0.34.1 — 2025-08-31
 
 ### Changed

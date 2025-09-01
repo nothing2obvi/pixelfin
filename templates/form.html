@@ -5,6 +5,29 @@
 <title>Pixelfin</title>
 <link rel="icon" type="image/png" href="{{ url_for('serve_assets', filename='Pixelfin_Favicon.png') }}" />
 <style>
+.github-link {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 30px;
+    gap: 8px;
+    font-size: 14px;
+    text-decoration: none;
+    color: inherit; /* ensures SVG uses same color as text */
+}
+
+body.light-mode .github-link {
+    color: #000; /* black text & logo in light mode */
+}
+
+body:not(.light-mode) .github-link {
+    color: #fff; /* white text & logo in dark mode */
+}
+
+.github-link:hover {
+    opacity: 0.8; /* subtle hover effect */
+}
+
 .spaced-header {
     margin-top: 40px;  /* adds extra space above */
     margin-bottom: 15px; /* keeps default bottom spacing */
@@ -250,6 +273,13 @@ function toggleLightDark() {
 {% else %}
 <p>No HTML or ZIP files generated yet.</p>
 {% endif %}
+<a class="github-link" href="https://github.com/nothing2obvi/pixelfin" target="_blank">
+    <svg class="github-icon" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+        <path fill="currentColor"
+              d="M12 0.5C5.4 0.5 0 5.9 0 12.5c0 5.3 3.4 9.8 8.2 11.4.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.5-1.1-1.2-1.4-1.2-1.4-1-.7.1-.7.1-.7 1.1.1 1.7 1.1 1.7 1.1 1 1.7 2.7 1.2 3.4.9.1-.7.4-1.2.7-1.5-2.7-.3-5.5-1.4-5.5-6 0-1.3.5-2.4 1.2-3.3-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.3 1.2a11.4 11.4 0 0 1 6 0c2.2-1.5 3.3-1.2 3.3-1.2.6 1.6.2 2.8.1 3.1.8.9 1.2 2 1.2 3.3 0 4.6-2.8 5.7-5.5 6 .4.3.8 1 .8 2v3c0 .3.2.7.8.6A12 12 0 0 0 24 12.5C24 5.9 18.6 0.5 12 0.5Z"/>
+    </svg>
+    View on GitHub
+</a>
 </div>
 </body>
 </html>
