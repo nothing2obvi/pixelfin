@@ -125,6 +125,13 @@ http://localhost:1280
 
 ```
 
+If that doesn't work, try:
+
+```
+http://<local-ip>:1280
+
+```
+
 ---
 
 ## 🐳 Running with Docker
