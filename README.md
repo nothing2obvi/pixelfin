@@ -78,19 +78,19 @@ I vibe-coded this project entirely with ChatGPT, because I have literally zero c
 
 ### Clean, Actionable Galleries
 - Summary table at the top showing missing/low-resolution types; click an item’s title to jump directly to it  
-- Each library item displayed with its available images  
-- Missing images highlighted with red placeholders  
-- Low-resolution images flagged with red captions  
-- Clickable images with a lightbox viewer (Prev / Next / Close)  
-
-### Smart Image Details
-- Each item’s title links directly to its Jellyfin page for quick editing  
-- Image type and resolution shown beneath every image (e.g. *Backdrop 1920×1080*)  
-- Missing or low-resolution image types clearly listed in red so you never miss them  
+- Each library item displayed with its available images
+    - Each item’s title links directly to its Jellyfin page for quick editing 
+    - Left column: Primary, Thumb, ClearArt, Menu
+    - Right column: Backdrop, Banner, Box, BoxRear, Disc, Logo
+    - Image type and resolution labels under each image
+    - Missing images highlighted with red placeholders  
+    - Low-resolution images flagged with red captions
+    - Missing or low-resolution image types clearly listed in red on the bottom left
+    - “Scroll to top” links for easy navigation
+    - Clickable images with a lightbox viewer (Prev / Next / Close)  
 
 ### Custom ZIP Exports
-- Bundle selected images into a downloadable archive  
-- Choose exactly which image types to include  
+- Bundle selected images into a downloadable ZIP archive   
 - Override filenames so images are saved under your preferred naming scheme  
 - Perfect for exporting, reorganizing, or sharing artwork outside Jellyfin  
 
@@ -226,17 +226,6 @@ Go to: http://localhost:1280 to access Pixelfin. If it doesn't work on http://lo
 ⚡ **Note:** The **Resolution** column is only used when generating HTML galleries, while the **Filename Override** column applies only when creating ZIP archives  
 
 ---
-
-## 📊 Example Gallery
-
-- **Top summary table** – shows each item with checkmarks where images are missing
-- **Entries below** – each item gets its own block with:
-  - Left column: Primary, Thumb, ClearArt, Menu
-  - Right column: Backdrop, Banner, Box, BoxRear, Disc, Logo
-  - Missing image placeholders in red
-  - Low resolution images have red captions
-  - Resolution labels under each image
-  - “Scroll to top” links for easy navigation
   
 ## 📝 Note About Embedded HTML Files
   
