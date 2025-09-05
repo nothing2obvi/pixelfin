@@ -223,7 +223,7 @@ Go to: http://localhost:1280 to access Pixelfin. If it doesn't work on http://lo
    - Use the **Filename Override** column in the table to rename images before exporting  
    - Handy for reorganizing or sharing artwork outside Jellyfin  
 
-⚡ **Note:** The **Resolution** column is only used when generating HTML galleries, while the **Filename Override** column applies only when creating ZIP archives  
+⚡ **Note:** The **Resolution** columns are only used when generating HTML galleries, while the **Filename Override** column applies only when creating ZIP archives. All 3 columns are optional. If the resolution columns are left empty, Pixelfin won't flag any images as having low resolution.
 
 ---
   
