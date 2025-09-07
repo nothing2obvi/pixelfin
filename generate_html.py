@@ -442,6 +442,9 @@ def generate_html(items, image_types, base_url, api_key, output_file, bgcolor, t
 	"""
 	Memory-friendly implementation that preserves the original output
 	while avoiding large in-memory structures.
+	Folder disambiguation:
+	- Movies: always append year if available.
+	- Shows: append year only if duplicate.
 	"""
 	# Resolve output_file relative to script dir if not absolute
 	if not os.path.isabs(output_file):
@@ -465,13 +468,54 @@ def generate_html(items, image_types, base_url, api_key, output_file, bgcolor, t
 			yield it
 
 	summary_rows = []
+	seen_names: Dict[str, List[str]] = {}
+
 	with open(index_tmp_path, 'w', encoding='utf-8') as index_fp, \
 		 open(issues_tmp_path, 'w', encoding='utf-8') as issues_fp:
 	
 		for item in iter_items_first_pass():
 			item_id = item.get('Id')
-			safe_name = _safe_name(item)
-	
+			title = _safe_name(item)
+			folder = title
+
+			# Try to get the production/release year
+			year = None
+			if "ProductionYear" in item and item["ProductionYear"]:
+				year = str(item["ProductionYear"])
+			elif "PremiereDate" in item and item["PremiereDate"]:
+				try:
+					year = str(datetime.fromisoformat(item["PremiereDate"]).year)
+				except Exception:
+					pass
+
+			# Movies: always append year
+			if library_type.lower() == "movies":
+				if year:
+					folder = f"{folder} ({year})"
+				if folder not in seen_names:
+					seen_names[folder] = []
+				else:
+					count = len(seen_names[folder]) + 1
+					folder = f"{folder} {count}"
+					seen_names[folder].append(str(count))
+
+			else:  # Shows
+				if folder in seen_names:
+					if year and year not in seen_names[folder]:
+						folder = f"{folder} ({year})"
+						seen_names[title].append(year)
+					else:
+						count = len(seen_names[folder]) + 1
+						folder = f"{folder} {count}"
+						seen_names[folder].append(str(count))
+				else:
+					if year:
+						seen_names[folder] = [year]
+					else:
+						seen_names[folder] = ["1"]
+
+			safe_name = folder
+
 			index_fp.write(json.dumps({"Id": item_id, "Name": safe_name}) + "\n")
 	
 			missing_types = []
@@ -645,7 +689,7 @@ def generate_html(items, image_types, base_url, api_key, output_file, bgcolor, t
 
 			body_fp.write('</div>\n')  # image-row
 			body_fp.write('<div class="scroll-top"><a href="#top">↑ Scroll to Top</a></div>\n')
-			body_fp.write('</div>\n')  # movie
+			body_fp.write('</div>\n')  # movie (border box)
 
 	with open(output_file, 'w', encoding='utf-8') as out_fp:
 		_write_html_header(out_fp, bgcolor, textcolor, tablebgcolor, library_name, timestamp)
@@ -667,10 +711,11 @@ def generate_html(items, image_types, base_url, api_key, output_file, bgcolor, t
 # ----------------------------------------------------------------------
 
 def create_zip(items, image_types: List[str], base_url: str, api_key: str,
-			   zip_output_file: str, library_name: str, zip_basename_overrides: Dict[str, str] | None = None):
+				zip_output_file: str, library_name: str, zip_basename_overrides: Dict[str, str] | None = None):
 	"""
 	Create a ZIP archive with a folder per entry item, downloading image files
-	for the selected image types. Supports duplicate titles by appending numbers.
+	for the selected image types. Supports duplicate titles by appending the
+	release year instead of numbers to avoid sequel confusion.
 	Resolves relative zip_output_file relative to script directory.
 	"""
 	if not os.path.isabs(zip_output_file):
@@ -685,18 +730,43 @@ def create_zip(items, image_types: List[str], base_url: str, api_key: str,
 			if code in name_overrides and isinstance(name, str) and name.strip():
 				name_overrides[code] = name.strip()
 
-	# For duplicate title disambiguation
-	seen_names: Dict[str, int] = {}
+	# Track seen names and disambiguate with years
+	seen_names: Dict[str, List[str]] = {}
 
 	with ZipFile(zip_output_file, 'w', compression=ZIP_DEFLATED) as zf:
 		for item in items:
 			title = _safe_name(item)
 			folder = sanitize_folder_name(title)
 
-			count = seen_names.get(folder, 0) + 1
-			seen_names[folder] = count
-			if count > 1:
-				folder = f"{folder} {count}"
+			# Try to get the production/release year
+			year = None
+			if "ProductionYear" in item and item["ProductionYear"]:
+				year = str(item["ProductionYear"])
+			elif "PremiereDate" in item and item["PremiereDate"]:
+				try:
+					year = str(datetime.fromisoformat(item["PremiereDate"]).year)
+				except Exception:
+					pass
+
+			# Disambiguate by year if duplicate
+			if folder in seen_names:
+				if year and year not in seen_names[folder]:
+					folder = f"{folder} ({year})"
+					seen_names[title].append(year)
+				else:
+					# fallback: still add a number if year missing or already used
+					count = len(seen_names[folder]) + 1
+					folder = f"{folder} {count}"
+					seen_names[folder].append(str(count))
+			else:
+				# first occurrence
+				if year:
+					seen_names[folder] = [year]
+					folder = f"{folder} ({year})"
+				else:
+					seen_names[folder] = ["1"]
+
+			folder = sanitize_folder_name(folder)
 
 			# For each selected type, fetch tags (may be multiple)
 			for code in image_types:
@@ -708,7 +778,7 @@ def create_zip(items, image_types: List[str], base_url: str, api_key: str,
 					continue
 
 				base_name = name_overrides.get(code, DEFAULT_ZIP_BASENAMES.get(code, image_type_name.lower()))
-				# CHANGED: Append numbers to filenames ONLY when there are multiple images of that type.
+				# Append numbers to filenames ONLY when multiple images of that type
 				multi = len(tags) > 1
 				for idx, (_, url, _, _) in enumerate(tags, start=1):
 					try:

@@ -5,6 +5,15 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v0.34.4 - 2025-09-07
+
+#### Changed
+- In HTML: Titles for series to show production year if title is a duplicate
+- In HTML: Titles for movies to always show production year
+- In ZIPs: Folder names to show production year for disambiguation
+
+---
+
 ## v0.34.3 — 2025-09-01
 
 ### Changed
