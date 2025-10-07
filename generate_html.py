@@ -245,7 +245,9 @@ def find_image_tags(item, image_type, base_url, api_key, first_only=False):
 		for idx, tag in enumerate(backdrop_tags):
 			url = f"{base_url.rstrip('/')}/Items/{item['Id']}/Images/Backdrop/{idx}?tag={tag}&api_key={api_key}"
 			width, height = get_image_resolution(url)
-			tags.append((f"Backdrop {idx}", url, width, height))
+			# If there's only one backdrop, label just "Backdrop"; otherwise include index in parentheses
+			label = "Backdrop" if len(backdrop_tags) == 1 else f"Backdrop ({idx})"
+			tags.append((label, url, width, height))
 			if first_only:
 				return tags
 	
@@ -398,55 +400,63 @@ def _write_summary_table_close(fp):
 	fp.write('</table>\n')
 
 def _write_lightbox(fp):
-	fp.write('''
-<div id="lightbox" class="lightbox" onclick="clickOutside(event)">
-  <div class="lightbox-content">
-	<div class="lightbox-caption" id="lightbox-caption"></div>
-	<img id="lightbox-img" src="" onclick="closeLightbox()">
-	<div class="lightbox-buttons">
-	  <button onclick="prevImage(event)">◀ Prev</button>
-	  <button onclick="nextImage(event)">Next ▶</button>
-	  <button onclick="closeLightbox()">Close ✖</button>
+		fp.write('''
+	<div id="lightbox" class="lightbox" onclick="clickOutside(event)">
+	  <div class="lightbox-content">
+		<div class="lightbox-caption" id="lightbox-caption"></div>
+		<a id="lightbox-link" href="" target="_blank">
+		  <img id="lightbox-img" src="" alt="" />
+		</a>
+		<div class="lightbox-buttons">
+		  <button onclick="prevImage(event)">◀ Prev</button>
+		  <button onclick="nextImage(event)">Next ▶</button>
+		  <button onclick="closeLightbox()">Close ✖</button>
+		</div>
+	  </div>
 	</div>
-  </div>
-</div>
-<script>
-let currentImages = [];
-let currentIndex = 0;
+	<script>
+	let currentImages = [];
+	let currentIndex = 0;
+	
+	function openLightbox(entryId, src) {
+	  currentImages = [];
+	  const imgs = document.querySelectorAll("#item_"+entryId+" img");
+	  imgs.forEach(i => currentImages.push({src: i.src, caption: i.alt || ""}));
+	  const idx = currentImages.findIndex(i => i.src === src);
+	  currentIndex = idx >= 0 ? idx : 0;
+	  showImage();
+	  document.getElementById('lightbox').style.display='block';
+	}
+	
+	function showImage() {
+	  if(!currentImages.length) return;
+	  const img = document.getElementById('lightbox-img');
+	  const link = document.getElementById('lightbox-link');
+	  const { src, caption } = currentImages[currentIndex];
+	  img.src = src;
+	  img.alt = caption;
+	  link.href = src;
+	  document.getElementById('lightbox-caption').innerText = caption;
+	}
+	
+	function closeLightbox() {
+	  document.getElementById('lightbox').style.display='none';
+	  currentImages = [];
+	  currentIndex = 0;
+	}
+	
+	function prevImage(e){ e.stopPropagation(); if(!currentImages.length) return; currentIndex=(currentIndex-1+currentImages.length)%currentImages.length; showImage(); }
+	function nextImage(e){ e.stopPropagation(); if(!currentImages.length) return; currentIndex=(currentIndex+1)%currentImages.length; showImage(); }
+	function clickOutside(e){ if(e.target.id==='lightbox'){ closeLightbox(); } }
+	
+	document.addEventListener('keydown', function(e){
+	  if(e.key==='Escape') closeLightbox();
+	  else if(e.key==='ArrowLeft') prevImage(e);
+	  else if(e.key==='ArrowRight') nextImage(e);
+	});
+	</script>
+	''')
 
-function openLightbox(entryId, src) {
-  currentImages = [];
-  const imgs = document.querySelectorAll("#item_"+entryId+" img");
-  imgs.forEach(i => currentImages.push({src: i.src, caption: i.alt || ""}));
-  const idx = currentImages.findIndex(i => i.src === src);
-  currentIndex = idx >= 0 ? idx : 0;
-  showImage();
-  document.getElementById('lightbox').style.display='block';
-}
-
-function showImage(){
-  if(!currentImages.length) return;
-  document.getElementById('lightbox-img').src = currentImages[currentIndex].src;
-  document.getElementById('lightbox-caption').innerText = currentImages[currentIndex].caption;
-}
-
-function closeLightbox(){
-  document.getElementById('lightbox').style.display='none';
-  currentImages=[];
-  currentIndex=0;
-}
-
-function prevImage(e){ e.stopPropagation(); if(!currentImages.length) return; currentIndex=(currentIndex-1+currentImages.length)%currentImages.length; showImage(); }
-function nextImage(e){ e.stopPropagation(); if(!currentImages.length) return; currentIndex=(currentIndex+1)%currentImages.length; showImage(); }
-function clickOutside(e){ if(e.target.id==='lightbox'){ closeLightbox(); } }
-
-document.addEventListener('keydown', function(e){
-  if(e.key==='Escape') closeLightbox();
-  else if(e.key==='ArrowLeft') prevImage(e);
-  else if(e.key==='ArrowRight') nextImage(e);
-});
-</script>
-''')
 
 def _write_footer(fp):
 	fp.write('</body></html>\n')
@@ -615,7 +625,7 @@ def generate_html(items, image_types, base_url, api_key, output_file, bgcolor, t
 						alt_caption = f"{safe_name} - {itype} ({w}x{h})" + (" - LOW RESOLUTION" if low else "")
 						body_fp.write(f'''
 <div class="image-grid">
-  <a href="#lightbox" onclick="openLightbox('{item["Id"]}', this.querySelector('img').src); return false;">
+  <a href="{url}" target="_blank" onclick="openLightbox('{item["Id"]}', '{url}'); return false;">
 	<img src="{url}" alt="{alt_caption}" loading="lazy">
   </a>
   {_build_caption_html(itype, w, h, low)}
@@ -643,7 +653,7 @@ def generate_html(items, image_types, base_url, api_key, output_file, bgcolor, t
 						alt_caption = f"{safe_name} - {itype} ({w}x{h})" + (" - LOW RESOLUTION" if low else "")
 						body_fp.write(f'''
 <div class="image-grid">
-  <a href="#lightbox" onclick="openLightbox('{item["Id"]}', this.querySelector('img').src); return false;">
+  <a href="{url}" target="_blank" onclick="openLightbox('{item["Id"]}', '{url}'); return false;">
 	<img src="{url}" class="banner-full" alt="{alt_caption}" loading="lazy">
   </a>
   {_build_caption_html(itype, w, h, low)}
@@ -659,7 +669,7 @@ def generate_html(items, image_types, base_url, api_key, output_file, bgcolor, t
 						alt_caption = f"{safe_name} - {itype} ({w}x{h})" + (" - LOW RESOLUTION" if low else "")
 						body_fp.write(f'''
 <div class="image-grid">
-  <a href="#lightbox" onclick="openLightbox('{item["Id"]}', this.querySelector('img').src); return false;">
+  <a href="{url}" target="_blank" onclick="openLightbox('{item["Id"]}', '{url}'); return false;">
 	<img src="{url}" class="banner-full" alt="{alt_caption}" loading="lazy">
   </a>
   {_build_caption_html(itype, w, h, low)}
@@ -678,7 +688,7 @@ def generate_html(items, image_types, base_url, api_key, output_file, bgcolor, t
 							alt_caption = f"{safe_name} - {itype} ({w}x{h})" + (" - LOW RESOLUTION" if low else "")
 							body_fp.write(f'''
 <div class="image-grid">
-  <a href="#lightbox" onclick="openLightbox('{item["Id"]}', this.querySelector('img').src); return false;">
+  <a href="{url}" target="_blank" onclick="openLightbox('{item["Id"]}', '{url}'); return false;">
 	<img src="{url}" alt="{alt_caption}" loading="lazy">
   </a>
   {_build_caption_html(itype, w, h, low)}
@@ -695,7 +705,7 @@ def generate_html(items, image_types, base_url, api_key, output_file, bgcolor, t
 						alt_caption = f"{safe_name} - {itype} ({w}x{h})" + (" - LOW RESOLUTION" if low else "")
 						body_fp.write(f'''
 <div class="image-grid">
-  <a href="#lightbox" onclick="openLightbox('{item["Id"]}', this.querySelector('img').src); return false;">
+  <a href="{url}" target="_blank" onclick="openLightbox('{item["Id"]}', '{url}'); return false;">
 	<img src="{url}" class="logo-img" alt="{alt_caption}" loading="lazy">
   </a>
   {_build_caption_html(itype, w, h, low)}

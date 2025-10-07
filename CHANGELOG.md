@@ -5,6 +5,22 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v0.34.6 – 2025-10-07
+
+#### Added
+- **Lightbox “Open in New Tab” support:** Users can now right-click or middle-click any image (in both the gallery and lightbox views) to open it directly in a new browser tab instead of downloading it.
+- **Version label in GitHub view link:** Added display of the current app version (`v0.34.6`) next to “View on GitHub” in the HTML generation success message.
+
+#### Changed
+- **Anchor behavior:** All image anchors now include `target="_blank"` and direct image URLs, preserving lightbox behavior on normal clicks while enabling native browser tab opening.
+- **Lightbox markup:** The lightbox image is now wrapped in a clickable `<a id="lightbox-link" href="" target="_blank">` element so full-size images can also be opened directly.
+
+#### Fixed
+- **Right-click behavior:** Resolved issue where “Open image in new tab” would download instead of open when triggered from gallery or lightbox.
+- **Backdrop labeling:** Single backdrops are now labeled “Backdrop,” while multiple backdrops display as “Backdrop (0),” “Backdrop (1),” etc. for clarity.
+
+---
+
 ## v0.34.5 – 2025-10-07
 
 #### Added
