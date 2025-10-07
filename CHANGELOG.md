@@ -5,6 +5,23 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v0.34.5 – 2025-10-07
+
+#### Added
+- **Backdrops (multi-index support):** Added full detection of `BackdropImageTags`, enabling retrieval and display of every available backdrop (`Backdrop/0`, `Backdrop/1`, etc.).
+- **ZIP packaging:** Now includes all backdrop images in each item’s folder as `backdrop01`, `backdrop02`, etc. (or using the overridden base name like `background01`, `background02`).
+
+#### Changed
+- **HTML generation:** Backdrops section now iterates through all detected backdrops and displays them sequentially in the right column.
+- **Lightbox behavior:** Now automatically includes all backdrops (and other images) in the same slideshow sequence for each item.
+- **ZIP naming:** Numeric suffixes in ZIP outputs are now zero-padded (`backdrop01`, `backdrop02`, etc.) for cleaner sorting.
+
+#### Fixed
+- **Single-backdrop limitation:** Resolved issue where only one backdrop image was being displayed or downloaded even when multiple existed.
+- **Consistency in backdrop handling:** HTML and ZIP logic now share unified multi-tag detection, ensuring both reflect the same image set.
+
+---
+
 ## v0.34.4 - 2025-09-07
 
 #### Changed

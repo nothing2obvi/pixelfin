@@ -236,20 +236,38 @@ def get_image_resolution(url):
 def find_image_tags(item, image_type, base_url, api_key, first_only=False):
 	image_tags_dict = item.get('ImageTags', {}) or {}
 	tags = []
+	image_type_lower = (image_type or '').lower()
+	
+	# --- NEW: also check BackdropImageTags / multiple indices ---
+	backdrop_tags = []
+	if image_type_lower == "backdrop":
+		backdrop_tags = item.get('BackdropImageTags', []) or []
+		for idx, tag in enumerate(backdrop_tags):
+			url = f"{base_url.rstrip('/')}/Items/{item['Id']}/Images/Backdrop/{idx}?tag={tag}&api_key={api_key}"
+			width, height = get_image_resolution(url)
+			tags.append((f"Backdrop {idx}", url, width, height))
+			if first_only:
+				return tags
+	
+	# --- Original generic handling ---
 	for key, tag in image_tags_dict.items():
 		key_lower = (key or '').lower()
-		if key_lower.startswith((image_type or '').lower()):
+		if key_lower.startswith(image_type_lower):
 			url = f"{base_url.rstrip('/')}/Items/{item['Id']}/Images/{image_type}?tag={tag}&api_key={api_key}"
 			width, height = get_image_resolution(url)
 			tags.append((image_type, url, width, height))
 			if first_only:
 				return tags
+	
+	# --- Fallback for untagged images ---
 	if not tags:
 		url = f"{base_url.rstrip('/')}/Items/{item['Id']}/Images/{image_type}?api_key={api_key}"
 		width, height = get_image_resolution(url)
 		if width != 0:
 			tags.append((image_type, url, width, height))
+	
 	return tags
+
 
 # ----------------------------------------------------------------------
 # Utility helpers for ZIP creation
@@ -618,7 +636,7 @@ def generate_html(items, image_types, base_url, api_key, output_file, bgcolor, t
 			body_fp.write('<div class="right-column">\n')
 
 			if 'bd' in right_codes:
-				tags = find_image_tags(item, 'Backdrop', base_url, api_key)
+				tags = find_image_tags(item, 'Backdrop', base_url, api_key, first_only=False)
 				if tags:
 					for itype, url, w, h in tags:
 						low = check_low_res('bd', w, h, minres)
@@ -784,7 +802,7 @@ def create_zip(items, image_types: List[str], base_url: str, api_key: str,
 					try:
 						data, ext = stream_to_bytes(url)
 						if multi:
-							filename = f"{base_name}{idx}{ext}"
+							filename = f"{base_name}{idx:02d}{ext}"  # e.g. backdrop01, backdrop02
 						else:
 							filename = f"{base_name}{ext}"
 						arcname = f"{folder}/{filename}"
