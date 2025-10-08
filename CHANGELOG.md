@@ -5,6 +5,18 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v0.34.7 – 2025-10-07
+
+#### Changed
+- **Lightbox interaction:** Removed `<a>` wrapper around the lightbox image to prevent automatic downloads or opening in a new tab.
+- **Click handling:** Added `e.preventDefault()` and `e.stopPropagation()` on image clicks inside the lightbox to stop default browser actions while preserving next-image cycling.
+
+#### Fixed
+- **Image click behavior:** Clicking an image in the lightbox no longer triggers a file download or opens a new browser tab.
+- **Lightbox navigation:** Maintained full support for next/previous image cycling, arrow-key navigation, and closing with `Esc` or outside clicks.
+
+---
+
 ## v0.34.6 – 2025-10-07
 
 #### Added

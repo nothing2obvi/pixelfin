@@ -400,13 +400,11 @@ def _write_summary_table_close(fp):
 	fp.write('</table>\n')
 
 def _write_lightbox(fp):
-		fp.write('''
+	fp.write('''
 	<div id="lightbox" class="lightbox" onclick="clickOutside(event)">
 	  <div class="lightbox-content">
 		<div class="lightbox-caption" id="lightbox-caption"></div>
-		<a id="lightbox-link" href="" target="_blank">
-		  <img id="lightbox-img" src="" alt="" />
-		</a>
+		<img id="lightbox-img" src="" alt="" />
 		<div class="lightbox-buttons">
 		  <button onclick="prevImage(event)">◀ Prev</button>
 		  <button onclick="nextImage(event)">Next ▶</button>
@@ -431,13 +429,23 @@ def _write_lightbox(fp):
 	function showImage() {
 	  if(!currentImages.length) return;
 	  const img = document.getElementById('lightbox-img');
-	  const link = document.getElementById('lightbox-link');
 	  const { src, caption } = currentImages[currentIndex];
 	  img.src = src;
 	  img.alt = caption;
-	  link.href = src;
 	  document.getElementById('lightbox-caption').innerText = caption;
 	}
+	
+	// Clicking the displayed image cycles to the next one
+	document.addEventListener('DOMContentLoaded', () => {
+	  const lightboxImg = document.getElementById('lightbox-img');
+	  if (lightboxImg) {
+		lightboxImg.addEventListener('click', (e) => {
+		  e.preventDefault();
+		  e.stopPropagation();
+		  nextImage(e);
+		});
+	  }
+	});
 	
 	function closeLightbox() {
 	  document.getElementById('lightbox').style.display='none';
@@ -456,6 +464,7 @@ def _write_lightbox(fp):
 	});
 	</script>
 	''')
+
 
 
 def _write_footer(fp):
@@ -625,9 +634,10 @@ def generate_html(items, image_types, base_url, api_key, output_file, bgcolor, t
 						alt_caption = f"{safe_name} - {itype} ({w}x{h})" + (" - LOW RESOLUTION" if low else "")
 						body_fp.write(f'''
 <div class="image-grid">
-  <a href="{url}" target="_blank" onclick="openLightbox('{item["Id"]}', '{url}'); return false;">
-	<img src="{url}" alt="{alt_caption}" loading="lazy">
-  </a>
+  <img src="{url}" alt="{alt_caption}" loading="lazy"
+   onclick="openLightbox('{item["Id"]}', '{url}'); return false;"
+   style="cursor:pointer; border:2px solid #ccc; border-radius:5px;">
+
   {_build_caption_html(itype, w, h, low)}
 </div>''')
 				else:
@@ -653,9 +663,9 @@ def generate_html(items, image_types, base_url, api_key, output_file, bgcolor, t
 						alt_caption = f"{safe_name} - {itype} ({w}x{h})" + (" - LOW RESOLUTION" if low else "")
 						body_fp.write(f'''
 <div class="image-grid">
-  <a href="{url}" target="_blank" onclick="openLightbox('{item["Id"]}', '{url}'); return false;">
-	<img src="{url}" class="banner-full" alt="{alt_caption}" loading="lazy">
-  </a>
+  <img src="{url}" class="banner-full" alt="{alt_caption}" loading="lazy"
+   onclick="openLightbox('{item["Id"]}', '{url}'); return false;"
+   style="cursor:pointer; border:2px solid #ccc; border-radius:5px;">
   {_build_caption_html(itype, w, h, low)}
 </div>''')
 				else:
@@ -669,9 +679,9 @@ def generate_html(items, image_types, base_url, api_key, output_file, bgcolor, t
 						alt_caption = f"{safe_name} - {itype} ({w}x{h})" + (" - LOW RESOLUTION" if low else "")
 						body_fp.write(f'''
 <div class="image-grid">
-  <a href="{url}" target="_blank" onclick="openLightbox('{item["Id"]}', '{url}'); return false;">
-	<img src="{url}" class="banner-full" alt="{alt_caption}" loading="lazy">
-  </a>
+  <img src="{url}" class="banner-full" alt="{alt_caption}" loading="lazy"
+   onclick="openLightbox('{item["Id"]}', '{url}'); return false;"
+   style="cursor:pointer; border:2px solid #ccc; border-radius:5px;">
   {_build_caption_html(itype, w, h, low)}
 </div>''')
 				else:
@@ -688,9 +698,9 @@ def generate_html(items, image_types, base_url, api_key, output_file, bgcolor, t
 							alt_caption = f"{safe_name} - {itype} ({w}x{h})" + (" - LOW RESOLUTION" if low else "")
 							body_fp.write(f'''
 <div class="image-grid">
-  <a href="{url}" target="_blank" onclick="openLightbox('{item["Id"]}', '{url}'); return false;">
-	<img src="{url}" alt="{alt_caption}" loading="lazy">
-  </a>
+  <img src="{url}" alt="{alt_caption}" loading="lazy"
+   onclick="openLightbox('{item["Id"]}', '{url}'); return false;"
+   style="cursor:pointer; border:2px solid #ccc; border-radius:5px;">
   {_build_caption_html(itype, w, h, low)}
 </div>''')
 					else:
@@ -705,9 +715,9 @@ def generate_html(items, image_types, base_url, api_key, output_file, bgcolor, t
 						alt_caption = f"{safe_name} - {itype} ({w}x{h})" + (" - LOW RESOLUTION" if low else "")
 						body_fp.write(f'''
 <div class="image-grid">
-  <a href="{url}" target="_blank" onclick="openLightbox('{item["Id"]}', '{url}'); return false;">
-	<img src="{url}" class="logo-img" alt="{alt_caption}" loading="lazy">
-  </a>
+  <img src="{url}" class="logo-img" alt="{alt_caption}" loading="lazy"
+   onclick="openLightbox('{item["Id"]}', '{url}'); return false;"
+   style="cursor:pointer; border:2px solid #ccc; border-radius:5px;">
   {_build_caption_html(itype, w, h, low)}
 </div>''')
 				else:
