@@ -1,0 +1,13 @@
+services:
+  pixelfin:
+    image: ghcr.io/nothing2obvi/pixelfin:latest
+    container_name: pixelfin
+    ports:
+      - "1280:1280"
+    volumes:
+      - ./output:/app/output
+      - ./data:/app/data
+    restart: unless-stopped
+    environment:
+      - TZ=America/Phoenix
+      - CACHE_DIR=/app/data/cache

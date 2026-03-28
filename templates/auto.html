@@ -1,0 +1,490 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Pixelfin - Auto</title>
+<link rel="icon" type="image/png" href="{{ url_for('serve_assets', filename='Pixelfin_Favicon.png') }}" />
+<style>
+body {
+	font-family: Arial, sans-serif;
+	margin: 0;
+	padding: 0;
+	background-color: #111;
+	color: #eee;
+}
+body.light-mode {
+	background-color: #f0f0f0;
+	color: #111;
+}
+.container {
+	max-width: 1100px;
+	margin: 20px auto;
+	padding: 25px;
+	border-radius: 12px;
+	background-color: #1a1a1a;
+	text-align: center;
+}
+body.light-mode .container { background-color: #f5f5f5; color:#111; }
+
+img.pixelfin-logo {
+	display: block;
+	margin: 0 auto 25px auto;
+	max-width: 375px;
+}
+
+.btn {
+	padding:10px 20px;
+	font-size:16px;
+	cursor:pointer;
+	border:none;
+	font-weight:bold;
+	border-radius: 8px;
+}
+.btn-toggle {
+	background-color: #6cb9f1;
+	color: #111;
+	transition: background-color 0.3s, box-shadow 0.3s, opacity 0.2s;
+	text-decoration:none;
+	display:inline-block;
+}
+.btn-toggle:hover { opacity: 0.9; }
+.btn-toggle:visited,
+.btn-toggle:link { color:#111; }
+
+/* ✅ Light/Dark button light gray */
+.btn-lightdark {
+	background-color: #d9d9d9 !important;
+	color: #111 !important;
+}
+.btn-lightdark:hover { filter: brightness(0.97); }
+
+.btn-auto {
+	background-color:#ff69b4;
+	color:#111;
+	transition: opacity 0.2s, box-shadow 0.3s;
+	text-decoration:none;
+	display:inline-block;
+}
+.btn-auto:hover { opacity: 0.9; }
+.btn-auto.active-auto { box-shadow: 0 0 8px #ff69b4; }
+
+.form-row {
+	display:flex;
+	justify-content:center;
+	align-items:center;
+	gap:10px;
+	margin-bottom: 12px;
+	flex-wrap:wrap;
+}
+input[type=text], input[type=number] {
+	background-color: #222;
+	color: #eee;
+	border:1px solid #555;
+	padding:6px;
+	width:260px;
+	box-sizing: border-box;
+	border-radius: 8px;
+}
+body.light-mode input[type=text], body.light-mode input[type=number] {
+	background-color: #ddd;
+	color:#111;
+	border:1px solid #bbb;
+}
+
+.btn-small {
+	padding:9px 14px;
+	font-size:15px;
+	border-radius: 8px;
+}
+.btn-pink { background-color:#ff69b4; color:#111; }
+.btn-purple { background-color:#bb8fe1; color:#fff; }
+.btn-red { background-color:#ff4d4d; color:#111; }
+
+.job-card{
+	border:1px solid #333;
+	border-radius:12px;
+	padding:18px;
+	margin: 14px auto;
+	background:#161616;
+	text-align:left;
+}
+body.light-mode .job-card { background:#fff; border-color:#ccc; }
+body.light-mode .job-card label { color:#333; }
+
+.job-grid{
+	display:grid;
+	grid-template-columns: 1.2fr 0.7fr 0.7fr 1.1fr 0.7fr 0.7fr 0.4fr;
+	gap:10px;
+	align-items:center;
+}
+.job-grid label{ font-size:14px; color:#ccc; }
+.small { font-size: 12px; color:#999; }
+body.light-mode .small { color:#555; }
+
+.checkbox-grid {
+	display:grid;
+	grid-template-columns:repeat(5, minmax(120px,1fr));
+	gap:10px 18px;
+	margin-top: 10px;
+}
+
+.res-table {
+	border-collapse: collapse;
+	width: 100%;
+	margin-top: 12px;
+}
+.res-table th, .res-table td {
+	border:1px solid #444;
+	padding:8px;
+	text-align:center;
+}
+.res-table th { color:#eee; }
+body.light-mode .res-table th { color:#111; border-color:#bbb; }
+body.light-mode .res-table td { border-color:#bbb; }
+
+hr.sep { border:0; border-top:1px solid #333; margin:18px 0; }
+body.light-mode hr.sep { border-top:1px solid #ccc; }
+
+.sort-wrap { display:flex; flex-direction:column; gap:4px; }
+.seg {
+	display:inline-flex;
+	border:1px solid #444;
+	border-radius:10px;
+	overflow:hidden;
+	background:#111;
+}
+body.light-mode .seg { background:#eee; border-color:#bbb; }
+.seg input { display:none; }
+.seg label {
+	padding:7px 10px;
+	font-size:13px;
+	cursor:pointer;
+	color:#ddd;
+	background:#1b1b1b;
+	border-right:1px solid #444;
+	user-select:none;
+	white-space:nowrap;
+}
+body.light-mode .seg label { background:#e8e8e8; color:#111; border-right:1px solid #bbb; }
+.seg label:last-child { border-right:none; }
+.seg input:checked + label {
+	background:#ff69b4;
+	color:#111;
+	font-weight:bold;
+}
+.seg label:hover { opacity: 0.92; }
+
+.tip-box {
+	background:#222;
+	border:1px solid #444;
+	border-radius:10px;
+	padding:14px 16px;
+	margin: 18px auto 22px auto;
+	width: 90%;
+	color:#ccc;
+	text-align:left;
+	line-height:1.5em;
+}
+body.light-mode .tip-box {
+	background:#f2f2f2;
+	border-color:#cfcfcf;
+	color:#222;
+}
+.tip-box strong { color: inherit; }
+.tip-box .bulb { margin-right:6px; }
+</style>
+
+<script>
+function applyThemeFromStorage(){
+	const t = localStorage.getItem("pixelfin_theme") || "dark";
+	if (t === "light") document.body.classList.add("light-mode");
+	else document.body.classList.remove("light-mode");
+}
+function toggleLightDark() {
+	document.body.classList.toggle("light-mode");
+	localStorage.setItem("pixelfin_theme", document.body.classList.contains("light-mode") ? "light" : "dark");
+}
+document.addEventListener("DOMContentLoaded", applyThemeFromStorage);
+
+function toggleBlock(id){
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = (el.style.display === "none" || el.style.display === "") ? "block" : "none";
+}
+function deleteJob(btn){
+  const card = btn.closest(".job-card");
+  if (!card) return;
+  card.remove();
+}
+let nextIndex = 0;
+function initNextIndex(){
+  const cards = document.querySelectorAll(".job-card");
+  nextIndex = cards.length;
+}
+function addJob(){
+  const container = document.getElementById("jobsContainer");
+  const tpl = document.getElementById("jobTemplate");
+  const clone = tpl.content.cloneNode(true);
+  const html = clone.querySelector(".job-card").outerHTML.replaceAll("__IDX__", String(nextIndex));
+  const wrapper = document.createElement("div");
+  wrapper.innerHTML = html;
+  container.appendChild(wrapper.firstElementChild);
+  nextIndex++;
+}
+document.addEventListener("DOMContentLoaded", initNextIndex);
+</script>
+</head>
+
+<body>
+<div class="container">
+  {% if pixelfin %}
+  <img src="data:image/png;base64,{{ pixelfin }}" class="pixelfin-logo" />
+  {% endif %}
+
+  <div style="margin-bottom: 18px; display:flex; justify-content:center; gap:12px; align-items:center; flex-wrap:wrap;">
+	<a class="btn btn-auto active-auto" href="{{ url_for('auto_page') }}">Auto</a>
+	<a class="btn btn-toggle" href="{{ url_for('index') }}?tab=generate-tab">HTML / ZIP</a>
+	<a class="btn btn-toggle" href="{{ url_for('index') }}?tab=restore-tab">Restore</a>
+	<button type="button" class="btn btn-toggle btn-lightdark" onclick="toggleLightDark()">Light / Dark</button>
+  </div>
+
+  <div class="tip-box">
+	<strong><span class="bulb">💡</span>Tip:</strong> Auto “Keep HTML / Keep ZIP” limits delete older files inside each library’s output folder.<br>
+	To protect specific outputs, use the <strong>Keep</strong> button on the <strong>HTML / ZIP</strong> page. Files marked <strong>Keep</strong> will be retained
+	<strong>in addition to</strong> your Auto keep limits, and they will be skipped during Auto pruning until you switch them back to <strong>Don’t Keep</strong>.
+  </div>
+
+  <div style="display:flex; justify-content:center; gap:12px; margin-bottom: 10px;">
+	<button type="button" class="btn btn-small btn-pink" onclick="addJob()">Add Library Row</button>
+  </div>
+
+  <h2>Auto Jobs</h2>
+  <p class="small">
+	Keep limits auto-delete older files inside the same output folders as the main HTML/ZIP page.
+  </p>
+
+  <form method="post">
+	<div id="jobsContainer">
+	  {% for job in auto.jobs %}
+	  {% set idx = loop.index0 %}
+	  <div class="job-card">
+		<div class="job-grid">
+		  <div>
+			<label>Library</label><br>
+			<input type="text" name="job_{{ idx }}_library" value="{{ job.library }}" list="libraries" required>
+		  </div>
+
+		  <div>
+			<label>Auto HTML</label><br>
+			<input type="checkbox" name="job_{{ idx }}_auto_html" {% if job.auto_html %}checked{% endif %}>
+		  </div>
+
+		  <div>
+			<label>Keep HTML</label><br>
+			<input type="number" name="job_{{ idx }}_keep_html" value="{{ job.keep_html }}" min="0" style="width:110px;">
+		  </div>
+
+		  <div class="sort-wrap">
+			<label>HTML Sort</label>
+			<div class="seg">
+			  {% set so = (job.sort_order or 'alphabetical') %}
+			  <input id="job_{{ idx }}_sort_a" type="radio" name="job_{{ idx }}_sort_order" value="alphabetical"
+					 {% if so == 'alphabetical' %}checked{% endif %}>
+			  <label for="job_{{ idx }}_sort_a">Alphabetical</label>
+
+			  <input id="job_{{ idx }}_sort_r" type="radio" name="job_{{ idx }}_sort_order" value="recent"
+					 {% if so == 'recent' %}checked{% endif %}>
+			  <label for="job_{{ idx }}_sort_r">Date Added</label>
+			</div>
+		  </div>
+
+		  <div>
+			<label>Auto ZIP</label><br>
+			<input type="checkbox" name="job_{{ idx }}_auto_zip" {% if job.auto_zip %}checked{% endif %}>
+		  </div>
+
+		  <div>
+			<label>Keep ZIP</label><br>
+			<input type="number" name="job_{{ idx }}_keep_zip" value="{{ job.keep_zip }}" min="0" style="width:110px;">
+		  </div>
+
+		  <div style="text-align:right;">
+			<button type="button" class="btn btn-small btn-red" onclick="deleteJob(this)">✕</button>
+		  </div>
+		</div>
+
+		<div style="margin-top:12px; display:flex; gap:10px; justify-content:flex-start; flex-wrap:wrap;">
+		  <button type="button" class="btn btn-small btn-purple" onclick="toggleBlock('images_{{ idx }}')">Image Types</button>
+		  <button type="button" class="btn btn-small btn-purple" onclick="toggleBlock('res_{{ idx }}')">Resolutions / ZIP Names</button>
+		</div>
+
+		<div id="images_{{ idx }}" style="display:none; margin-top:12px;">
+		  <div class="checkbox-grid">
+			{% for code, label in image_types.items() %}
+			<label>
+			  <input type="checkbox"
+					 name="job_{{ idx }}_images"
+					 value="{{ code }}"
+					 {% if code in job.images %}checked{% endif %}>
+			  {{ label }}
+			</label>
+			{% endfor %}
+		  </div>
+		</div>
+
+		<div id="res_{{ idx }}" style="display:none; margin-top:14px;">
+		  <div class="small" style="margin-bottom:8px;">
+			Minimum width/height affects HTML generation only. ZIP Filename Override renames files inside the ZIP.
+		  </div>
+
+		  <table class="res-table">
+			<tr>
+			  <th>Image Type</th>
+			  <th>Min Width</th>
+			  <th>Min Height</th>
+			  <th>ZIP Filename Override</th>
+			</tr>
+			{% for code, label in image_types.items() %}
+			<tr>
+			  <td>{{ label }}</td>
+			  <td>
+				<input type="number"
+					   name="job_{{ idx }}_minres_{{ code }}_w"
+					   value="{{ job.minres[code][0] if code in job.minres else '' }}"
+					   style="width:110px;">
+			  </td>
+			  <td>
+				<input type="number"
+					   name="job_{{ idx }}_minres_{{ code }}_h"
+					   value="{{ job.minres[code][1] if code in job.minres else '' }}"
+					   style="width:110px;">
+			  </td>
+			  <td>
+				<input type="text"
+					   name="job_{{ idx }}_zipname_{{ code }}"
+					   value="{{ job.zipnames.get(code,'') }}"
+					   placeholder="{{ default_zip_basenames[code] }}"
+					   style="width:220px;">
+			  </td>
+			</tr>
+			{% endfor %}
+		  </table>
+		</div>
+
+	  </div>
+	  {% endfor %}
+	</div>
+
+	<datalist id="libraries">
+	  {% for l in history.libraries %}
+	  <option value="{{ l }}">
+	  {% endfor %}
+	</datalist>
+
+	<hr class="sep">
+
+	<h3>Cron Schedule</h3>
+	<div class="form-row">
+	  <label style="min-width:140px; text-align:right;">Cron (5 fields):</label>
+	  <input type="text" name="cron" value="{{ auto.cron }}" placeholder="e.g. */30 * * * *">
+	</div>
+
+	<div style="margin-top:18px;">
+	  <button type="submit" class="btn btn-small btn-pink">Save Auto Jobs</button>
+	</div>
+  </form>
+
+  <template id="jobTemplate">
+	<div class="job-card">
+	  <div class="job-grid">
+		<div>
+		  <label>Library</label><br>
+		  <input type="text" name="job___IDX___library" value="" list="libraries" required>
+		</div>
+
+		<div>
+		  <label>Auto HTML</label><br>
+		  <input type="checkbox" name="job___IDX___auto_html" checked>
+		</div>
+
+		<div>
+		  <label>Keep HTML</label><br>
+		  <input type="number" name="job___IDX___keep_html" value="1" min="0" style="width:110px;">
+		</div>
+
+		<div class="sort-wrap">
+		  <label>HTML Sort</label>
+		  <div class="seg">
+			<input id="job___IDX___sort_a" type="radio" name="job___IDX___sort_order" value="alphabetical">
+			<label for="job___IDX___sort_a">Alphabetical</label>
+
+			<input id="job___IDX___sort_r" type="radio" name="job___IDX___sort_order" value="recent" checked>
+			<label for="job___IDX___sort_r">Date Added</label>
+		  </div>
+		</div>
+
+		<div>
+		  <label>Auto ZIP</label><br>
+		  <input type="checkbox" name="job___IDX___auto_zip" checked>
+		</div>
+
+		<div>
+		  <label>Keep ZIP</label><br>
+		  <input type="number" name="job___IDX___keep_zip" value="1" min="0" style="width:110px;">
+		</div>
+
+		<div style="text-align:right;">
+		  <button type="button" class="btn btn-small btn-red" onclick="deleteJob(this)">✕</button>
+		</div>
+	  </div>
+
+	  <div style="margin-top:12px; display:flex; gap:10px; justify-content:flex-start; flex-wrap:wrap;">
+		<button type="button" class="btn btn-small btn-purple" onclick="toggleBlock('images___IDX__')">Image Types</button>
+		<button type="button" class="btn btn-small btn-purple" onclick="toggleBlock('res___IDX__')">Resolutions / ZIP Names</button>
+	  </div>
+
+	  <div id="images___IDX__" style="display:none; margin-top:12px;">
+		<div class="checkbox-grid">
+		  {% for code, label in image_types.items() %}
+		  <label>
+			<input type="checkbox" name="job___IDX___images" value="{{ code }}" checked>
+			{{ label }}
+		  </label>
+		  {% endfor %}
+		</div>
+	  </div>
+
+	  <div id="res___IDX__" style="display:none; margin-top:14px;">
+		<div class="small" style="margin-bottom:8px;">
+		  Minimum width/height affects HTML generation only. ZIP Filename Override renames files inside the ZIP.
+		</div>
+
+		<table class="res-table">
+		  <tr>
+			<th>Image Type</th>
+			<th>Min Width</th>
+			<th>Min Height</th>
+			<th>ZIP Filename Override</th>
+		  </tr>
+		  {% for code, label in image_types.items() %}
+		  <tr>
+			<td>{{ label }}</td>
+			<td><input type="number" name="job___IDX___minres_{{ code }}_w" value="" style="width:110px;"></td>
+			<td><input type="number" name="job___IDX___minres_{{ code }}_h" value="" style="width:110px;"></td>
+			<td>
+			  <input type="text"
+					 name="job___IDX___zipname_{{ code }}"
+					 value=""
+					 placeholder="{{ default_zip_basenames[code] }}"
+					 style="width:220px;">
+			</td>
+		  </tr>
+		  {% endfor %}
+		</table>
+	  </div>
+	</div>
+  </template>
+
+</div>
+</body>
+</html>

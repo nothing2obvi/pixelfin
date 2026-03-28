@@ -1,0 +1,35 @@
+{
+  "projectName": "pixelfin",
+  "projectOwner": "nothing2obvi",
+  "repoType": "github",
+  "repoHost": "https://github.com",
+  "files": [
+    "README.md"
+  ],
+  "imageSize": 100,
+  "commit": true,
+  "commitConvention": "angular",
+  "contributors": [
+    {
+      "login": "LoV432",
+      "name": "LoV432",
+      "avatar_url": "https://avatars.githubusercontent.com/u/60856741?v=4",
+      "profile": "https://github.com/LoV432",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "avassor",
+      "name": "avassor",
+      "avatar_url": "https://avatars.githubusercontent.com/u/10287940?v=4",
+      "profile": "https://github.com/avassor",
+      "contributions": [
+        "ideas",
+        "review"
+      ]
+    }
+  ],
+  "contributorsPerLine": 7,
+  "linkToUsage": false
+}

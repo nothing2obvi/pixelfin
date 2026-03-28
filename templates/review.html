@@ -1,0 +1,425 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Semi-Auto Restore Review</title>
+<link rel="icon" type="image/png" href="data:image/png;base64,{{ pixelfin_favicon }}">
+<style>
+body { background:#111; color:#eee; font-family:sans-serif; padding:30px; }
+h2, h3 { color:#b19cd9; margin-bottom:6px; }
+table { border-collapse:collapse; width:100%; margin:20px 0; font-size:15px; }
+th, td { border:1px solid #333; padding:8px 10px; text-align:left; vertical-align:top; }
+th { background:#1b1b1b; color:#b19cd9; }
+.notice { background:#222; border:1px solid #444; padding:12px; border-radius:8px; margin-bottom:20px; text-align:center; }
+.dryrun { background:#332; color:#ffb347; }
+.small { color:#aaa; font-size:0.95em; }
+hr { border:none; border-top:1px solid #444; margin:30px 0; }
+
+button {
+  background:none; color:#9cf; border:1px solid #555; border-radius:6px;
+  padding:6px 14px; font-size:15px; cursor:pointer; margin-top:15px;
+}
+button:hover { background:#333; }
+
+#acceptAll, #applyAll {
+  display:block; margin:20px auto; font-weight:bold;
+  padding:10px 20px; border-radius:8px;
+}
+#acceptAll { background:#1f3; color:#000; }
+#acceptAll:hover { background:#2f4; }
+#applyAll { background:#39f; color:#fff; display:none; }
+#applyAll:hover { background:#4af; }
+
+.successMsg, .applyMsg, .errorMsg {
+  text-align:center; font-weight:bold; margin-top:10px; display:none;
+}
+.successMsg { color:#9f9; }
+.applyMsg { color:#9cf; }
+.errorMsg { color:#f88; }
+
+.summary-box {
+  background:#181818;
+  border:1px solid #333;
+  border-radius:8px;
+  padding:12px 14px;
+  margin:14px 0 20px 0;
+  color:#ccc;
+}
+.summary-box div { margin:4px 0; }
+
+.picker-wrap {
+  position: relative;
+  width: 100%;
+}
+
+input.manual-pick {
+  width: 100%;
+  background:#222;
+  color:#eee;
+  border:1px solid #555;
+  padding:6px 8px;
+  border-radius:8px;
+  box-sizing:border-box;
+}
+
+.suggestions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  background: #181818;
+  border: 1px solid #444;
+  border-radius: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 999;
+  display: none;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+}
+
+.suggestion-item {
+  padding: 8px 10px;
+  cursor: pointer;
+  border-bottom: 1px solid #2a2a2a;
+  color: #eee;
+}
+
+.suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.suggestion-item:hover,
+.suggestion-item.active {
+  background: #2b2b2b;
+}
+
+.helper {
+  color:#888;
+  font-size:0.85em;
+  margin-top:4px;
+}
+</style>
+</head>
+<body>
+  <img src="data:image/png;base64,{{ pixelfin_logo }}" style="width:160px; display:block; margin:0 auto 25px;">
+  <p><a href="/" style="color:#9cf;">← Back to Main Page</a></p>
+
+  <h2>Semi-Auto Restore Review</h2>
+  <p class="small">Review detected matches before applying changes.</p>
+
+  {% if dry_run %}
+  <div class="notice dryrun">
+    <strong>⚠️ DRY-RUN:</strong> No changes have been made to your Jellyfin library.
+  </div>
+  {% endif %}
+
+  {% if html_link %}
+  <p>📄 Comparison View: <a href="{{ html_link }}" target="_blank" style="color:#7eb7ee;">Open Detailed HTML Report</a></p>
+  {% endif %}
+
+  {% set below = result.below_threshold if result.below_threshold is defined else result.unmatched %}
+
+  <p class="small">Current threshold: <strong>{{ threshold or 0.95 }}</strong></p>
+
+  <div class="summary-box">
+    <div><strong>Available library titles:</strong> {{ result.all_matches|length }}</div>
+    <div><strong>Matched:</strong> {{ result.matched|length if result.matched else 0 }}</div>
+    <div><strong>Below threshold:</strong> {{ below|length if below else 0 }}</div>
+    <div><strong>Unmatched folders:</strong> {{ result.unmatched_folders|length if result.unmatched_folders else 0 }}</div>
+  </div>
+
+  {% if result.matched and result.matched|length > 0 %}
+  <h3>✅ Matched (Above Threshold)</h3>
+  <table>
+    <tr><th>Folder</th><th>Matched Item</th><th>Similarity</th></tr>
+    {% for m in result.matched | sort(attribute='folder') %}
+    <tr>
+      <td>{{ m.folder }}</td>
+      <td>🏅 {{ m.best_match }}</td>
+      <td>{{ "%.2f"|format(m.similarity) }}%</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <h3>✅ No Matches Found Above Threshold</h3>
+  {% endif %}
+
+  <hr>
+
+  <h3>🧾 Below Threshold (Manual Review)</h3>
+  {% if below and below|length > 0 %}
+  <table id="belowTable">
+    <tr><th>Folder</th><th>Pick Correct Match</th><th>Similarity</th></tr>
+    {% for u in below | sort(attribute='folder') %}
+    <tr>
+      <td>{{ u.folder }}</td>
+      <td>
+        {% if not dry_run %}
+        <div class="picker-wrap">
+          <input
+            type="text"
+            class="manual-pick"
+            data-folder="{{ u.folder }}"
+            value="{{ u.best_match or '' }}"
+            placeholder="Type any part of a title..."
+            autocomplete="off"
+            spellcheck="false"
+          >
+          <div class="suggestions"></div>
+        </div>
+        <div class="helper">Searches all {{ result.all_matches|length }} titles.</div>
+        {% else %}
+          {{ u.best_match or "—" }}
+        {% endif %}
+      </td>
+      <td>{{ "%.2f"|format(u.similarity) }}%</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="small">None</p>
+  {% endif %}
+
+  <hr>
+
+  <h3>🚫 Unmatched ZIP Folders (No Plausible Match)</h3>
+  {% if result.unmatched_folders is defined and result.unmatched_folders and result.unmatched_folders|length > 0 %}
+  <table id="unmatchedTable">
+    <tr><th>Folder</th><th>Pick Correct Match</th><th>Similarity</th></tr>
+    {% for u in result.unmatched_folders | sort(attribute='folder') %}
+    <tr>
+      <td>{{ u.folder }}</td>
+      <td>
+        {% if not dry_run %}
+        <div class="picker-wrap">
+          <input
+            type="text"
+            class="manual-pick"
+            data-folder="{{ u.folder }}"
+            value="{{ u.best_match or '' }}"
+            placeholder="Type any part of a title..."
+            autocomplete="off"
+            spellcheck="false"
+          >
+          <div class="suggestions"></div>
+        </div>
+        <div class="helper">Searches all {{ result.all_matches|length }} titles.</div>
+        {% else %}
+          {{ u.best_match or "—" }}
+        {% endif %}
+      </td>
+      <td>{{ "%.2f"|format(u.similarity or 0) }}%</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="small">None</p>
+  {% endif %}
+
+  {% if not dry_run %}
+  <button id="acceptAll">✅ Accept All Selections</button>
+  <div class="successMsg" id="successMsg">✅ Accepted all mappings successfully!</div>
+
+  <button id="applyAll">🚀 Apply All Restores</button>
+  <div class="applyMsg" id="applyMsg">🚀 Restore launched successfully!</div>
+  <div class="errorMsg" id="errorMsg">❌ Failed to apply restore.</div>
+  {% endif %}
+
+  <p><a href="/" style="color:#9cf;">← Back to Main Page</a></p>
+
+  <script>
+  const ALL_TITLES = [
+    {% for title in result.all_matches %}
+      {{ title|tojson }},
+    {% endfor %}
+  ];
+
+  const ALLOWED_TITLES = new Set(ALL_TITLES);
+
+  function rankMatches(query, titles, limit = 25) {
+    const q = (query || "").trim().toLowerCase();
+    if (!q) return titles.slice(0, limit);
+
+    const starts = [];
+    const contains = [];
+
+    for (const title of titles) {
+      const t = title.toLowerCase();
+      if (t.startsWith(q)) {
+        starts.push(title);
+      } else if (t.includes(q)) {
+        contains.push(title);
+      }
+    }
+
+    return starts.concat(contains).slice(0, limit);
+  }
+
+  function closeAllSuggestions(except = null) {
+    document.querySelectorAll(".suggestions").forEach(box => {
+      if (box !== except) {
+        box.style.display = "none";
+        box.innerHTML = "";
+      }
+    });
+  }
+
+  function attachPicker(input) {
+    const box = input.parentElement.querySelector(".suggestions");
+    let activeIndex = -1;
+    let currentMatches = [];
+
+    function renderSuggestions(matches) {
+      currentMatches = matches;
+      activeIndex = -1;
+
+      if (!matches.length) {
+        box.style.display = "none";
+        box.innerHTML = "";
+        return;
+      }
+
+      box.innerHTML = matches.map((title, idx) =>
+        `<div class="suggestion-item" data-idx="${idx}">${title}</div>`
+      ).join("");
+
+      box.style.display = "block";
+
+      box.querySelectorAll(".suggestion-item").forEach(item => {
+        item.addEventListener("mousedown", (e) => {
+          e.preventDefault();
+          input.value = item.textContent;
+          box.style.display = "none";
+          box.innerHTML = "";
+        });
+      });
+    }
+
+    input.addEventListener("focus", () => {
+      closeAllSuggestions(box);
+      renderSuggestions(rankMatches(input.value, ALL_TITLES));
+    });
+
+    input.addEventListener("input", () => {
+      closeAllSuggestions(box);
+      renderSuggestions(rankMatches(input.value, ALL_TITLES));
+    });
+
+    input.addEventListener("keydown", (e) => {
+      const items = box.querySelectorAll(".suggestion-item");
+      if (!items.length) return;
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        activeIndex = Math.min(activeIndex + 1, items.length - 1);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        activeIndex = Math.max(activeIndex - 1, 0);
+      } else if (e.key === "Enter") {
+        if (activeIndex >= 0 && currentMatches[activeIndex]) {
+          e.preventDefault();
+          input.value = currentMatches[activeIndex];
+          box.style.display = "none";
+          box.innerHTML = "";
+        }
+        return;
+      } else if (e.key === "Escape") {
+        box.style.display = "none";
+        box.innerHTML = "";
+        return;
+      } else {
+        return;
+      }
+
+      items.forEach((item, idx) => {
+        item.classList.toggle("active", idx === activeIndex);
+      });
+
+      if (items[activeIndex]) {
+        items[activeIndex].scrollIntoView({ block: "nearest" });
+      }
+    });
+
+    input.addEventListener("blur", () => {
+      setTimeout(() => {
+        box.style.display = "none";
+        box.innerHTML = "";
+      }, 120);
+    });
+  }
+
+  document.querySelectorAll("input.manual-pick").forEach(attachPicker);
+
+  const acceptAllBtn = document.getElementById("acceptAll");
+  const applyAllBtn = document.getElementById("applyAll");
+  const successMsg = document.getElementById("successMsg");
+  const applyMsg = document.getElementById("applyMsg");
+  const errorMsg = document.getElementById("errorMsg");
+
+  let mappingsToken = "";
+
+  function collectMappings() {
+    const inputs = document.querySelectorAll("input.manual-pick");
+    const mappings = [];
+
+    inputs.forEach(inp => {
+      const folder = (inp.getAttribute("data-folder") || "").trim();
+      const match = (inp.value || "").trim();
+      if (folder && match && ALLOWED_TITLES.has(match)) {
+        mappings.push({ folder, match });
+      }
+    });
+
+    return mappings;
+  }
+
+  if (acceptAllBtn) {
+    acceptAllBtn.addEventListener("click", async () => {
+      successMsg.style.display = "none";
+      applyMsg.style.display = "none";
+      errorMsg.style.display = "none";
+
+      const mappings = collectMappings();
+      const res = await fetch("/restore_apply_bulk", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({mappings})
+      });
+
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        mappingsToken = data.token || "";
+        successMsg.style.display = "block";
+        applyAllBtn.style.display = "block";
+      } else {
+        errorMsg.style.display = "block";
+      }
+    });
+  }
+
+  if (applyAllBtn) {
+    applyAllBtn.addEventListener("click", () => {
+      const params = new URLSearchParams({
+        library: "{{ library }}",
+        server: "{{ server }}",
+        apikey: "{{ apikey }}",
+        threshold: "{{ threshold }}",
+        path: "{{ zip_path }}",
+        dry_run: "{{ 'true' if dry_run else 'false' }}",
+        token: mappingsToken
+      });
+      applyAllBtn.disabled = true;
+      applyAllBtn.textContent = "⏳ Launching Restore...";
+      const newTab = window.open("/restore_execute?" + params.toString(), "_blank");
+      if (newTab) {
+        applyAllBtn.textContent = "🚀 Running in new tab...";
+        setTimeout(() => { applyMsg.style.display = "block"; }, 1200);
+      } else {
+        errorMsg.style.display = "block";
+        applyAllBtn.textContent = "⚠️ Popup blocked";
+      }
+    });
+  }
+  </script>
+</body>
+</html>

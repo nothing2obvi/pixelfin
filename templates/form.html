@@ -1,0 +1,681 @@
+<!-- templates/form.html -->
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Pixelfin</title>
+<link rel="icon" type="image/png" href="{{ url_for('serve_assets', filename='Pixelfin_Favicon.png') }}" />
+
+<style>
+.github-link {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 30px;
+  gap: 8px;
+  font-size: 14px;
+  text-decoration: none;
+  color: inherit;
+}
+body.light-mode .github-link { color: #000; }
+body:not(.light-mode) .github-link { color: #fff; }
+.github-link:hover { opacity: 0.8; }
+
+.spaced-header { margin-top: 40px; margin-bottom: 15px; }
+.small-caption {
+  font-size: 0.9em;
+  color: #888;
+  margin-top: -5px;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #111;
+  color: #eee;
+}
+.container {
+  max-width: 1000px;
+  margin: 20px auto;
+  padding: 25px;
+  border-radius: 12px;
+  background-color: #1a1a1a;
+  text-align: center;
+}
+.light-mode { background-color: #f0f0f0; color: #111; }
+.light-mode .container { background-color: #f5f5f5; color: #111; }
+
+img.pixelfin-logo {
+  display: block;
+  margin: 0 auto 25px auto;
+  max-width: 375px;
+}
+
+/* Form Rows */
+.form-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 15px;
+}
+.form-row label { margin-right: 10px; min-width: 120px; text-align: right; }
+
+/* Inputs */
+input[type=text], input[list], input[type=number], input[type=password], select {
+  background-color: #222;
+  color: #eee;
+  border:1px solid #555;
+  padding:5px;
+  width:250px;
+  box-sizing: border-box;
+  border-radius: 8px;
+}
+.light-mode input[type=text],
+.light-mode input[list],
+.light-mode input[type=number],
+.light-mode input[type=password],
+.light-mode select {
+  background-color: #ddd;
+  color: #111;
+  border:1px solid #bbb;
+}
+input[type=color] { width: 60px; height: 30px; border: none; vertical-align: middle; }
+
+/* Color pickers + image selectors */
+.color-image-row {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 50px 30px;
+  margin: 20px auto;
+  align-items: flex-start;
+}
+.color-pickers { display: flex; flex-direction: column; gap: 5px; }
+.color-pickers .picker-row { display: flex; justify-content: center; gap: 20px; }
+
+/* Image checkboxes evenly spaced */
+.checkbox-container {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(120px,1fr));
+  gap: 10px 20px;
+  max-width: 600px;
+  justify-items: center;
+}
+
+/* Table */
+table.res-table {
+  border-collapse: collapse;
+  width: 90%;
+  margin: 30px auto;
+}
+table.res-table th, table.res-table td {
+  border:1px solid #444;
+  padding:8px;
+  text-align:center;
+}
+table.res-table th { color:#eee; }
+.light-mode table.res-table th { color:#111; border-color:#bbb; }
+.light-mode table.res-table td { border-color:#bbb; }
+
+/* Buttons */
+.btn-row { display:flex; justify-content:center; gap:15px; margin-top:25px; flex-wrap:wrap; }
+.btn { padding:10px 20px; font-size:16px; cursor:pointer; border-radius: 8px; border: none; }
+
+/* Tab buttons */
+.btn-toggle {
+  background-color: #6cb9f1;
+  color: #111;
+  font-weight: bold;
+  transition: background-color 0.3s, box-shadow 0.3s, opacity 0.2s;
+}
+.btn-toggle:hover { opacity: 0.92; }
+
+.btn-toggle.active-tab {
+  background-color: #bb8fe1;
+  color: #fff;
+  box-shadow: 0 0 8px #bb8fe1;
+}
+
+/* Auto button (pink) */
+.btn-auto {
+  background-color: #ff67b3;
+  color: #111;
+  border: none;
+  font-weight: bold;
+  transition: filter 0.2s;
+}
+.btn-auto:hover { filter: brightness(0.95); }
+
+/* Light/Dark button */
+.btn-lightdark {
+  background-color: #d9d9d9 !important;
+  color: #111 !important;
+  font-weight: bold;
+}
+.btn-lightdark:hover { filter: brightness(0.97); }
+
+h3, h2 { margin-bottom: 15px; }
+
+/* Dark mode link colors */
+body:not(.light-mode) a:link { color: #00bfff; }
+body:not(.light-mode) a:visited { color: #b19cd9; }
+body:not(.light-mode) a:hover { color: #87cefa; }
+
+/* Light mode link colors */
+body.light-mode a:link { color: #0b66c3; }
+body.light-mode a:visited { color: #6a2dbb; }
+body.light-mode a:hover { color: #084a8c; }
+
+/* Keep button */
+.keep-btn {
+  display:inline-block;
+  padding:6px 10px;
+  border-radius: 8px;
+  border:1px solid #555;
+  text-decoration:none;
+  font-weight:700;
+  font-size: 13px;
+}
+.keep-btn.keep { background:#2a2a2a; color:#eee; }
+.keep-btn.keep:hover { filter: brightness(1.08); }
+.keep-btn.dont { background:#ff67b3; color:#111; border-color:#ff67b3; }
+.keep-btn.dont:hover { filter: brightness(0.95); }
+
+.kept-badge {
+  display:inline-block;
+  margin-left: 6px;
+  padding:3px 8px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:700;
+  background:#ff67b3;
+  color:#111;
+  vertical-align:middle;
+}
+.light-mode .kept-badge { background:#bb8fe1; color:#fff; }
+
+/* Previously-generated rows */
+.file-row {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border: 1px solid #333;
+  border-radius: 10px;
+  background: #151515;
+  text-align: left;
+}
+body.light-mode .file-row {
+  background: #f2f2f2;
+  border-color: #cfcfcf;
+}
+.file-row .filename {
+  font-weight: 700;
+  color: #eee;
+}
+body.light-mode .file-row .filename {
+  color: #111;
+}
+
+/* Action row layout */
+.file-actions {
+  margin-top: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.file-actions .left-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.file-actions .right-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+</style>
+
+<script>
+function applyThemeFromStorage(){
+  const t = localStorage.getItem("pixelfin_theme") || "dark";
+  if (t === "light") document.body.classList.add("light-mode");
+  else document.body.classList.remove("light-mode");
+}
+function toggleLightDark() {
+  document.body.classList.toggle("light-mode");
+  localStorage.setItem("pixelfin_theme", document.body.classList.contains("light-mode") ? "light" : "dark");
+}
+document.addEventListener("DOMContentLoaded", applyThemeFromStorage);
+</script>
+</head>
+
+<body>
+<div class="container">
+{% if pixelfin %}
+<img src="data:image/png;base64,{{ pixelfin }}" class="pixelfin-logo" />
+{% endif %}
+
+<!-- Top Nav Buttons (Auto + Tabs) -->
+<div style="margin-bottom: 25px; display:flex; justify-content:center; gap:12px; flex-wrap:wrap;">
+  <button class="btn btn-auto" onclick="window.location.href='{{ url_for('auto_page') }}'; return false;">Auto</button>
+  <button class="btn btn-toggle active-tab" onclick="openTab(event, 'generate-tab')">HTML / ZIP</button>
+  <button class="btn btn-toggle" onclick="openTab(event, 'restore-tab')">Restore</button>
+  <button type="button" class="btn btn-toggle btn-lightdark" onclick="toggleLightDark()">Light / Dark</button>
+</div>
+
+<!-- Generate Tab -->
+<div id="generate-tab" class="tabcontent" style="display:block;">
+  <h2>Generate HTML / ZIP</h2>
+  <form method="post">
+
+  <div class="form-row">
+  <label for="server">Server URL:</label>
+  <input name="server" list="servers" value="{{selected.server}}" required>
+  <datalist id="servers">{% for s in history.servers %}<option value="{{s}}">{% endfor %}</datalist>
+  </div>
+
+  <div class="form-row">
+  <label for="apikey">API Key:</label>
+  <input type="text" name="apikey" value="{{selected.apikey}}" required>
+  </div>
+
+  <div class="form-row">
+  <label for="library">Library Name:</label>
+  <input name="library" list="libraries" value="{{selected.library}}" required>
+  <datalist id="libraries">{% for l in history.libraries %}<option value="{{l}}">{% endfor %}</datalist>
+  </div>
+
+  <div style="height: 15px;"></div>
+
+  <div class="color-image-row">
+  <div class="color-pickers">
+    <div class="picker-row">
+    <label>Background:</label><input type="color" name="bgcolor" value="{{selected.bgcolor}}">
+    <label>Text:</label><input type="color" name="textcolor" value="{{selected.textcolor}}">
+    <label>Table Background:</label><input type="color" name="tablebgcolor" value="{{selected.tablebgcolor}}">
+    </div>
+  </div>
+
+  <div style="display:flex; align-items:center; gap:20px;">
+    <div style="display:flex; flex-direction:column; justify-content:center; text-align:left; font-weight:bold; margin-left:-65px;">
+    <span>Image Type</span>
+    <span>Selection</span>
+    </div>
+
+    <div class="checkbox-container">
+    {% for code, label in image_types|dictsort %}
+    <label><input type="checkbox" name="images" value="{{ code }}" {% if code in selected.images %}checked{% endif %}> {{ label }}</label>
+    {% endfor %}
+    </div>
+  </div>
+  </div>
+
+  <!-- Sort Toggle -->
+  <div style="margin-top: 25px; text-align:center;">
+  <label style="font-weight:bold; margin-right:10px;">Sort by:</label>
+
+  <span id="sort-label-date" style="color:#7eb7ee; font-weight:600;">Date Added (descending)</span>
+
+  <input type="hidden" name="sort_order" id="sortHidden"
+     value="{{ 'recent' if selected.sort_order == 'recent' else 'alphabetical' }}">
+
+  <label class="switch" style="position:relative; display:inline-block; width:64px; height:30px; vertical-align:middle; margin:0 10px;">
+  <input type="checkbox" id="sortToggle" {% if selected.sort_order != 'recent' %}checked{% endif %} style="opacity:0;width:0;height:0;">
+  <span class="slider"></span>
+  </label>
+
+  <span id="sort-label-alpha" style="color:#b490db; font-weight:600;">Alphabetical</span>
+  </div>
+
+  <style>
+  .slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #7eb7ee;
+  transition: 0.4s;
+  border-radius: 30px;
+  }
+  .slider:before {
+  position: absolute;
+  content: "";
+  height: 22px; width: 22px;
+  left: 4px; bottom: 4px;
+  background-color: white;
+  transition: 0.4s;
+  border-radius: 50%;
+  }
+  input:checked + .slider { background-color: #b490db; }
+  input:checked + .slider:before { transform: translateX(34px); }
+  </style>
+
+  <script>
+  document.addEventListener("DOMContentLoaded", () => {
+  const toggle = document.getElementById("sortToggle");
+  const hidden = document.getElementById("sortHidden");
+  const labelDate = document.getElementById("sort-label-date");
+  const labelAlpha = document.getElementById("sort-label-alpha");
+  const form = document.querySelector("form");
+
+  function updateLabelsAndValue() {
+  if (toggle.checked) {
+    hidden.value = "alphabetical";
+    labelAlpha.style.opacity = "1";
+    labelDate.style.opacity = "0.4";
+  } else {
+    hidden.value = "recent";
+    labelAlpha.style.opacity = "0.4";
+    labelDate.style.opacity = "1";
+  }
+  }
+
+  toggle.addEventListener("change", updateLabelsAndValue);
+  if (form) form.addEventListener("submit", updateLabelsAndValue);
+  updateLabelsAndValue();
+  });
+  </script>
+
+  <h3 class="spaced-header">Minimum Resolution / ZIP Filename Override</h3>
+  <p class="small-caption">
+  Minimum width and height are used only for HTML generation. ZIP Filename Override is used to rename images when creating ZIP files.
+  </p>
+
+  <table class="res-table">
+  <tr><th>Image Type</th><th>Min Width</th><th>Min Height</th><th>ZIP Filename Override</th></tr>
+  {% for code, label in image_types|dictsort %}
+  <tr>
+  <td>{{ label }}</td>
+  <td><input type="number" name="minres_{{ code }}_w" value="{{ selected.minres[code][0] if code in selected.minres else '' }}"></td>
+  <td><input type="number" name="minres_{{ code }}_h" value="{{ selected.minres[code][1] if code in selected.minres else '' }}"></td>
+  <td><input type="text" name="zipname_{{ code }}" value="{{ selected.zipnames.get(code,'') }}" placeholder="{{ default_zip_basenames[code] }}"></td>
+  </tr>
+  {% endfor %}
+  </table>
+
+  <div class="btn-row">
+  <button type="submit" name="action" value="html" class="btn">Generate HTML</button>
+  <button type="submit" name="action" value="zip" class="btn">Create ZIP File</button>
+  </div>
+
+  </form>
+</div>
+
+<!-- Restore Tab -->
+<div id="restore-tab" class="tabcontent" style="display:none;">
+  <h2>Restore Images to Library</h2>
+  <form id="restoreForm" action="/restore" method="post" enctype="multipart/form-data">
+  <input type="hidden" name="server" value="{{ selected.server }}">
+  <input type="hidden" name="apikey" value="{{ selected.apikey }}">
+
+  <div class="form-row">
+  <label for="restore_library">Target Library:</label>
+  <input type="text" name="library" id="restore_library" list="libraries" placeholder="Enter target library" required>
+  </div>
+
+  <div class="form-row">
+  <label>Restore Source:</label>
+  <label><input type="radio" name="restore_mode" value="pixelfin" checked> ZIP from Pixelfin</label>
+  <label><input type="radio" name="restore_mode" value="device"> ZIP from Device</label>
+  </div>
+
+  <div id="pixelfin-picker" class="form-row">
+  <label for="pixelfin_zip">Select Existing ZIP:</label>
+  <select name="pixelfin_zip" id="pixelfin_zip">
+    {% set ns = namespace(any_zip=false) %}
+
+    {% for library, files in generated|dictsort %}
+    {% set lib = namespace(has_zip=false) %}
+
+    {% for f in files %}
+      {% set _name = (f.filename or '')|lower %}
+      {% if _name.endswith('.zip') %}
+      {% set lib.has_zip = true %}
+      {% set ns.any_zip = true %}
+      {% endif %}
+    {% endfor %}
+
+    {% if lib.has_zip %}
+      <optgroup label="{{ library }}">
+      {% for f in files %}
+        {% set _name = (f.filename or '')|lower %}
+        {% if _name.endswith('.zip') %}
+        <option value="{{ f.folder }}/{{ f.filename }}">{{ f.filename }}</option>
+        {% endif %}
+      {% endfor %}
+      </optgroup>
+    {% endif %}
+    {% endfor %}
+
+    {% if not ns.any_zip %}
+    <option value="">No ZIP files available</option>
+    {% endif %}
+  </select>
+  </div>
+
+  <div id="device-picker" class="form-row" style="display:none;">
+  <label for="zip_file">Upload ZIP File:</label>
+  <input type="file" name="zip_file" id="zip_file" accept=".zip">
+  </div>
+
+  <div class="form-row">
+  <label for="threshold">Match Threshold:</label>
+  <input type="number" step="0.01" min="0.5" max="1.0" name="threshold" value="0.75">
+  </div>
+
+  <div class="form-row">
+  <label><input type="checkbox" name="dry_run" checked> Dry Run (no uploads)</label>
+  <label><input type="checkbox" name="comparison_html" checked> Generate Embedded Comparison HTML</label>
+  </div>
+
+  <div style="background:#222;border:1px solid #444;border-radius:8px;
+    padding:12px;margin:20px auto;width:85%;color:#ccc;text-align:left;line-height:1.5em;">
+  <strong>💡 Tip:</strong> It’s recommended to start with a <strong>dry-run</strong> first.<br>
+  This helps you verify that your chosen threshold correctly identifies all matches at or above that level.<br>
+  Once satisfied, run a <strong>full restore</strong> — items above the threshold will be restored automatically,
+  and you’ll be able to review and adjust matches below the threshold.
+  </div>
+
+  <div class="btn-row">
+  <button type="submit" class="btn">Run Semi-Auto Restore</button>
+  </div>
+  </form>
+</div>
+
+<!-- Generated lists -->
+<div id="generated-gen" style="display:block;">
+  <h2>Previously Generated HTML and ZIP Files</h2>
+  {% set state = namespace(any_files=false) %}
+
+  {% set seen_non_restore = namespace(keys={}) %}
+
+  {% for library, files in generated.items() %}
+  {% set non_restore_files = [] %}
+
+  {% for f in files %}
+    {% set fname = (f.filename or '') %}
+    {% set low = fname|lower %}
+    {% if not low.startswith('restore-') %}
+      {% set key = (f.folder ~ '||' ~ fname) %}
+      {% if not seen_non_restore.keys.get(key) %}
+        {% set _ = non_restore_files.append(f) %}
+        {% set _ = seen_non_restore.keys.update({key: true}) %}
+      {% endif %}
+    {% endif %}
+  {% endfor %}
+
+  {% if non_restore_files %}
+  {% set state.any_files = true %}
+  <h3>{{ library }}</h3>
+  <ul style="list-style:none; padding-left:0;">
+  {% for f in non_restore_files %}
+    {% set fname = (f.filename or '') %}
+    {% set low = fname|lower %}
+    <li class="file-row">
+    <span class="filename">{{ fname }}</span>
+    {% if f.is_kept %}
+    <span class="kept-badge">Kept</span>
+    {% endif %}
+
+    <div class="file-actions">
+    <div class="left-actions">
+    {% if low.endswith('.html') %}
+      <a href="{{ f.path }}" target="_blank">View</a>
+      <span>|</span>
+      <a href="{{ url_for('download_embedded', library=f.folder, filename=fname) }}">Download</a>
+      <span>|</span>
+      <a href="{{ url_for('delete_file', library=f.folder, filename=fname) }}?tab=generate-tab"
+       onclick="return confirm('Delete this file?');">Delete</a>
+    {% else %}
+      <a href="{{ url_for('serve_output', library=f.folder, filename=fname) }}">Download</a>
+      <span>|</span>
+      <a href="{{ url_for('delete_file', library=f.folder, filename=fname) }}?tab=generate-tab"
+       onclick="return confirm('Delete this file?');">Delete</a>
+    {% endif %}
+    </div>
+
+    <div class="right-actions">
+    {% if f.is_kept %}
+      <a class="keep-btn dont"
+       href="{{ url_for('toggle_keep', library=f.folder, filename=fname) }}?tab=generate-tab">
+      Don't Keep
+      </a>
+    {% else %}
+      <a class="keep-btn keep"
+       href="{{ url_for('toggle_keep', library=f.folder, filename=fname) }}?tab=generate-tab">
+      Keep
+      </a>
+    {% endif %}
+    </div>
+    </div>
+
+    </li>
+  {% endfor %}
+  </ul>
+  {% endif %}
+  {% endfor %}
+
+  {% if not state.any_files %}
+  <p>No HTML or ZIP files generated yet.</p>
+  {% endif %}
+</div>
+
+<div id="generated-restore" style="display:none;">
+  <h2>Previously Generated Embedded Comparison HTML Files</h2>
+  {% set restore_state = namespace(any_restore=false) %}
+
+  {% set seen_restore = namespace(keys={}) %}
+
+  {% for library, files in generated.items() %}
+  {% set restore_files = [] %}
+
+  {% for f in files %}
+    {% set fname = (f.filename or '') %}
+    {% if (fname|lower).startswith('restore-') %}
+      {% set key = (f.folder ~ '||' ~ fname) %}
+      {% if not seen_restore.keys.get(key) %}
+        {% set _ = restore_files.append(f) %}
+        {% set _ = seen_restore.keys.update({key: true}) %}
+      {% endif %}
+    {% endif %}
+  {% endfor %}
+
+  {% if restore_files %}
+  {% set restore_state.any_restore = true %}
+  <h3>{{ library }}</h3>
+  <ul style="list-style:none; padding-left:0;">
+  {% for f in restore_files %}
+    {% set fname = (f.filename or '') %}
+    <li class="file-row">
+    <span class="filename">{{ fname }}</span>
+    {% if f.is_kept %}
+    <span class="kept-badge">Kept</span>
+    {% endif %}
+
+    <div class="file-actions">
+    <div class="left-actions">
+    <a href="{{ f.path }}" target="_blank">View</a>
+    <span>|</span>
+    <a href="{{ url_for('download_embedded', library=f.folder, filename=fname) }}">Download</a>
+    <span>|</span>
+    <a href="{{ url_for('delete_file', library=f.folder, filename=fname) }}?tab=restore-tab"
+       onclick="return confirm('Delete this file?');">Delete</a>
+    </div>
+
+    <div class="right-actions">
+    {% if f.is_kept %}
+      <a class="keep-btn dont"
+       href="{{ url_for('toggle_keep', library=f.folder, filename=fname) }}?tab=restore-tab">
+      Don't Keep
+      </a>
+    {% else %}
+      <a class="keep-btn keep"
+       href="{{ url_for('toggle_keep', library=f.folder, filename=fname) }}?tab=restore-tab">
+      Keep
+      </a>
+    {% endif %}
+    </div>
+    </div>
+
+    </li>
+  {% endfor %}
+  </ul>
+  {% endif %}
+  {% endfor %}
+
+  {% if not restore_state.any_restore %}
+  <p>No Embedded Comparison HTML files generated yet.</p>
+  {% endif %}
+</div>
+
+<div style="text-align:center; margin-top:30px;">
+  <a class="github-link" href="https://github.com/nothing2obvi/pixelfin" target="_blank">
+  <svg class="github-icon" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+    <path fill="currentColor"
+    d="M12 0.5C5.4 0.5 0 5.9 0 12.5c0 5.3 3.4 9.8 8.2 11.4.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.5-1.1-1.2-1.4-1.2-1.4-1-.7.1-.7.1-.7 1.1.1 1.7 1.1 1.7 1.1 1 1.7 2.7 1.2 3.4.9.1-.7.4-1.2.7-1.5-2.7-.3-5.5-1.4-5.5-6 0-1.3.5-2.4 1.2-3.3-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.3 1.2a11.4 11.4 0 0 1 6 0c2.2-1.5 3.3-1.2 3.3-1.2.6 1.6.2 2.8.1 3.1.8.9 1.2 2 1.2 3.3 0 4.6-2.8 5.7-5.5 6 .4.3.8 1 .8 2v3c0 .3.2.7.8.6A12 12 0 0 0 24 12.5C24 5.9 18.6 0.5 12 0.5Z"/>
+  </svg>
+  View on GitHub
+  </a>
+  <br>
+  <small class="small-caption">Version v0.35.0</small>
+</div>
+
+</div>
+
+<script>
+function openTab(evt, tabId) {
+  document.querySelectorAll(".tabcontent").forEach(el => el.style.display = "none");
+  document.querySelectorAll(".btn-toggle").forEach(el => el.classList.remove("active-tab"));
+  document.getElementById(tabId).style.display = "block";
+  evt.currentTarget.classList.add("active-tab");
+  updateHeading(tabId);
+}
+function updateHeading(tabId) {
+  document.getElementById('generated-gen').style.display = (tabId === 'generate-tab') ? 'block' : 'none';
+  document.getElementById('generated-restore').style.display = (tabId === 'restore-tab') ? 'block' : 'none';
+}
+
+const restoreRadios = document.querySelectorAll('input[name="restore_mode"]');
+const pixelfinPicker = document.getElementById('pixelfin-picker');
+const devicePicker = document.getElementById('device-picker');
+restoreRadios.forEach(r => r.addEventListener('change', () => {
+  const mode = document.querySelector('input[name="restore_mode"]:checked').value;
+  pixelfinPicker.style.display = (mode === 'pixelfin') ? '' : 'none';
+  devicePicker.style.display = (mode === 'device') ? '' : 'none';
+}));
+
+document.addEventListener("DOMContentLoaded", () => {
+  const params = new URLSearchParams(window.location.search);
+  const tab = params.get("tab") || "generate-tab";
+  const btn = [...document.querySelectorAll(".btn-toggle")]
+    .find(b => b.getAttribute("onclick").includes(tab));
+  if (btn) btn.click();
+  else document.querySelector('.btn-toggle.active-tab')?.click();
+});
+</script>
+</body>
+</html>
