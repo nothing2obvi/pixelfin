@@ -106,7 +106,25 @@ Pixelfin is not designed with security as a primary focus and should be consider
 ### Custom ZIP Exports
 - Bundle selected images into a downloadable ZIP archive   
 - Override filenames so images are saved under your preferred naming scheme  
-- Perfect for exporting, reorganizing, or sharing artwork outside Jellyfin  
+- Perfect for exporting, reorganizing, or sharing artwork outside Jellyfin
+
+### Auto Tab (Automation)
+- Schedule automatic generation of HTML reports and ZIP files using cron  
+- Configure separate schedules for HTML and ZIP outputs  
+- Define how many recent HTMLs and ZIPs to keep  
+- Option to mark specific outputs as “kept,” preventing them from being deleted even when exceeding set limits  
+- Automatically organizes outputs into timestamped directories  
+- Designed for hands-off, continuous maintenance of your image reports and archives  
+
+### Restore Tab (Image Restoration)
+- Restore library images directly from a Pixelfin-generated ZIP file  
+- **Dry run mode:** Preview all changes without uploading anything to Jellyfin  
+- **Comparison HTML:** Generate a visual before-and-after report to verify changes before applying them  
+- **Matching threshold:** Set a similarity threshold to control how strictly items are matched  
+- **Manual match selection:** For items below the threshold, manually choose the correct match before restoring  
+- Supports restoring multiple image types (Primary, Backdrop, Banner, Logo, etc.)  
+- Handles movies, series (including seasons), music, and music video libraries  
+- Provides clear feedback and reporting for all restored items  
 
 ---
 
