@@ -259,8 +259,12 @@ Go to: http://localhost:1280 to access Pixelfin. If it doesn't work on http://lo
 
 ---
   
-## 📝 Note About Restoring
-  
+## 📝 Notes
+
+### HTMLs
+Generated HTMLs don't have images embedded in them by default, they only link to the images on your server. If you want embedded HTMLs, please download them.
+
+### Restoring
 Pixelfin expects images to use their default filenames. If any filenames have been modified (for example, renaming `cover.jpg` to `poster.jpg`), Pixelfin will not be able to detect or restore those images. To resolve this, ensure all files are renamed back to their original default filenames.
 
 ---

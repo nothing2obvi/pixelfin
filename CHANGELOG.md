@@ -8,6 +8,7 @@ This project follows [Semantic Versioning](https://semver.org/).
 ## v0.35.0 – 2026-03-28
 
 #### Added
+- **New sorting functionality:** Added ability to sort by date added (descending)
 - **Auto feature (cron-based automation):** Introduced an automated workflow for generating HTML reports and ZIP archives on a scheduled basis using cron.
 - **Restore feature:** Added the ability to restore library images directly to Jellyfin, including:
   - Dry run mode for safe previewing
