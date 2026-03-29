@@ -139,7 +139,7 @@ Pixelfin is not designed with security as a primary focus and should be consider
 ### Install dependencies
 
 ```bash
-pip install Flask pillow requests gunicorn
+pip install Flask pillow requests
 
 ```
 
