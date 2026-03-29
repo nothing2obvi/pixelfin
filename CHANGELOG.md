@@ -5,6 +5,11 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v0.35.1 - 2026-03-28
+
+#### Fixed
+- Reverted use of gunicorn
+
 ## v0.35.0 – 2026-03-28
 
 #### Added

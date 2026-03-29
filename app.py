@@ -1495,14 +1495,18 @@ def serve_assets(filename):
 # start scheduler thread once
 _SCHED_STARTED = False
 
-def start_scheduler_once():
+
+@app.before_request
+def _ensure_scheduler_started():
 	global _SCHED_STARTED
 	if not _SCHED_STARTED:
 		t = threading.Thread(target=_auto_scheduler_loop, daemon=True)
 		t.start()
 		_SCHED_STARTED = True
-		
-start_scheduler_once()
-		
+
+
 if __name__ == "__main__":
+	# if running directly, start scheduler too
+	t = threading.Thread(target=_auto_scheduler_loop, daemon=True)
+	t.start()
 	app.run(host="0.0.0.0", port=1280)
