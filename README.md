@@ -269,7 +269,7 @@ Pixelfin expects images to use their default filenames. If any filenames have be
 ## ⚠️ Limitations
 
 - Error handling is minimal
-- Only tested with my setup (Mac + Jellyfin 10.11.6)
+- Only tested with my setup (Mac + Jellyfin 10.11.7)
 - Only tested with the following library types: Series, Movies, Music Videos, Music
 
 ---
