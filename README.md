@@ -39,9 +39,6 @@ Furthermore, Pixelfin can restore a library’s images from a ZIP file generated
 ### All Image Types - Entry with Missing Images
 ![Screenshot_All.Images_Entry](assets/Screenshot_All.Images_Entry.png)
 
-### Certain Image Types - Summary Table
-![Screenshot_Certain.Images_Table](assets/Screenshot_Certain.Images_Table.png)
-
 ### Certain Image Types - Entry with No Missing Images
 ![Screenshot_Certain.Images_Entry_Not.Missing](assets/Screenshot_Certain.Images_Entry_Not.Missing.png)
 
