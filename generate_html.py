@@ -581,6 +581,7 @@ h2 {{ font-size: 28px; margin: 20px 0 20px 0; text-align: center; }}
 .banner-full {{ width:100%; height:auto; display:block; }}
 .box-row {{ display:flex; gap:10px; }}
 .box-row .image-grid {{ flex:1 1 0; }}
+.box-row .placeholder {{ height:150px; }}
 .lightbox {{
 	display: none; position: fixed; z-index: 999; padding-top: 60px;
 	left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.9);
@@ -814,7 +815,11 @@ def generate_html(
 							f'<div class="image-grid"><div class="placeholder">Missing: {image_type_name}</div></div>\n'
 						)
 
-				for code in [c for c in right_codes if c != "l"]:
+				# render normal right-column items first, excluding box/boxrear/disc
+				box_codes = ["b", "br", "d"]
+				normal_right_codes = [c for c in right_codes if c not in box_codes and c != "l"]
+				
+				for code in normal_right_codes:
 					image_type_name = IMAGE_TYPES_MAP.get(code, code)
 					tags = find_image_tags(item, image_type_name, base_url, api_key)
 					if tags:
@@ -824,17 +829,52 @@ def generate_html(
 								_mark(lowres_types, image_type_name)
 							alt_caption = f"{safe_name} - {itype} ({w}x{h})" + (" - LOW RESOLUTION" if low else "")
 							right_html_parts.append(f"""
-<div class="image-grid">
-  <img src="{url}" alt="{alt_caption}" loading="lazy"
-   onclick="openLightbox('{item_id}', '{url}'); return false;"
-   style="cursor:pointer; border:2px solid #ccc; border-radius:5px;">
-  {_build_caption_html(itype, w, h, low)}
-</div>""")
+				<div class="image-grid">
+				  <img src="{url}" alt="{alt_caption}" loading="lazy"
+				   onclick="openLightbox('{item_id}', '{url}'); return false;"
+				   style="cursor:pointer; border:2px solid #ccc; border-radius:5px;">
+				  {_build_caption_html(itype, w, h, low)}
+				</div>""")
 					else:
 						_mark(missing_types, image_type_name)
 						right_html_parts.append(
 							f'<div class="image-grid"><div class="placeholder">Missing: {image_type_name}</div></div>\n'
 						)
+				
+				# render Box, BoxRear, and Disc in one horizontal row
+				box_row_parts = []
+				
+				for code in box_codes:
+					if code not in right_codes:
+						continue
+				
+					image_type_name = IMAGE_TYPES_MAP.get(code, code)
+					tags = find_image_tags(item, image_type_name, base_url, api_key)
+				
+					if tags:
+						for itype, url, w, h in tags:
+							low = check_low_res(code, w, h, minres)
+							if low:
+								_mark(lowres_types, image_type_name)
+							alt_caption = f"{safe_name} - {itype} ({w}x{h})" + (" - LOW RESOLUTION" if low else "")
+							box_row_parts.append(f"""
+				<div class="image-grid">
+				  <img src="{url}" alt="{alt_caption}" loading="lazy"
+				   onclick="openLightbox('{item_id}', '{url}'); return false;"
+				   style="cursor:pointer; border:2px solid #ccc; border-radius:5px;">
+				  {_build_caption_html(itype, w, h, low)}
+				</div>""")
+					else:
+						_mark(missing_types, image_type_name)
+						box_row_parts.append(
+							f'<div class="image-grid"><div class="placeholder">Missing: {image_type_name}</div></div>'
+						)
+				
+				if box_row_parts:
+					right_html_parts.append(f"""
+				<div class="box-row">
+					{''.join(box_row_parts)}
+				</div>""")
 
 				if "l" in right_codes:
 					tags = find_image_tags(item, "Logo", base_url, api_key)

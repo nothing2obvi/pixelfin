@@ -5,6 +5,11 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v0.35.2 - 2026-03-31
+
+#### Fixed
+- Sizes of box, boxrear, and disc
+
 ## v0.35.1 - 2026-03-28
 
 #### Fixed
