@@ -85,27 +85,28 @@ Pixelfin is not designed with security as a primary focus and should be consider
 - Connect with your Jellyfin server using your API key and selected library name  
 - Choose gallery colors and image types to include  
 - Generate new HTML reports or ZIP files with a single click  
-- Browse previously generated galleries, download them with embedded images, or delete them
-- Download or delete previously generated ZIP files
-- Light and dark mode
+- Browse previously generated galleries, download them with embedded images, or delete them  
+- Download or delete previously generated ZIP files  
+- Light and dark mode  
 
-### Clean, Actionable Galleries
+### Clean, Actionable Galleries (HTMLs)
 - Summary table at the top showing missing/low-resolution types; click an item’s title to jump directly to it  
-- Each library item displayed with its available images
-    - Each item’s title links directly to its Jellyfin page for quick editing 
-    - Left column: Primary, Thumb, ClearArt, Menu
-    - Right column: Backdrop, Banner, Box, BoxRear, Disc, Logo
-    - Image type and resolution labels under each image
+- Each library item displayed with its available images  
+    - Each item’s title links directly to its Jellyfin page for quick editing  
+    - Left column: Primary, Thumb, ClearArt, Menu  
+    - Right column: Backdrop, Banner, Box, BoxRear, Disc, Logo  
+    - Image type and resolution labels under each image  
     - Missing images highlighted with red placeholders  
-    - Low-resolution images flagged with red captions
-    - Missing or low-resolution image types clearly listed in red on the bottom left
-    - “Scroll to top” links for easy navigation
+    - Low-resolution images flagged with red captions  
+    - Missing or low-resolution image types clearly listed in red on the bottom left  
+    - “Scroll to top” links for easy navigation  
     - Clickable images with a lightbox viewer (Prev / Next / Close)  
+- Download embedded HTMLs for fully self-contained, shareable galleries  
 
-### Custom ZIP Exports
-- Bundle selected images into a downloadable ZIP archive   
+### Custom ZIP Exports (ZIPs)
+- Bundle selected images into a downloadable ZIP archive  
 - Override filenames so images are saved under your preferred naming scheme  
-- Perfect for exporting, reorganizing, or sharing artwork outside Jellyfin
+- Perfect for exporting, reorganizing, or sharing artwork outside Jellyfin  
 
 ### Auto Tab (Automation)
 - Schedule automatic generation of HTML reports and ZIP files using cron  
@@ -116,10 +117,10 @@ Pixelfin is not designed with security as a primary focus and should be consider
 - Designed for hands-off, continuous maintenance of your image reports and archives  
 
 ### Restore Tab (Image Restoration)
-- Restore library images directly from a Pixelfin-generated ZIP file  
+- Restore library images directly from a Pixelfin-generated ZIP file or external ZIP source  
 - **Dry run mode:** Preview all changes without uploading anything to Jellyfin  
 - **Comparison HTML:** Generate a visual before-and-after report to verify changes before applying them  
-- **Matching threshold:** Set a similarity threshold to control how strictly items are matched  
+- **Matching threshold:** Set a similarity threshold (default 0.75) to control how strictly items are matched  
 - **Manual match selection:** For items below the threshold, manually choose the correct match before restoring  
 - Supports restoring multiple image types (Primary, Backdrop, Banner, Logo, etc.)  
 - Handles movies, series (including seasons), music, and music video libraries  
