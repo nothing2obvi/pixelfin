@@ -11,6 +11,8 @@ Do you ever wonder which image types you're missing or are low resolution?
 
 Do you want an easy way to back up and restore your Jellyfin library images?
 
+A big part of what makes a media library feel “premium” is its artwork. Consistent, high-quality posters, backdrops, logos, thumbnails, and other images transform a collection of files into something that feels curated, browsable, and enjoyable to explore.
+
 Pixelfin is a lightweight Flask app paired with a generator script that lets you quickly create HTML galleries of your Jellyfin libraries, giving you a clear view of your media artwork so you can easily spot areas for improvement. It highlights which image types, such as Primary, ClearArt, Backdrops, Logos, and more, are present, which are missing, and which fall below a minimum resolution threshold you specify.
 
 The result is a clean, scrollable gallery with clickable images, along with a summary table showing missing and low-resolution images. You can click on titles in the summary table to jump directly to that entry’s images. Within each entry, clicking the title takes you straight to the media item in Jellyfin, so you can quickly review and make changes.
