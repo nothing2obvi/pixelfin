@@ -1,3 +1,4 @@
 requests
 Pillow
 Flask
+gunicorn
