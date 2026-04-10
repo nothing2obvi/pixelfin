@@ -47,7 +47,7 @@ PIXELFIN_LOGO_BASE64 = _load_pixelfin_logo_base64()
 
 IMAGE_TYPES_MAP = {
 	"p": "Primary",
-	"c": "ClearArt",
+	"c": "Art",
 	"bd": "Backdrop",
 	"bn": "Banner",
 	"b": "Box",
@@ -67,7 +67,7 @@ DEFAULT_ZIP_BASENAMES = {
 	"p": "cover",
 	"t": "thumbnail",
 	"bd": "backdrop",
-	"c": "clearart",
+	"c": "art",
 	"bn": "banner",
 	"b": "box",
 	"br": "boxrear",
@@ -76,7 +76,7 @@ DEFAULT_ZIP_BASENAMES = {
 	"m": "menu",
 }
 
-_DEFAULT_TIMEOUT = (10, 30)
+_DEFAULT_TIMEOUT = (10, 120)
 _session: Optional[requests.Session] = None
 _SAFE_NAME_RE = re.compile(r'[\\/:*?"<>|\r\n]+')
 
