@@ -5,6 +5,17 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v0.35.3 - 2026-04-14
+
+#### Fixed
+- **ClearArt retrieval:** Fixed an issue where ClearArt images were not being pulled from Jellyfin by correcting the mapping to `Art` (@KingOfBadgers)
+
+#### Added
+- **Gunicorn dependency:** Added `gunicorn` to `requirements.txt` to prevent Docker container startup failures due to missing executable (@KingOfBadgers)
+
+#### Notes
+- Gunicorn timeout may need to be increased for large libraries (tested with 2500+ items)
+
 ## v0.35.2 - 2026-03-31
 
 #### Fixed

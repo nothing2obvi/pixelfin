@@ -28,6 +28,15 @@
         "ideas",
         "review"
       ]
+    },
+    {
+      "login": "KingOfBadgers",
+      "name": "KingOfBadgers",
+      "avatar_url": "https://avatars.githubusercontent.com/KingOfBadgers",
+      "profile": "https://github.com/KingOfBadgers",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
