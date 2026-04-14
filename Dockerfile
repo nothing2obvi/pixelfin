@@ -13,5 +13,5 @@ RUN mkdir -p /app/data /app/output
 
 EXPOSE 1280
 
-# Change the CMD line to include the timeout - needed for large collections
 CMD ["gunicorn", "--bind", "0.0.0.0:1280", "--timeout", "300", "app:app"]
+
