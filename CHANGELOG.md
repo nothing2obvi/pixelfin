@@ -5,6 +5,11 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v0.35.4 - 2026-04-18
+
+#### Fixed
+- **ClearArt restore mapping:** Fixed an issue where ClearArt images were not restoring correctly by mapping ClearArt to Art in restore.py, ensuring compatibility with Jellyfin’s image type handling
+
 ## v0.35.3 - 2026-04-14
 
 #### Fixed

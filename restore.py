@@ -634,7 +634,7 @@ def _infer_type(filename: str) -> Optional[str]:
 	if "thumb" in base or base.startswith("t_"):
 		return "Thumb"
 	if "clearart" in base or base.startswith("c_"):
-		return "ClearArt"
+		return "Art"
 	if "disc" in base or base.startswith("d_"):
 		return "Disc"
 	if "boxrear" in base or base.startswith("br_"):
