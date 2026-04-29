@@ -221,7 +221,7 @@ def _single_shot_items(
 		)
 		return items
 	except Exception as e:
-		log(f"⚠️ [WARN] Single-shot fetch failed for {source_label}: {e}")
+		log(f"[WARN] Single-shot fetch failed for {source_label}: {e}")
 		return []
 
 
@@ -297,14 +297,14 @@ def _page_items(
 		if repeated_page or added_this_page == 0:
 			consecutive_no_progress += 1
 			log(
-				f"⚠️ [WARN] No pagination progress at start={start} "
+				f"[WARN] No pagination progress at start={start} "
 				f"(page={page_num}, repeated={repeated_page}, no_progress={consecutive_no_progress})"
 			)
 		else:
 			consecutive_no_progress = 0
 
 		if consecutive_no_progress >= 2:
-			log(f"⚠️ [WARN] Stopping {source_label} pagination after 2 no-progress pages.")
+			log(f"[WARN] Stopping {source_label} pagination after 2 no-progress pages.")
 			break
 
 		if len(chunk) < limit:
@@ -388,7 +388,7 @@ def _global_filtered_by_locations(
 		filtered.append(item)
 
 	log(
-		f"🌐 [INFO] Global fetch filtered by library paths -> {len(filtered)} items "
+		f"[INFO] Global fetch filtered by library paths -> {len(filtered)} items "
 		f"(library_locations={library_locations})"
 	)
 	return filtered
@@ -415,8 +415,8 @@ def get_library_items(server: str, apikey: str, library: str) -> Tuple[List[Dict
 	if not parent_id:
 		raise RuntimeError(f"Library '{library}' returned no Id")
 
-	log(f"📚 [INFO] Library view id: {parent_id}")
-	log(f"📚 [INFO] Library locations: {library_locations}")
+	log(f"[INFO] Library view id: {parent_id}")
+	log(f"[INFO] Library locations: {library_locations}")
 
 	params_scoped = {
 		"ParentId": parent_id,
@@ -433,7 +433,7 @@ def get_library_items(server: str, apikey: str, library: str) -> Tuple[List[Dict
 	params_root = dict(params_scoped)
 	params_root["UserId"] = user_id
 
-	log(f"📚 [INFO] Fetching library '{library}' via scoped endpoints…")
+	log(f"[INFO] Fetching library '{library}' via scoped endpoints...")
 
 	items_users_single = _single_shot_items(
 		server, apikey, url_users, params_scoped, source_label="scoped-users"
@@ -456,7 +456,7 @@ def get_library_items(server: str, apikey: str, library: str) -> Tuple[List[Dict
 	)
 
 	log(
-		f"🔎 [INFO] Scoped library fetch count for '{library}': {len(scoped_merged)} "
+		f"[INFO] Scoped library fetch count for '{library}': {len(scoped_merged)} "
 		f"(users-single={len(items_users_single)}, users-paged={len(items_users_paged)}, "
 		f"root-single={len(items_root_single)}, root-paged={len(items_root_paged)})"
 	)
@@ -465,7 +465,7 @@ def get_library_items(server: str, apikey: str, library: str) -> Tuple[List[Dict
 	global_filtered_no_types: List[Dict] = []
 
 	if _looks_suspiciously_capped(scoped_merged) and library_locations:
-		log("⚠️ [WARN] Scoped result looks suspiciously capped; trying global path-filtered fallback…")
+		log("[WARN] Scoped result looks suspiciously capped; trying global path-filtered fallback...")
 		global_filtered = _global_filtered_by_locations(
 			server=server,
 			apikey=apikey,
@@ -475,7 +475,7 @@ def get_library_items(server: str, apikey: str, library: str) -> Tuple[List[Dict
 		)
 
 		if _looks_suspiciously_capped(global_filtered):
-			log("⚠️ [WARN] Global path-filtered result still looks suspicious; retrying without IncludeItemTypes…")
+			log("[WARN] Global path-filtered result still looks suspicious; retrying without IncludeItemTypes...")
 			global_filtered_no_types = _global_filtered_by_locations(
 				server=server,
 				apikey=apikey,
@@ -491,7 +491,7 @@ def get_library_items(server: str, apikey: str, library: str) -> Tuple[List[Dict
 	)
 
 	log(
-		f"🔎 [INFO] Final merged item count for library '{library}': {len(merged_items)} "
+		f"[INFO] Final merged item count for library '{library}': {len(merged_items)} "
 		f"(scoped={len(scoped_merged)}, global_filtered={len(global_filtered)}, "
 		f"global_filtered_no_types={len(global_filtered_no_types)})"
 	)
@@ -507,9 +507,9 @@ def delete_images(server: str, apikey: str, item_id: str, image_type: str) -> No
 			timeout=_DEFAULT_TIMEOUT,
 		)
 		if r.status_code not in (200, 204):
-			log(f"⚠️ [WARN] Delete {image_type} for {item_id} → {r.status_code}")
+			log(f"[WARN] Delete {image_type} for {item_id} -> {r.status_code}")
 	except Exception as e:
-		log(f"❌ [ERROR] Delete {image_type}: {e}")
+		log(f"[ERROR] Delete {image_type}: {e}")
 
 
 def upload_image(server: str, apikey: str, item_id: str, image_type: str, image_path: str) -> None:
@@ -529,9 +529,9 @@ def upload_image(server: str, apikey: str, item_id: str, image_type: str, image_
 
 	try:
 		with Image.open(image_path) as im:
-			log(f"🧾 Uploading {os.path.basename(image_path)} ({im.format}, {im.width}×{im.height}) as {mime}")
+			log(f"Uploading {os.path.basename(image_path)} ({im.format}, {im.width}x{im.height}) as {mime}")
 	except Exception:
-		log(f"🧾 Uploading {os.path.basename(image_path)} as {mime}")
+		log(f"Uploading {os.path.basename(image_path)} as {mime}")
 
 	with open(image_path, "rb") as f:
 		img_b64 = base64.b64encode(f.read()).decode("ascii")
@@ -544,18 +544,18 @@ def upload_image(server: str, apikey: str, item_id: str, image_type: str, image_
 		try:
 			r = SESSION.post(url, headers=headers, data=img_b64, timeout=_DEFAULT_TIMEOUT)
 			if r.status_code in (200, 204):
-				log(f"✅ Uploaded {image_type} for {item_id} ({os.path.basename(image_path)}) attempt {attempt}/{max_retries}")
+				log(f"Uploaded {image_type} for {item_id} ({os.path.basename(image_path)}) attempt {attempt}/{max_retries}")
 				return
-			log(f"⚠️ Upload failed ({r.status_code}): {r.text[:200]} ({attempt}/{max_retries})")
+			log(f"Upload failed ({r.status_code}): {r.text[:200]} ({attempt}/{max_retries})")
 		except requests.exceptions.RequestException as e:
-			log(f"⚠️ Upload error: {e} ({attempt}/{max_retries})")
+			log(f"Upload error: {e} ({attempt}/{max_retries})")
 
 		if attempt < max_retries:
-			log(f"⏳ Retrying in {delay:.1f}s...")
+			log(f"Retrying in {delay:.1f}s...")
 			time.sleep(delay)
 			delay = min(delay * 1.5, 30.0)
 
-	log(f"❌ Exhausted {max_retries} upload attempts for {os.path.basename(image_path)}")
+	log(f"Exhausted {max_retries} upload attempts for {os.path.basename(image_path)}")
 
 
 # =============================================================================
@@ -592,7 +592,7 @@ def embed_image(p: str, label: str, css: str = "") -> str:
 		else:
 			status, img_type = "Image", label
 
-		resolution = f"({w}×{h})"
+		resolution = f"({w}x{h})"
 
 		caption_html = (
 			"<div class='caption' style='text-align:center;line-height:1.4em;margin-top:6px;color:#ccc;'>"
@@ -667,7 +667,7 @@ def _get_season_items(server: str, apikey: str, series_id: str) -> Dict[int, Dic
 		)
 		items = (r.json() or {}).get("Items", []) or []
 	except Exception as e:
-		log(f"⚠️ [WARN] Failed to fetch seasons for series {series_id}: {e}")
+		log(f"[WARN] Failed to fetch seasons for series {series_id}: {e}")
 		return {}
 
 	season_map: Dict[int, Dict] = {}
@@ -746,7 +746,7 @@ def write_restore_report(
 			)
 
 		f.write("<h2>Pixelfin Restore Summary</h2>")
-		f.write("<h3>✅ Matched (Above Threshold)</h3>")
+		f.write("<h3>Matched (Above Threshold)</h3>")
 		f.write("<table><tr><th>ZIP Folder</th><th>Matched Item</th><th>Images</th><th>Score</th></tr>")
 		for r in sorted(results, key=lambda r: (r.get("match") or "").lower()):
 			folder = r["folder"]
@@ -762,7 +762,7 @@ def write_restore_report(
 			)
 		f.write("</table>")
 
-		f.write("<h3>🧾 Below Threshold (Manual Review)</h3>")
+		f.write("<h3>Below Threshold (Manual Review)</h3>")
 		if below_threshold:
 			f.write("<table><tr><th>Folder</th><th>Closest Match</th><th>Similarity</th></tr>")
 			for u in sorted(below_threshold, key=lambda x: (x.get("folder") or "").lower()):
@@ -775,7 +775,7 @@ def write_restore_report(
 		else:
 			f.write("<p>None</p>")
 
-		f.write("<h3>🚫 Unmatched ZIP Folders (No Plausible Library Match)</h3>")
+		f.write("<h3>Unmatched ZIP Folders (No Plausible Library Match)</h3>")
 		if unmatched_folders:
 			f.write("<table><tr><th>Folder</th><th>Closest Match</th><th>Similarity</th></tr>")
 			for u in sorted(unmatched_folders, key=lambda x: (x.get("folder") or "").lower()):
@@ -840,7 +840,7 @@ def write_restore_report(
 
 		f.write("</body></html>")
 
-	log(f"📝 [INFO] Wrote rich comparison HTML → {html_path}")
+	log(f"[INFO] Wrote rich comparison HTML -> {html_path}")
 
 
 # =============================================================================
@@ -861,7 +861,7 @@ def _descend_wrapper_folder(base_dir: str) -> str:
 				and not d.startswith(".") and not d.startswith("__MACOSX")
 			]
 			if inner_dirs:
-				log(f"📁 [INFO] Wrapper folder detected → diving into: {next_dir}")
+				log(f"[INFO] Wrapper folder detected -> diving into: {next_dir}")
 				base_dir = next_dir
 				continue
 		break
@@ -900,11 +900,11 @@ def run_restore(
 	  - "unmatched" = alias of below_threshold (older templates)
 	  - "matched" = simplified list for review template
 	"""
-	log(f"🧪 [DEBUG] RESTORE FILE: {__file__}")
-	log("🧪 [DEBUG] RESTORE VERSION: v0.2.2")
+	log(f"[DEBUG] RESTORE FILE: {__file__}")
+	log("[DEBUG] RESTORE VERSION: v0.2.2")
 
 	if not server or not apikey:
-		log("❌ [ERROR] Missing server or API key. Aborting restore.")
+		log("[ERROR] Missing server or API key. Aborting restore.")
 		return {"status": "error", "message": "Missing server or API key."}
 
 	unmatched_floor = _DEFAULT_UNMATCHED_FLOOR
@@ -924,7 +924,7 @@ def run_restore(
 			with zipfile.ZipFile(path, "r") as zf:
 				zf.extractall(tmpdir)
 			base_dir = tmpdir
-			log(f"📦 [INFO] Unpacked ZIP to {base_dir}")
+			log(f"[INFO] Unpacked ZIP to {base_dir}")
 		else:
 			base_dir = path
 
@@ -935,7 +935,7 @@ def run_restore(
 		folders = _scan_media_folders(base_dir)
 		if not folders:
 			return {"status": "error", "message": f"No media folders found in {base_dir}"}
-		log(f"📚 [INFO] Found {len(folders)} media folders under {base_dir}")
+		log(f"[INFO] Found {len(folders)} media folders under {base_dir}")
 
 		items, collection_type = get_library_items(server, apikey, library)
 		if not items:
@@ -954,8 +954,8 @@ def run_restore(
 			{(i.get("Name") or "").strip() for i in items if (i.get("Name") or "").strip()},
 			key=lambda s: s.lower(),
 		)
-		log(f"📦 [INFO] Library collection type: '{collection_type or 'unknown'}'")
-		log(f"🧾 [INFO] Titles available for dropdown: {len(all_titles)}")
+		log(f"[INFO] Library collection type: '{collection_type or 'unknown'}'")
+		log(f"[INFO] Titles available for dropdown: {len(all_titles)}")
 
 		results: List[Dict] = []
 		below_threshold: List[Dict] = []
@@ -969,9 +969,9 @@ def run_restore(
 			if forced_title:
 				forced_item = items_by_norm_name.get(_normalize_title(forced_title))
 				if forced_item:
-					log(f"🔒 [INFO] Forced mapping: '{folder}' → '{forced_item.get('Name')}'")
+					log(f"[INFO] Forced mapping: '{folder}' -> '{forced_item.get('Name')}'")
 				else:
-					log(f"⚠️ [WARN] Forced mapping for '{folder}' did not resolve to a library item: '{forced_title}'")
+					log(f"[WARN] Forced mapping for '{folder}' did not resolve to a library item: '{forced_title}'")
 
 			best_item: Optional[Dict] = forced_item
 			best_score = 1.0 if forced_item else -1.0
@@ -1065,14 +1065,14 @@ def run_restore(
 				if season_number is not None:
 					season_item = season_items.get(season_number)
 					if not season_item:
-						log(f"⚠️ [WARN] No matching season found for {item_name}: {img}")
+						log(f"[WARN] No matching season found for {item_name}: {img}")
 						continue
 					delete_images(server, apikey, season_item["Id"], "Primary")
 					upload_image(server, apikey, season_item["Id"], "Primary", image_path)
 					continue
 				img_type = _infer_type(img)
 				if not img_type:
-					log(f"ℹ️ [INFO] Skipping unrecognized image name for {item_name}: {img}")
+					log(f"[INFO] Skipping unrecognized image name for {item_name}: {img}")
 					continue
 				delete_images(server, apikey, item_id, img_type)
 				upload_image(server, apikey, item_id, img_type, image_path)
@@ -1147,7 +1147,7 @@ def run_restore(
 
 	except Exception as e:
 		import traceback
-		log(f"❌ [FATAL] {e}")
+		log(f"[FATAL] {e}")
 		log(traceback.format_exc())
 		return {"status": "error", "message": str(e)}
 

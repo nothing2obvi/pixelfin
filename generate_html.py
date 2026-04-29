@@ -1101,7 +1101,7 @@ if __name__ == "__main__":
 			full_items.append(data)
 
 		if args.sort == "recent":
-			print("📅 Building Date Added cache for top-level items...")
+			print("Building Date Added cache for top-level items...")
 			session.headers.update({"X-Emby-Token": args.apikey})
 			date_cache = {}
 
@@ -1136,7 +1136,7 @@ if __name__ == "__main__":
 					meta = fetch_item_meta(item_id)
 					best_date = max(best_date, parse_item_datetime(meta.get("DateAdded") or meta.get("DateCreated")))
 				except Exception as e:
-					print(f"⚠️ Failed to fetch metadata for {item_obj.get('Name', '(unknown)')}: {e}")
+					print(f"Failed to fetch metadata for {item_obj.get('Name', '(unknown)')}: {e}")
 
 				if item_type in ("series", "boxset", "folder", "collectionfolder", "userview"):
 					children_url = (
@@ -1151,7 +1151,7 @@ if __name__ == "__main__":
 							if child_date > best_date:
 								best_date = child_date
 					except Exception as e:
-						print(f"⚠️ Failed to list descendants for {item_obj.get('Name', '(unknown)')}: {e}")
+						print(f"Failed to list descendants for {item_obj.get('Name', '(unknown)')}: {e}")
 
 				date_cache[item_id] = {"date": best_date, "name": item_obj.get("Name", "(unknown)")}
 				return best_date
@@ -1160,8 +1160,8 @@ if __name__ == "__main__":
 				it["_parsed_date"] = fetch_effective_date(it)
 
 			full_items.sort(key=lambda x: x["_parsed_date"], reverse=True)
-			print(f"✅ Collected {len(date_cache)} top-level timestamps.")
-			print("✅ Sorted by Date Added (newest first).")
+			print(f"Collected {len(date_cache)} top-level timestamps.")
+			print("Sorted by Date Added (newest first).")
 		else:
 			full_items.sort(key=lambda x: str(x.get("Name", "")).lower())
 
@@ -1214,8 +1214,8 @@ if __name__ == "__main__":
 
 		sort_label = "Alphabetical" if args.sort == "alphabetical" else "Date-Added"
 		top_level_count = len([it for it in full_items if _item_type_passes_filter(it.get("Type", ""), library_type)])
-		print(f"📦 Collected {top_level_count} top-level items for {sort_label} sort.")
-		print(f"🧠 Writing {sort_label} HTML → {output_path}")
+		print(f"Collected {top_level_count} top-level items for {sort_label} sort.")
+		print(f"Writing {sort_label} HTML -> {output_path}")
 
 		generate_html(
 			items,

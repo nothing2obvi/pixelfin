@@ -5,6 +5,18 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v0.35.5 - 2026-04-28
+
+#### Fixed
+- **Windows encoding crash:** Removed non-ASCII characters (emoji and Unicode arrows) from console `print()` output to prevent `charmap` encoding errors on Windows environments
+
+#### Changed
+- **Console output standardization:** Replaced Unicode arrow (`→`) with ASCII (`->`) in log messages for cross-platform compatibility
+- **Logging portability:** Ensured all backend/script console output uses ASCII-only characters for consistent behavior across Windows, Docker, and subprocess environments
+
+#### Notes
+- HTML output remains UTF-8 encoded and continues to safely use UI symbols (arrows, buttons, etc.) without compatibility issues
+
 ## v0.35.4 - 2026-04-18
 
 #### Fixed
