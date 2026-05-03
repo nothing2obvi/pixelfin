@@ -5,6 +5,18 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v0.35.6 - 2026-05-03
+
+#### Changed
+- **Season poster naming (ZIP export):** Season artwork is now saved using `season01-poster.jpg` format instead of `season01.jpg` for better compatibility with common media naming conventions
+
+#### Fixed
+- **Season poster restore detection:** Restore engine now correctly recognizes `season01-poster.jpg` (in addition to legacy `season01.jpg`) when matching and applying season artwork
+
+#### Notes
+- Backwards compatibility preserved: existing `season01.jpg` files continue to be supported during restore
+- No changes required for existing libraries or previously generated ZIPs
+
 ## v0.35.5 - 2026-04-28
 
 #### Fixed

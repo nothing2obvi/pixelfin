@@ -1018,7 +1018,7 @@ def create_zip(
 						data, ext = stream_to_bytes(season_url)
 
 						if season_num is not None:
-							filename = f"season{season_num:02d}{ext}"
+							filename = f"season{season_num:02d}-poster{ext}"
 						else:
 							season_name = sanitize_folder_name(season.get("Name", "season"))
 							filename = f"{season_name}{ext}"

@@ -615,7 +615,7 @@ def embed_image(p: str, label: str, css: str = "") -> str:
 
 def _season_number_from_name(filename: str) -> Optional[int]:
 	base = os.path.splitext(os.path.basename(filename))[0].strip().lower()
-	match = re.match(r"^season[ _-]*0*(\d+)$", base)
+	match = re.match(r"^season[ _-]*0*(\d+)(?:-poster)?$", base)
 	if match:
 		return int(match.group(1))
 	return None
