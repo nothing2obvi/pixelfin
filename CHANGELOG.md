@@ -5,6 +5,18 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v0.35.7 - 2026-05-04
+
+#### Changed
+- **Specials poster naming (ZIP export):** Season 0 artwork is now saved as `specials-poster.jpg` instead of `season00-poster.jpg` to better align with common Jellyfin naming conventions
+
+#### Fixed
+- **Specials poster restore detection:** Restore engine now correctly recognizes `specials-poster.jpg` (in addition to `season00-poster.jpg`) and maps it to Season 0
+
+#### Notes
+- Backwards compatibility preserved: existing `season00-poster.jpg` files continue to be supported during restore
+- No changes required for existing libraries or previously generated ZIPs
+
 ## v0.35.6 - 2026-05-03
 
 #### Changed
