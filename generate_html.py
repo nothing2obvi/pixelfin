@@ -7,7 +7,7 @@ import tempfile
 import json
 import base64
 import shutil
-from urllib.parse import urljoin
+from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
 from PIL import Image, ImageFile
 from datetime import datetime, timezone
 from typing import Dict, Tuple, Generator, List, Optional
@@ -129,6 +129,17 @@ def check_low_res(code, width, height, minres):
 		return False
 	min_w, min_h = minres[code]
 	return (width and height) and (width < min_w or height < min_h)
+
+
+def add_jellytag_bypass(url: str, enabled: bool) -> str:
+	if not enabled:
+		return url
+
+	parts = urlsplit(url)
+	query = parse_qsl(parts.query, keep_blank_values=True)
+	query = [(k, v) for k, v in query if k.lower() != "jellytag"]
+	query.append(("jellytag", "off"))
+	return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
 
 
 def extract_year(item: dict) -> Optional[str]:
@@ -432,7 +443,7 @@ def get_series_seasons(base_url: str, api_key: str, user_id: str, series_id: str
 	return seasons
 
 
-def get_season_primary_image_url(season: dict, base_url: str, api_key: str) -> Optional[str]:
+def get_season_primary_image_url(season: dict, base_url: str, api_key: str, jellytag_bypass: bool = False) -> Optional[str]:
 	season_id = season.get("Id")
 	if not season_id:
 		return None
@@ -441,9 +452,15 @@ def get_season_primary_image_url(season: dict, base_url: str, api_key: str) -> O
 	tag = image_tags.get("Primary")
 
 	if tag:
-		return f"{base_url.rstrip('/')}/Items/{season_id}/Images/Primary?tag={tag}&api_key={api_key}"
+		return add_jellytag_bypass(
+			f"{base_url.rstrip('/')}/Items/{season_id}/Images/Primary?tag={tag}&api_key={api_key}",
+			jellytag_bypass,
+		)
 
-	url = f"{base_url.rstrip('/')}/Items/{season_id}/Images/Primary?api_key={api_key}"
+	url = add_jellytag_bypass(
+		f"{base_url.rstrip('/')}/Items/{season_id}/Images/Primary?api_key={api_key}",
+		jellytag_bypass,
+	)
 	try:
 		width, _ = get_image_resolution(url)
 		if width:
@@ -502,7 +519,7 @@ def get_image_resolution(url):
 		return (0, 0)
 
 
-def find_image_tags(item, image_type, base_url, api_key, first_only=False):
+def find_image_tags(item, image_type, base_url, api_key, first_only=False, jellytag_bypass=False):
 	image_tags_dict = item.get("ImageTags", {}) or {}
 	tags = []
 	image_type_lower = (image_type or "").lower()
@@ -512,6 +529,7 @@ def find_image_tags(item, image_type, base_url, api_key, first_only=False):
 		backdrop_tags = item.get("BackdropImageTags", []) or []
 		for idx, tag in enumerate(backdrop_tags):
 			url = f"{base_url.rstrip('/')}/Items/{item['Id']}/Images/Backdrop/{idx}?tag={tag}&api_key={api_key}"
+			url = add_jellytag_bypass(url, jellytag_bypass)
 			width, height = get_image_resolution(url)
 			label = "Backdrop" if len(backdrop_tags) == 1 else f"Backdrop ({idx})"
 			tags.append((label, url, width, height))
@@ -522,6 +540,7 @@ def find_image_tags(item, image_type, base_url, api_key, first_only=False):
 		key_lower = (key or "").lower()
 		if key_lower.startswith(image_type_lower):
 			url = f"{base_url.rstrip('/')}/Items/{item['Id']}/Images/{image_type}?tag={tag}&api_key={api_key}"
+			url = add_jellytag_bypass(url, jellytag_bypass)
 			width, height = get_image_resolution(url)
 			tags.append((image_type, url, width, height))
 			if first_only:
@@ -529,6 +548,7 @@ def find_image_tags(item, image_type, base_url, api_key, first_only=False):
 
 	if not tags:
 		url = f"{base_url.rstrip('/')}/Items/{item['Id']}/Images/{image_type}?api_key={api_key}"
+		url = add_jellytag_bypass(url, jellytag_bypass)
 		width, height = get_image_resolution(url)
 		if width != 0:
 			tags.append((image_type, url, width, height))
@@ -745,6 +765,7 @@ def generate_html(
 	library_name,
 	timestamp,
 	minres,
+	jellytag_bypass=False,
 ):
 	if not os.path.isabs(output_file):
 		output_file = os.path.join(BASE_DIR, output_file)
@@ -795,7 +816,7 @@ def generate_html(
 
 				for code in left_codes:
 					image_type_name = IMAGE_TYPES_MAP.get(code, code)
-					tags = find_image_tags(item, image_type_name, base_url, api_key)
+					tags = find_image_tags(item, image_type_name, base_url, api_key, jellytag_bypass=jellytag_bypass)
 					if tags:
 						for itype, url, w, h in tags:
 							low = check_low_res(code, w, h, minres)
@@ -821,7 +842,7 @@ def generate_html(
 				
 				for code in normal_right_codes:
 					image_type_name = IMAGE_TYPES_MAP.get(code, code)
-					tags = find_image_tags(item, image_type_name, base_url, api_key)
+					tags = find_image_tags(item, image_type_name, base_url, api_key, jellytag_bypass=jellytag_bypass)
 					if tags:
 						for itype, url, w, h in tags:
 							low = check_low_res(code, w, h, minres)
@@ -849,7 +870,7 @@ def generate_html(
 						continue
 				
 					image_type_name = IMAGE_TYPES_MAP.get(code, code)
-					tags = find_image_tags(item, image_type_name, base_url, api_key)
+					tags = find_image_tags(item, image_type_name, base_url, api_key, jellytag_bypass=jellytag_bypass)
 				
 					if tags:
 						for itype, url, w, h in tags:
@@ -877,7 +898,7 @@ def generate_html(
 				</div>""")
 
 				if "l" in right_codes:
-					tags = find_image_tags(item, "Logo", base_url, api_key)
+					tags = find_image_tags(item, "Logo", base_url, api_key, jellytag_bypass=jellytag_bypass)
 					if tags:
 						for itype, url, w, h in tags:
 							low = check_low_res("l", w, h, minres)
@@ -956,6 +977,7 @@ def create_zip(
 	library_type: str,
 	zip_basename_overrides: Optional[Dict[str, str]] = None,
 	user_id: Optional[str] = None,
+	jellytag_bypass: bool = False,
 ):
 	if not os.path.isabs(zip_output_file):
 		zip_output_file = os.path.join(BASE_DIR, zip_output_file)
@@ -984,7 +1006,14 @@ def create_zip(
 				if not image_type_name:
 					continue
 
-				tags = find_image_tags(item, image_type_name, base_url, api_key, first_only=False)
+				tags = find_image_tags(
+					item,
+					image_type_name,
+					base_url,
+					api_key,
+					first_only=False,
+					jellytag_bypass=jellytag_bypass,
+				)
 				if not tags:
 					continue
 
@@ -1011,7 +1040,7 @@ def create_zip(
 				for season in seasons:
 					try:
 						season_num = _parse_season_number(season)
-						season_url = get_season_primary_image_url(season, base_url, api_key)
+						season_url = get_season_primary_image_url(season, base_url, api_key, jellytag_bypass=jellytag_bypass)
 						if not season_url:
 							continue
 
@@ -1051,6 +1080,7 @@ if __name__ == "__main__":
 	parser.add_argument("--timestamp", default=None, help="Optional timestamp string to embed in HTML")
 	parser.add_argument("--zip-output", default=None, help="If provided, create ZIP at this path")
 	parser.add_argument("--zipnames", default=None, help="JSON of code->basename (no extension) overrides for ZIP creation")
+	parser.add_argument("--jellytag-bypass", action="store_true", help="Append jellytag=off to image URLs for the JellyTag-Plus original-image bypass")
 	parser.add_argument(
 		"--sort",
 		choices=["alphabetical", "recent"],
@@ -1189,6 +1219,7 @@ if __name__ == "__main__":
 				library_type,
 				overrides,
 				user_id=user_id,
+				jellytag_bypass=args.jellytag_bypass,
 			)
 			sys.exit(0)
 
@@ -1232,6 +1263,7 @@ if __name__ == "__main__":
 			args.library,
 			timestamp,
 			minres,
+			jellytag_bypass=args.jellytag_bypass,
 		)
 
 	except requests.HTTPError as e:

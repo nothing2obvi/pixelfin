@@ -214,6 +214,7 @@ def save_history(server, library, settings):
 		"textcolor": settings.get("textcolor", "#ffffff"),
 		"tablebgcolor": settings.get("tablebgcolor", "#000000"),
 		"sort_order": settings.get("sort_order", "alphabetical"),
+		"jellytag_bypass": bool(settings.get("jellytag_bypass", False)),
 	}
 
 	with open(HISTORY_FILE, "w", encoding="utf-8") as f:
@@ -255,6 +256,7 @@ def load_auto():
 			"minres": j.get("minres") or {},
 			"zipnames": j.get("zipnames") or {},
 			"sort_order": (j.get("sort_order") or "alphabetical").strip() or "alphabetical",
+			"jellytag_bypass": bool(j.get("jellytag_bypass", False)),
 		}
 		if jj["sort_order"] not in ("alphabetical", "recent"):
 			jj["sort_order"] = "alphabetical"
@@ -601,7 +603,7 @@ def _prune_outputs_for_library(library: str, keep_html: int, keep_zip: int):
 		pass
 
 
-def _run_generate_html_once(server, apikey, library, bgcolor, textcolor, tablebgcolor, images, minres, zipnames, sort_order):
+def _run_generate_html_once(server, apikey, library, bgcolor, textcolor, tablebgcolor, images, minres, zipnames, sort_order, jellytag_bypass=False):
 	safe_lib = _safe_library_folder(library)
 	lib_folder = os.path.join(BASE_OUTPUT_DIR, safe_lib)
 	os.makedirs(lib_folder, exist_ok=True)
@@ -631,6 +633,8 @@ def _run_generate_html_once(server, apikey, library, bgcolor, textcolor, tablebg
 	if minres:
 		minres_str = ";".join([f"{code}:{int(v[0])}x{int(v[1])}" for code, v in minres.items()])
 		args += ["--minres", minres_str]
+	if jellytag_bypass:
+		args.append("--jellytag-bypass")
 
 	app.logger.info("AUTO: running HTML for library=%s sort=%s", library, sort_order)
 	proc = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
@@ -640,7 +644,7 @@ def _run_generate_html_once(server, apikey, library, bgcolor, textcolor, tablebg
 	return proc.returncode == 0
 
 
-def _run_generate_zip_once(server, apikey, library, images, zipnames, sort_order):
+def _run_generate_zip_once(server, apikey, library, images, zipnames, sort_order, jellytag_bypass=False):
 	safe_lib = _safe_library_folder(library)
 	lib_folder = os.path.join(BASE_OUTPUT_DIR, safe_lib)
 	os.makedirs(lib_folder, exist_ok=True)
@@ -662,6 +666,8 @@ def _run_generate_zip_once(server, apikey, library, images, zipnames, sort_order
 		"--zipnames", json.dumps(zipnames or {}),
 		"--sort", sort_order,
 	]
+	if jellytag_bypass:
+		args.append("--jellytag-bypass")
 
 	app.logger.info("AUTO: running ZIP for library=%s sort=%s", library, sort_order)
 	proc = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
@@ -695,6 +701,7 @@ def _run_auto_sequence():
 		job_images = job.get("images") or lib_settings.get("images") or last_used.get("images") or list(IMAGE_TYPE_OPTIONS.keys())
 		job_minres = job.get("minres") or lib_settings.get("minres") or {}
 		job_zipnames = job.get("zipnames") or lib_settings.get("zipnames") or {}
+		job_jellytag_bypass = bool(job.get("jellytag_bypass", lib_settings.get("jellytag_bypass", last_used.get("jellytag_bypass", False))))
 
 		job_sort = (job.get("sort_order") or lib_settings.get("sort_order") or default_sort or "alphabetical").strip()
 		if job_sort not in ("alphabetical", "recent"):
@@ -720,6 +727,7 @@ def _run_auto_sequence():
 				minres=norm_minres,
 				zipnames=job_zipnames,
 				sort_order=job_sort,
+				jellytag_bypass=job_jellytag_bypass,
 			)
 
 		if job.get("auto_zip"):
@@ -730,6 +738,7 @@ def _run_auto_sequence():
 				images=job_images,
 				zipnames=job_zipnames,
 				sort_order=job_sort,
+				jellytag_bypass=job_jellytag_bypass,
 			)
 
 		try:
@@ -894,12 +903,18 @@ def index():
 		"minres": last_used.get("minres", {}),
 		"zipnames": last_used.get("zipnames", {}),
 		"sort_order": last_used.get("sort_order", "alphabetical"),
+		"jellytag_bypass": bool(last_used.get("jellytag_bypass", False)),
 	}
 
 	if request.method == "POST" or request.args.get("library"):
 		server = request.form.get("server") or selected["server"]
 		library = request.form.get("library") or request.args.get("library") or ""
 		lib_settings = history.get("library_settings", {}).get(library, {})
+		jellytag_bypass = (
+			request.form.get("jellytag_bypass") == "on"
+			if request.method == "POST"
+			else bool(lib_settings.get("jellytag_bypass", last_used.get("jellytag_bypass", False)))
+		)
 
 		selected.update(
 			{
@@ -921,6 +936,7 @@ def index():
 					"sort_order",
 					lib_settings.get("sort_order", last_used.get("sort_order", "alphabetical")),
 				),
+				"jellytag_bypass": jellytag_bypass,
 			}
 		)
 
@@ -934,6 +950,7 @@ def index():
 		textcolor = selected["textcolor"]
 		tablebgcolor = selected["tablebgcolor"]
 		selected_images = selected["images"]
+		jellytag_bypass = selected["jellytag_bypass"]
 
 		# min resolution
 		minres = {}
@@ -967,6 +984,7 @@ def index():
 				"minres": minres,
 				"zipnames": zipnames,
 				"sort_order": sort_order,
+				"jellytag_bypass": jellytag_bypass,
 			},
 		)
 
@@ -1004,6 +1022,8 @@ def index():
 					"--sort",
 					sort_order,
 				]
+				if jellytag_bypass:
+					args.append("--jellytag-bypass")
 				proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
 				for line in proc.stdout:
 					log_queue.put(line)
@@ -1065,6 +1085,8 @@ def index():
 				"--sort",
 				sort_order,
 			]
+			if jellytag_bypass:
+				args.append("--jellytag-bypass")
 			if minres:
 				minres_str = ";".join([f"{code}:{w}x{h}" for code, (w, h) in minres.items()])
 				args += ["--minres", minres_str]

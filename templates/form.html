@@ -290,6 +290,14 @@ document.addEventListener("DOMContentLoaded", applyThemeFromStorage);
   <datalist id="libraries">{% for l in history.libraries %}<option value="{{l}}">{% endfor %}</datalist>
   </div>
 
+  <div class="form-row">
+  <label for="jellytag_bypass">JellyTag-Plus:</label>
+  <label style="font-weight:normal;">
+    <input type="checkbox" id="jellytag_bypass" name="jellytag_bypass" {% if selected.jellytag_bypass %}checked{% endif %}>
+    Request original images with <code>jellytag=off</code>
+  </label>
+  </div>
+
   <div style="height: 15px;"></div>
 
   <div class="color-image-row">
