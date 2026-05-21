@@ -86,6 +86,7 @@ Pixelfin is not designed with security as a primary focus and should be consider
 ### Interactive Web Interface
 - Connect with your Jellyfin server using your API key and selected library name  
 - Choose gallery colors and image types to include  
+- Optionally request original, pre-badge images from JellyTag-Plus using `jellytag=off`  
 - Generate new HTML reports or ZIP files with a single click  
 - Browse previously generated galleries, download them with embedded images, or delete them  
 - Download or delete previously generated ZIP files  
@@ -245,6 +246,7 @@ Go to: http://localhost:1280 to access Pixelfin. If it doesn't work on http://lo
    - **Server URL** – your Jellyfin base URL (e.g. `http://192.168.1.100:8096`)  
    - **Library Name** – the library you want to inspect (e.g. `Movies`)  
    - **API Key** – create this in Jellyfin’s admin dashboard  
+   - **JellyTag-Plus** – enable this if your JellyTag-Plus instance supports `jellytag=off` and you want Pixelfin to use original images without rendered badges  
    - Pick the colors, image types, and optional minimum resolution thresholds you want  
 3. Hit **Generate**.  
    - A background thread runs `generate_html.py`, which talks to Jellyfin’s API, fetches all your items, and checks every image type.  

@@ -5,6 +5,17 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v0.35.8 - 2026-05-21
+
+#### Added
+- **JellyTag-Plus original-image option:** Added a JellyTag-Plus toggle under Library Name that appends `jellytag=off` to Jellyfin image requests, allowing Pixelfin HTML reports, embedded downloads, ZIP exports, and auto jobs to use pre-badge original images when JellyTag-Plus supports the bypass parameter
+
+#### Changed
+- **Develop Docker compose:** The build compose file now runs the development container as `pixelfin-develop` on host port `2180`
+
+#### Notes
+- The JellyTag-Plus toggle is saved per library and persists across container restarts through Pixelfin's `data/history.json`
+
 ## v0.35.7 - 2026-05-04
 
 #### Changed
