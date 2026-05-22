@@ -1,4 +1,7 @@
 ![Pixelfin](assets/Pixelfin.png)
+
+[![Support me on Ko-fi](assets/support_me_on_kofi_blue.png)](https://ko-fi.com/yeahnoforsure_)
+
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
 [![All Contributors](https://img.shields.io/badge/all_contributors-3-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
