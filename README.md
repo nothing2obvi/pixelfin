@@ -1,6 +1,6 @@
 ![Pixelfin](assets/Pixelfin.png)
 
-[![Support me on Ko-fi](assets/support_me_on_kofi_blue.png)](https://ko-fi.com/yeahnoforsure_)
+<a href="https://ko-fi.com/yeahnoforsure_" target="_blank" rel="noopener noreferrer"><img src="assets/support_me_on_kofi_blue.png" alt="Support me on Ko-fi"></a>
 
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
 [![All Contributors](https://img.shields.io/badge/all_contributors-3-orange.svg?style=flat-square)](#contributors-)
