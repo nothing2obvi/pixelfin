@@ -44,11 +44,11 @@ Breaking or migration notes:
 
 ## Screenshots
 
-### Light
-![Light](assets/screenshots/pixelfin-light.png)
+### Light Mode
+![Light Mode](assets/screenshots/pixelfin-light.png)
 
-### Dark
-![Dark](assets/screenshots/pixelfin-dark.png)
+### Dark Mode
+![Dark Mode](assets/screenshots/pixelfin-dark.png)
 
 ### Table
 ![Table](assets/screenshots/pixelfin-table.png)
