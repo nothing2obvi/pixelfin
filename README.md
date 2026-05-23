@@ -8,11 +8,17 @@
 
 # Pixelfin: Jellyfin Artwork Inspector
 
-Pixelfin exists because I’m obsessive about Jellyfin artwork. I think what makes a library feel "premium" is having the right posters, backdrops, logos, thumbnails, ClearArt, banners, and other images. They make a library feel curated, browsable, and enjoyable to explore.
+I’m a bit obsessive about Jellyfin.
 
-Pixelfin helps audit and review artwork in Jellyfin libraries. It shows what artwork each media item has, what’s missing, and what might need improvement. It checks image types like Primary, Backdrop, Logo, Art, Banner, Thumb, Box, Disc, Menu, and Season Posters, and it can flag images below a minimum resolution threshold.
+One thing I’m especially obsessive about is artwork. Posters, backdrops, logos, thumbnails, ClearArt, all of it. To me, a big part of what makes a media library feel “premium” is the artwork. Consistent, high-quality images can make a collection of files feel curated, browsable, and actually enjoyable to explore. Not boasting, but I’ve gotten a lot of great feedback about, and donations for, my Jellyfin server, and I think I owe a lot of that to curating my images well.
 
-The main point is simple: Pixelfin gives me a faster way to visually scan a library and make judgment calls like:
+And that last bit is thanks to Pixelfin.
+
+Pixelfin is an app that helps you audit and review the artwork in your Jellyfin libraries. It can generate galleries of your media so you can quickly see what artwork each media item has, what it’s missing, and what might need improvement. It checks image types like Primary, Backdrop, Logo, ClearArt, Banner, Thumb, and more, and it can flag images that fall below a minimum resolution threshold that you set.
+
+**The main point is pretty simple: I wanted a faster way to look at my library’s artwork and make judgment calls.**
+
+Things like:
 
 - This poster is too low-res.
 - This movie deserves a better poster than what Jellyfin grabbed automatically.
