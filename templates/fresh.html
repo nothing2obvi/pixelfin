@@ -1,0 +1,1847 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pixelfin</title>
+<link rel="icon" type="image/png" href="{{ url_for('serve_assets', filename='Pixelfin_Favicon.png') }}">
+<style>
+:root {
+	--bg: #f5f7fb;
+	--panel: #ffffff;
+	--panel-2: #eef2f7;
+	--text: #15202b;
+	--muted: #607086;
+	--line: #d9e0ea;
+	--accent: #0f8b8d;
+	--accent-2: #d95d39;
+	--danger: #c33149;
+	--warn: #b7791f;
+	--ok: #287d46;
+	--shadow: 0 16px 42px rgba(28, 39, 54, .12);
+}
+body.dark {
+	--bg: #101419;
+	--panel: #171d24;
+	--panel-2: #202832;
+	--text: #edf2f7;
+	--muted: #9aa8ba;
+	--line: #2d3744;
+	--accent: #35b9b4;
+	--accent-2: #f08a5d;
+	--danger: #ff6b7f;
+	--warn: #f4b04f;
+	--ok: #72d18a;
+	--shadow: 0 18px 46px rgba(0, 0, 0, .28);
+}
+* { box-sizing: border-box; }
+body {
+	margin: 0;
+	background: var(--bg);
+	color: var(--text);
+	font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	letter-spacing: 0;
+}
+button, input, select { font: inherit; }
+button {
+	border: 1px solid var(--line);
+	background: var(--panel);
+	color: var(--text);
+	border-radius: 8px;
+	min-height: 36px;
+	padding: 0 12px;
+	cursor: pointer;
+}
+button:hover { border-color: var(--accent); }
+button:disabled { cursor: wait; opacity: .68; }
+.icon-btn {
+	width: 36px;
+	height: 36px;
+	padding: 0;
+	display: inline-grid;
+	place-items: center;
+	font-weight: 800;
+}
+.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.danger { color: var(--danger); }
+.shell { min-height: 100vh; }
+.topbar {
+	height: 64px;
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	padding: 0 22px;
+	border-bottom: 1px solid var(--line);
+	background: color-mix(in srgb, var(--panel) 92%, transparent);
+	position: sticky;
+	top: 0;
+	z-index: 10;
+}
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 800; color: var(--text); text-decoration: none; }
+.brand img { width: 34px; height: 34px; object-fit: contain; }
+.brand:hover span { text-decoration: underline; text-underline-offset: 3px; }
+.github-link {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	color: var(--accent);
+	font-weight: 800;
+	text-decoration: none;
+	margin: 10px 0 6px;
+}
+.github-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.github-link svg { width: 20px; height: 20px; fill: currentColor; }
+.server-switch { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+select, input[type=text], input[type=password], input[type=number] {
+	background: var(--panel);
+	color: var(--text);
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	min-height: 36px;
+	padding: 7px 10px;
+}
+.main { padding: 24px; max-width: 1440px; margin: 0 auto; }
+.hero {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	align-items: end;
+	gap: 18px;
+	margin-bottom: 20px;
+}
+h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
+.subtle { color: var(--muted); }
+.task-pill {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	min-width: 240px;
+	padding: 14px 16px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	background: var(--panel);
+	box-shadow: var(--shadow);
+	text-align: left;
+}
+.task-pill strong { font-size: 28px; line-height: 1; }
+.attention-count { color: #b994ff; }
+.grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+	gap: 16px;
+}
+.library-card {
+	position: relative;
+	height: 218px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	overflow: visible;
+	background: var(--panel);
+	box-shadow: var(--shadow);
+}
+.library-hit {
+	display: grid;
+	grid-template-rows: 118px 1fr;
+	width: 100%;
+	height: 100%;
+	text-align: left;
+	padding: 0;
+	border: 0;
+	border-radius: 8px;
+	background: transparent;
+	overflow: hidden;
+}
+.thumb {
+	height: 118px;
+	min-height: 118px;
+	max-height: 118px;
+	background: #05080c;
+	overflow: hidden;
+	position: relative;
+}
+.thumb img {
+	position: absolute;
+	inset: -1px;
+	width: calc(100% + 2px);
+	height: calc(100% + 2px);
+	object-fit: cover;
+	object-position: center center;
+	display: block;
+}
+.library-body { padding: 13px 14px 14px; overflow: hidden; }
+.library-meta { display: flex; gap: 10px; color: var(--muted); font-size: 13px; flex-wrap: wrap; padding-right: 42px; }
+.badge { color: #fff; background: var(--danger); border-radius: 999px; padding: 2px 8px; font-size: 12px; font-weight: 800; }
+.task-badge { color: #b994ff; background: transparent; border: 1px solid #b994ff; border-radius: 999px; padding: 1px 8px; font-size: 12px; font-weight: 800; cursor: pointer; }
+.task-badge:hover { background: color-mix(in srgb, #b994ff 18%, transparent); }
+.menu-button { position: absolute; right: 10px; bottom: 10px; background: color-mix(in srgb, var(--panel) 86%, transparent); }
+.toolbar-menu-wrap { position: relative; }
+.toolbar-menu-button { position: static; }
+.toolbar-menu-wrap .toolbar-menu-button {
+	background: var(--panel);
+	border-color: var(--line);
+	box-shadow: var(--shadow);
+}
+.menu {
+	position: absolute;
+	bottom: 49px;
+	right: 10px;
+	min-width: 230px;
+	background: var(--panel) !important;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	box-shadow: var(--shadow);
+	padding: 6px;
+	display: none;
+	z-index: 40;
+	-webkit-backdrop-filter: none;
+	backdrop-filter: none;
+	opacity: 1;
+}
+.menu.open { display: block; background: var(--panel) !important; }
+.toolbar-menu-wrap .menu {
+	top: calc(100% + 8px);
+	right: auto;
+	left: 0;
+	background: var(--panel) !important;
+	border: 1px solid var(--line);
+	box-shadow: var(--shadow);
+}
+#issueFilterMenu {
+	position: absolute;
+	isolation: isolate;
+	background: var(--panel) !important;
+	background-color: var(--panel) !important;
+	border-color: var(--line) !important;
+	box-shadow: var(--shadow) !important;
+}
+#issueFilterMenu::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	border-radius: 8px;
+	background: var(--panel);
+}
+#issueFilterMenu label { position: relative; z-index: 1; }
+.menu button, .menu form button {
+	display: flex;
+	align-items: center;
+	width: 100%;
+	justify-content: flex-start;
+	text-align: left;
+	white-space: nowrap;
+	border: 0;
+	background: transparent;
+}
+.menu label {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 9px 10px;
+	font-size: 14px;
+	color: var(--text);
+	white-space: nowrap;
+	cursor: pointer;
+}
+.menu button:hover, .menu form button:hover {
+	background: var(--panel-2);
+	color: var(--accent);
+}
+.menu label:hover {
+	background: var(--panel-2);
+	color: var(--accent);
+}
+.menu form { margin: 0; }
+.library-toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 12px;
+	flex-wrap: wrap;
+}
+.library-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.grid.collapsed { display: none; }
+.detail {
+	display: none;
+	border-top: 1px solid var(--line);
+	margin-top: 24px;
+	padding-top: 20px;
+}
+.detail.open { display: block; }
+.detail-head { display: flex; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; }
+.summary {
+	width: 100%;
+	border-collapse: collapse;
+	background: var(--panel);
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	overflow: hidden;
+	margin-bottom: 18px;
+}
+.summary th, .summary td { border-bottom: 1px solid var(--line); padding: 9px 10px; text-align: left; font-size: 14px; }
+.summary th { color: var(--muted); background: var(--panel-2); }
+.summary tr:last-child td { border-bottom: 0; }
+.summary a { color: var(--accent); font-weight: 800; }
+.summary a:visited { color: var(--accent); }
+.summary .quantity { font-weight: 800; }
+.summary .missing-text { color: var(--danger); font-weight: 800; display: block; }
+.summary .low-text { color: var(--warn); font-weight: 800; display: block; }
+.summary .complete-text { color: var(--ok); font-weight: 800; }
+.entry {
+	border: 1px solid var(--line);
+	background: var(--panel);
+	border-radius: 8px;
+	margin-bottom: 14px;
+	overflow: hidden;
+}
+.entry h3 {
+	margin: 0;
+	padding: 12px 14px;
+	font-size: 18px;
+	border-bottom: 1px solid var(--line);
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+.entry h3 button { flex: 0 0 auto; }
+.entry h3 a { color: var(--text); text-decoration: none; }
+.entry h3 a:hover { color: var(--accent); }
+.image-strip {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+	gap: 12px;
+	padding: 14px;
+}
+.full-layout {
+	display: grid;
+	grid-template-columns: minmax(220px, 33%) 1fr;
+	gap: 12px;
+	padding: 14px;
+	align-items: start;
+}
+.full-left, .full-right { display: grid; gap: 12px; }
+.full-box-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.full-layout .image-tile img, .full-layout .placeholder { height: auto; min-height: 120px; }
+.full-layout .image-tile[data-code="bd"] img { aspect-ratio: 16 / 9; object-fit: contain; }
+.full-layout .image-tile[data-code="bn"] img { aspect-ratio: 5 / 1; object-fit: contain; }
+.full-layout .image-tile[data-code="l"] img { max-height: 300px; height: auto; }
+.image-tile {
+	min-height: 145px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	background: var(--panel-2);
+	overflow: hidden;
+}
+.image-tile img { width: 100%; height: 132px; object-fit: contain; display: block; background: #0b0f14; }
+.placeholder {
+	height: 132px;
+	display: grid;
+	place-items: center;
+	color: var(--danger);
+	border: 2px dashed color-mix(in srgb, var(--danger) 75%, transparent);
+	font-weight: 800;
+}
+.caption { padding: 8px 10px; display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 13px; }
+.low { color: var(--warn); font-weight: 800; }
+.missing { color: var(--danger); font-weight: 800; }
+.ok { color: var(--ok); font-weight: 800; }
+.lightbox {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, .88);
+	display: none;
+	align-items: center;
+	justify-content: center;
+	padding: 24px;
+	z-index: 70;
+}
+.lightbox.open { display: flex; }
+.lightbox-inner { max-width: min(1100px, 96vw); max-height: 92vh; display: grid; gap: 10px; justify-items: center; }
+.lightbox-title { color: #fff; font-size: 20px; font-weight: 800; text-align: center; }
+.lightbox-stage {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	align-items: center;
+	place-items: center;
+	max-width: min(1100px, 96vw);
+	max-height: 78vh;
+}
+.lightbox-media { display:grid; place-items:center; min-width:0; max-height:78vh; }
+.lightbox img { max-width: 100%; max-height: 78vh; object-fit: contain; border-radius: 8px; }
+.lightbox-missing {
+	width: min(760px, 86vw);
+	height: min(480px, 55vh);
+	border: 3px dashed var(--danger);
+	border-radius: 8px;
+	color: var(--danger);
+	display: none;
+	place-items: center;
+	font-size: 28px;
+	font-weight: 800;
+	background: #05080c;
+}
+.lightbox-info { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; color: #fff; font-weight: 800; }
+.lightbox-side-nav {
+	position: fixed;
+	top: 50%;
+	transform: translateY(-50%);
+	background: rgba(10, 15, 21, .78);
+	color: #fff;
+	border-color: rgba(255,255,255,.35);
+}
+.lightbox-side-nav.left { left: 28px; }
+.lightbox-side-nav.right { right: 28px; }
+.lightbox-item-nav { display:flex; gap:12px; justify-content:center; }
+.lightbox-side-nav, .lightbox-item-nav button { min-width:42px; font-size:22px; }
+.lightbox-item-nav {
+	position: fixed;
+	left: 50%;
+	bottom: 26px;
+	transform: translateX(-50%);
+	width:108px;
+	justify-content:space-between;
+}
+.lightbox-item-nav button:disabled { visibility:hidden; }
+.scroll-top-btn {
+	position: fixed;
+	right: 18px;
+	bottom: 18px;
+	z-index: 20;
+	box-shadow: var(--shadow);
+	width: 42px;
+	height: 42px;
+	padding: 0;
+	font-size: 24px;
+	line-height: 1;
+}
+.modal-backdrop {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, .48);
+	display: none;
+	align-items: center;
+	justify-content: center;
+	padding: 20px;
+	z-index: 30;
+}
+.modal-backdrop.open { display: flex; }
+.modal {
+	width: min(880px, 100%);
+	max-height: min(82vh, 760px);
+	overflow: auto;
+	background: var(--panel);
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	box-shadow: var(--shadow);
+}
+.modal header {
+	position: sticky;
+	top: 0;
+	background: var(--panel);
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 14px 16px;
+	border-bottom: 1px solid var(--line);
+}
+.modal h2 { margin: 0; font-size: 20px; }
+.modal-body { padding: 16px; }
+.settings-version { position: sticky; bottom: 0; margin-top: 12px; text-align: right; color: var(--muted); font-size: 12px; pointer-events: none; }
+.tabs { display: flex; gap: 8px; border-bottom: 1px solid var(--line); margin-bottom: 14px; overflow-x: auto; }
+.tabs button { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.tabs button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.form-grid label { display: grid; gap: 5px; color: var(--muted); font-size: 13px; }
+.form-grid.server-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) auto; align-items: end; }
+.settings-block { border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-bottom: 12px; background: var(--panel); }
+.settings-block h3 { margin: 0 0 10px; }
+.type-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.special-setting { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.rules-table tbody.special-setting tr:first-child td { border-top: 2px solid var(--line); padding-top: 14px; }
+.season-modal .modal { max-width: min(920px, 96vw); }
+.season-row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(150px, 190px); gap: 12px; overflow-x: auto; padding-bottom: 8px; }
+.season-card { border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); overflow: hidden; }
+.season-card img { width: 100%; height: 220px; object-fit: contain; display: block; background: #0b0f14; cursor: pointer; }
+.season-card .placeholder { height: 220px; }
+.check-row { display: flex; gap: 8px; align-items: center; padding: 8px; border: 1px solid var(--line); border-radius: 8px; }
+.inline-check { display:inline-flex; gap:8px; align-items:center; min-height:36px; padding:0; border:0; color:var(--text); }
+.toggle-row { display:flex; align-items:center; gap:10px; color:var(--text); font-weight:700; margin:10px 0; }
+.toggle-row input { position:absolute; opacity:0; pointer-events:none; }
+.toggle-track { width:46px; height:26px; border-radius:999px; background:var(--panel-2); border:1px solid var(--line); position:relative; transition:.18s ease; }
+.toggle-track::after { content:""; position:absolute; width:20px; height:20px; top:2px; left:2px; border-radius:50%; background:var(--muted); transition:.18s ease; }
+.toggle-row input:checked + .toggle-track { background:var(--accent); border-color:var(--accent); }
+.toggle-row input:checked + .toggle-track::after { left:22px; background:#fff; }
+.restore-extra { margin-top:14px; }
+.restore-help { margin-bottom:12px; }
+.rules-table { width: 100%; border-collapse: collapse; }
+.rules-table th, .rules-table td { border-bottom: 1px solid var(--line); padding: 8px; text-align: left; }
+.rules-table input { width: 100%; min-width: 76px; }
+.notice {
+	padding: 14px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	background: var(--panel);
+	color: var(--muted);
+}
+.toast {
+	position: fixed;
+	right: 18px;
+	bottom: 68px;
+	max-width: min(420px, calc(100vw - 36px));
+	padding: 12px 14px;
+	border-radius: 8px;
+	background: var(--panel);
+	color: var(--text);
+	border: 1px solid var(--line);
+	box-shadow: var(--shadow);
+	display: none;
+	z-index: 60;
+}
+.toast.open { display: block; }
+.pending-note { color: var(--accent-2); font-weight: 800; }
+.outputs-list { margin-top: 12px; display: grid; gap: 8px; }
+.output-row { display: flex; justify-content: space-between; gap: 10px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+@media (max-width: 760px) {
+	.topbar { height: auto; padding: 12px; flex-wrap: wrap; }
+	.server-switch { margin-left: 0; width: 100%; }
+	.server-switch select { flex: 1; min-width: 0; }
+	.main { padding: 16px; }
+	.hero { grid-template-columns: 1fr; }
+	.form-grid { grid-template-columns: 1fr; }
+	.full-layout { grid-template-columns: 1fr; }
+	.full-box-row { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+	<div class="topbar">
+		<a class="brand" href="https://github.com/nothing2obvi/pixelfin" target="_blank" rel="noopener noreferrer" aria-label="Open Pixelfin on GitHub">
+			<img src="{{ url_for('serve_assets', filename='Pixelfin_Favicon.png') }}" alt="">
+			<span>Pixelfin</span>
+		</a>
+		<div class="server-switch">
+			<select id="serverSelect" aria-label="Jellyfin server">
+				{% for server in servers %}
+				<option value="{{ server.id }}" {% if active_server and server.id == active_server.id %}selected{% endif %}>{{ server.name }}</option>
+				{% endfor %}
+				{% if not servers %}<option value="">No server</option>{% endif %}
+			</select>
+			<button class="icon-btn" onclick="openSettings('servers')" title="Settings">⚙</button>
+			<button class="icon-btn" onclick="toggleTheme()" title="Light or dark mode">◐</button>
+		</div>
+	</div>
+
+	<main class="main">
+		<section class="hero">
+			<div>
+				<h1>Libraries</h1>
+			</div>
+			<button class="task-pill" onclick="openAllTasks()">
+		<strong class="attention-count" id="totalTaskCount">{{ total_tasks }}</strong>
+				<span>media items need attention</span>
+			</button>
+		</section>
+
+		{% if not active_server %}
+		<div class="notice">
+			<button class="primary" onclick="openSettings('servers')">Add Jellyfin Server</button>
+		</div>
+		{% elif not all_libraries %}
+		<div class="notice">
+			<button class="primary" onclick="openSettings('servers')">Open Server Settings</button>
+		</div>
+		{% else %}
+		<div class="library-toolbar">
+			<div class="subtle">{{ libraries|length }} visible libraries</div>
+			<div class="library-actions">
+				<div class="toolbar-menu-wrap">
+					<button class="icon-btn toolbar-menu-button" onclick="toggleIssueMenu(event)" title="Attention filters">⋯</button>
+					<div class="menu" id="issueFilterMenu">
+						<label><input type="checkbox" id="hideMissingToggle" onchange="saveIssueFilters()"> Ignore missing images in counts</label>
+						<label><input type="checkbox" id="hideLowToggle" onchange="saveIssueFilters()"> Ignore low-resolution images in counts</label>
+					</div>
+				</div>
+				<button onclick="globalScan(this)">Scan All Libraries</button>
+			</div>
+		</div>
+		<div class="grid" id="libraryGrid">
+			{% for library in libraries %}
+			<article class="library-card" data-library-id="{{ library.id }}" data-library-name="{{ library.name }}">
+				<button class="library-hit" onclick="openLibrary('{{ library.id }}', false)">
+					<div class="thumb">{% if library.thumbnail_url %}<img src="{{ url_for('fresh_library_cover', library_id=library.id) }}" alt="">{% endif %}</div>
+					<div class="library-body">
+						<div class="library-meta">
+							<span>{{ library.item_count }} items</span>
+							<span>{{ library.zip_count }} ZIPs</span>
+							<span class="task-badge" data-task-badge="{{ library.id }}" role="button" tabindex="0" onclick="openLibraryTasksFromBadge(event, '{{ library.id }}')" onkeydown="openLibraryTasksFromBadgeKey(event, '{{ library.id }}')" title="View items needing attention" {% if not library.task_count %}style="display:none;"{% endif %}>{{ library.task_count }}</span>
+							<span>{{ library.last_scanned or "Not scanned" }}</span>
+							<span class="scan-status"></span>
+						</div>
+					</div>
+				</button>
+				<button class="icon-btn menu-button" onclick="toggleMenu(event, '{{ library.id }}')" title="Library actions">⋯</button>
+				<div class="menu" id="menu-{{ library.id }}">
+					<button onclick="openLibrary('{{ library.id }}', true)">View Tasks</button>
+					<button onclick="openLibraryModal('{{ library.id }}', 'types')">Edit Image Types</button>
+					<button onclick="openLibraryModal('{{ library.id }}', 'thresholds')">Edit Thresholds</button>
+					<button onclick="openLibraryModal('{{ library.id }}', 'zipnames')">Edit ZIP Filenames</button>
+					<form method="post" action="{{ url_for('fresh_download_html', library_id=library.id) }}" onsubmit="return downloadLibraryFile(event, '{{ library.id }}')"><button>Download as HTML</button></form>
+					<form method="post" action="{{ url_for('fresh_download_zip', library_id=library.id) }}" onsubmit="return downloadLibraryFile(event, '{{ library.id }}')"><button>Download ZIP</button></form>
+					<button onclick="openRestore('{{ library.name }}')">Restore</button>
+					<button onclick="scanLibrary('{{ library.id }}')">Scan</button>
+				</div>
+			</article>
+			{% endfor %}
+		</div>
+		{% endif %}
+
+		<section id="detail" class="detail"></section>
+	</main>
+</div>
+
+<div class="toast" id="toast"></div>
+<button class="scroll-top-btn" onclick="scrollToTop()" title="Scroll to top (T)">↑</button>
+
+<div class="lightbox" id="lightbox" onclick="closeLightboxFromBackdrop(event)">
+	<div class="lightbox-inner">
+		<div class="lightbox-stage">
+			<button type="button" class="lightbox-side-nav left" onclick="moveLightbox(-1)">←</button>
+			<div class="lightbox-media">
+				<img id="lightboxImage" src="" alt="">
+				<div class="lightbox-missing" id="lightboxMissing">Missing Image</div>
+			</div>
+			<button type="button" class="lightbox-side-nav right" onclick="moveLightbox(1)">→</button>
+		</div>
+		<div class="lightbox-title" id="lightboxTitle"></div>
+		<div class="lightbox-info" id="lightboxInfo"></div>
+		<div class="lightbox-item-nav">
+			<button type="button" id="lightboxPrevItem" onclick="moveLightboxItem(-1)">↑</button>
+			<button type="button" id="lightboxNextItem" onclick="moveLightboxItem(1)">↓</button>
+		</div>
+	</div>
+</div>
+
+<div class="modal-backdrop" id="settingsModal">
+	<div class="modal">
+		<header>
+			<h2>Settings</h2>
+			<button class="icon-btn" onclick="closeModal('settingsModal')">×</button>
+		</header>
+		<div class="modal-body">
+			<div class="tabs">
+				<button data-tab="servers" onclick="selectTab(event)">Servers</button>
+				<button data-tab="libraries" onclick="selectTab(event)">Libraries</button>
+				<button data-tab="rules" onclick="selectTab(event)">Image Rules</button>
+				<button data-tab="zipnames" onclick="selectTab(event)">ZIP Filenames</button>
+				<button data-tab="layout" onclick="selectTab(event)">Layout</button>
+				<button data-tab="auto" onclick="selectTab(event)">Auto</button>
+				<button data-tab="jellytag" onclick="selectTab(event)">JellyTag-Plus</button>
+			</div>
+			<section class="tab-panel" id="tab-servers">
+				<div class="settings-block">
+					<h3>Current Server</h3>
+					<div class="form-grid server-grid">
+						<label>Name<input type="text" id="serverName" value="{{ active_server.name if active_server else '' }}"></label>
+						<label>Server URL<input type="text" id="serverUrl" value="{{ active_server.url if active_server else '' }}"></label>
+						<label>API Key<input type="password" id="serverKey" value="{{ active_server.api_key if active_server else '' }}"></label>
+						<button onclick="syncLibraries(this)">Sync Libraries</button>
+					</div>
+					<p><button onclick="showNewServerForm()">Add Server</button> <button onclick="testActiveServer(this)">Test</button> <button class="primary" onclick="saveServer(this)">Save Server</button></p>
+				</div>
+				<div class="settings-block" id="newServerBlock" style="display:none;">
+					<h3>Add Server</h3>
+					<div class="form-grid">
+						<label>Name<input type="text" id="newServerName" value=""></label>
+						<label>Server URL<input type="text" id="newServerUrl" value=""></label>
+						<label>API Key<input type="password" id="newServerKey" value=""></label>
+					</div>
+					<p><button class="primary" onclick="saveNewServer(this)">Save</button> <button onclick="hideNewServerForm()">Cancel</button></p>
+				</div>
+			</section>
+			<section class="tab-panel" id="tab-libraries">
+				<div class="type-grid">
+					{% for library in all_libraries %}
+					<label class="check-row"><input type="checkbox" class="hide-lib" value="{{ library.id }}" {% if library.hidden %}checked{% endif %}> Hide {{ library.name }}</label>
+					{% endfor %}
+				</div>
+				<p><button class="primary" onclick="saveHiddenLibraries()">Save Libraries</button></p>
+			</section>
+			<section class="tab-panel" id="tab-rules">
+				<table class="rules-table">
+					<thead><tr><th>Image Type</th><th>Global Min Width</th><th>Global Min Height</th></tr></thead>
+					<tbody>
+						{% for code, label in image_types|dictsort(false, 'value') %}
+						<tr>
+							<td>{{ label }}</td>
+							<td><input type="number" class="global-thr-w" data-code="{{ code }}" value="{{ global_thresholds[code][0] if code in global_thresholds else '' }}"></td>
+							<td><input type="number" class="global-thr-h" data-code="{{ code }}" value="{{ global_thresholds[code][1] if code in global_thresholds else '' }}"></td>
+						</tr>
+						{% endfor %}
+					</tbody>
+				</table>
+				<p><button class="primary" onclick="saveGlobalThresholds()">Save Global Rules</button> <button onclick="markApplyThresholdsToAll()">Apply to All Libraries</button> <span id="thresholdApplyNote" class="pending-note" style="display:none;">Will apply when saved</span></p>
+			</section>
+			<section class="tab-panel" id="tab-zipnames">
+				<table class="rules-table">
+					<thead><tr><th>Image Type</th><th>Global ZIP Filename</th></tr></thead>
+					<tbody>
+						{% for code, label in image_types|dictsort(false, 'value') %}
+						<tr>
+							<td>{{ label }}</td>
+							<td><input type="text" class="global-zip-name" data-code="{{ code }}" value="{{ global_zipnames.get(code, default_zip_basenames.get(code, '')) }}"></td>
+						</tr>
+						{% endfor %}
+					</tbody>
+				</table>
+				<p><button class="primary" onclick="saveGlobalZipnames()">Save ZIP Filenames</button> <button onclick="markApplyZipnamesToAll()">Apply to All Libraries</button> <span id="zipApplyNote" class="pending-note" style="display:none;">Will apply when saved</span></p>
+			</section>
+			<section class="tab-panel" id="tab-layout">
+				<label class="check-row"><input type="radio" name="layoutMode" value="full" {% if layout == 'full' %}checked{% endif %}> Full</label>
+				<label class="check-row"><input type="radio" name="layoutMode" value="compact" {% if layout == 'compact' %}checked{% endif %}> Compact</label>
+				<p><button class="primary" onclick="saveLayout()">Save Layout</button></p>
+			</section>
+			<section class="tab-panel" id="tab-auto">
+				<h3>Scan Libraries</h3>
+				<div class="form-grid">
+					<label>Scan schedule
+						<input type="text" id="autoScanCron" value="{{ auto.fresh_scan_cron }}" placeholder="*/30 * * * *">
+					</label>
+				</div>
+				<div class="notice">This scans visible libraries and updates cached missing/low-resolution status.</div>
+				<h3>Export ZIPs</h3>
+				<div class="form-grid">
+					<label>ZIP export schedule
+						<input type="text" id="autoCron" value="{{ auto.cron }}" placeholder="0 3 * * *">
+					</label>
+					<label>ZIPs to keep per library
+						<input type="number" id="autoKeepZip" min="0" value="{{ auto.fresh_keep_zip }}">
+					</label>
+				</div>
+				<label class="check-row"><input type="checkbox" id="autoZipEnabled" {% if auto.fresh_global_zip %}checked{% endif %}> Export ZIPs for visible libraries on the ZIP export schedule</label>
+				<div class="notice">Auto ZIPs are saved under <code>output/&lt;Library&gt;/</code>. Existing ZIPs are listed here.</div>
+				<p><button class="primary" onclick="saveAutoSettings()">Save Auto Settings</button></p>
+				<div class="outputs-list">
+					{% for library, files in generated.items() %}
+						{% for f in files %}
+							{% if (f.filename or '').lower().endswith('.zip') %}
+							<div class="output-row"><span>{{ library }} / {{ f.filename }}</span><a href="{{ f.path }}">Download</a></div>
+							{% endif %}
+						{% endfor %}
+					{% endfor %}
+				</div>
+			</section>
+			<section class="tab-panel" id="tab-jellytag">
+				<label class="check-row"><input type="checkbox" id="jellytagToggle" {% if jellytag_bypass %}checked{% endif %}> Request original images with jellytag=off</label>
+				<a class="github-link" href="https://github.com/nothing2obvi/jellyfin-plugins/tree/main/Jellytag" target="_blank" rel="noopener noreferrer">
+					<svg viewBox="0 0 16 16" aria-hidden="true">
+						<path d="M8 0C3.58 0 0 3.67 0 8.2c0 3.62 2.29 6.69 5.47 7.77.4.08.55-.18.55-.4 0-.2-.01-.85-.01-1.54-2.01.38-2.53-.5-2.69-.96-.09-.24-.48-.96-.82-1.16-.28-.16-.68-.56-.01-.57.63-.01 1.08.59 1.23.84.72 1.24 1.87.89 2.33.68.07-.53.28-.89.51-1.09-1.78-.21-3.64-.91-3.64-4.03 0-.89.31-1.62.82-2.19-.08-.21-.36-1.04.08-2.16 0 0 .67-.22 2.2.84A7.42 7.42 0 0 1 8 3.95c.68 0 1.36.09 2 .28 1.53-1.06 2.2-.84 2.2-.84.44 1.12.16 1.95.08 2.16.51.57.82 1.3.82 2.19 0 3.13-1.87 3.82-3.65 4.03.29.26.54.75.54 1.52 0 1.09-.01 1.97-.01 2.24 0 .22.15.48.55.4A8.13 8.13 0 0 0 16 8.2C16 3.67 12.42 0 8 0Z"/>
+					</svg>
+					<span>JellyTag-Plus on GitHub</span>
+				</a>
+				<p><button class="primary" onclick="saveJellytag()">Save</button></p>
+			</section>
+			<div class="settings-version">v1.0.0</div>
+		</div>
+	</div>
+</div>
+
+<div class="modal-backdrop" id="libraryModal">
+	<div class="modal">
+		<header>
+			<h2 id="libraryModalTitle">Library Settings</h2>
+			<button class="icon-btn" onclick="closeModal('libraryModal')">×</button>
+		</header>
+		<div class="modal-body" id="libraryModalBody"></div>
+	</div>
+</div>
+
+<div class="modal-backdrop season-modal" id="seasonPosterModal">
+	<div class="modal">
+		<header>
+			<h2 id="seasonPosterTitle">Season Posters</h2>
+			<button class="icon-btn" onclick="closeModal('seasonPosterModal')">×</button>
+		</header>
+		<div class="modal-body" id="seasonPosterBody"></div>
+	</div>
+</div>
+
+<div class="modal-backdrop" id="restoreModal">
+	<div class="modal">
+		<header>
+			<h2>Restore</h2>
+			<button class="icon-btn" onclick="closeModal('restoreModal')">×</button>
+		</header>
+		<div class="modal-body">
+			<form id="restoreForm" action="{{ url_for('fresh_restore_review') }}" method="post" enctype="multipart/form-data" onsubmit="restoreProcessing(this)">
+				<input type="hidden" name="server" value="{{ active_server.url if active_server else '' }}">
+				<input type="hidden" name="apikey" value="{{ active_server.api_key if active_server else '' }}">
+				<label>Target Server:
+					<select name="target_server_id" id="restoreServer">
+						{% for server in servers %}
+						<option value="{{ server.id }}" data-url="{{ server.url }}" data-key="{{ server.api_key }}" {% if active_server and server.id == active_server.id %}selected{% endif %}>{{ server.name }}</option>
+						{% endfor %}
+					</select>
+				</label>
+				<label>Target Library: <input type="text" name="library" id="restoreLibrary" required></label>
+				<p>
+					<label><input type="radio" name="restore_mode" value="pixelfin" checked> Pixelfin ZIP</label>
+					<label><input type="radio" name="restore_mode" value="device"> External ZIP</label>
+				</p>
+				<div id="pixelfinZipPicker">
+					<select name="pixelfin_zip">
+						{% for library, files in generated.items() %}
+						{% for f in files %}
+						{% if (f.filename or '').lower().endswith('.zip') %}
+						<option value="{{ f.folder }}/{{ f.filename }}" data-library="{{ library }}" data-folder="{{ f.folder }}">{{ library }}: {{ f.filename }}</option>
+						{% endif %}
+						{% endfor %}
+						{% endfor %}
+					</select>
+				</div>
+				<p id="externalZipPicker" style="display:none;"><input type="file" name="zip_file" accept=".zip"></p>
+				<div class="form-grid restore-extra">
+					<label>Match Threshold<input type="number" step="0.01" min="0.5" max="1" name="threshold" value="0.75"></label>
+					<label class="toggle-row"><input type="checkbox" name="dry_run" checked><span class="toggle-track"></span><span>Dry Run</span></label>
+				</div>
+				<label class="toggle-row restore-extra"><input type="checkbox" id="restoreOverridesToggle" onchange="toggleRestoreOverrides()"><span class="toggle-track"></span><span>Restore Filename Overrides</span></label>
+				<div id="restoreOverridesPanel" style="display:none;">
+					<div class="subtle restore-help">Use this when a ZIP uses custom filenames instead of Pixelfin's defaults, such as a renamed backdrop file.</div>
+				<div class="form-grid">
+					{% for code, label in image_types|dictsort(false, 'value') %}
+					<label>{{ label }}<input type="text" name="restore_name_{{ label }}" placeholder="{{ default_zip_basenames.get(code, label|lower) }}"></label>
+					{% endfor %}
+				</div>
+				</div>
+				<p><button class="primary" id="restoreSubmit">Review Restore</button></p>
+				<div id="restoreProcessing" class="subtle" style="display:none;">Processing restore review...</div>
+			</form>
+		</div>
+	</div>
+</div>
+
+<script>
+const imageTypes = {{ image_types|tojson }};
+const defaultZipNames = {{ default_zip_basenames|tojson }};
+const globalThresholds = {{ global_thresholds|tojson }};
+const globalZipNames = {{ global_zipnames|tojson }};
+let currentLayout = "{{ layout }}";
+let currentLibraryId = "";
+let currentLibraryPayload = null;
+let applyThresholdsToAll = false;
+let applyZipnamesToAll = false;
+let serverEditingId = document.getElementById("serverSelect")?.value || "";
+let modalLibraryId = "";
+let lightboxImages = [];
+let lightboxIndex = 0;
+let lightboxItemId = "";
+let currentDetailMode = "";
+let hideCompleteItems = false;
+let pinnedTaskItemIds = new Set();
+
+function applyTheme() {
+	document.body.classList.toggle("dark", (localStorage.getItem("pixelfin_theme") || "dark") === "dark");
+}
+function setTheme(mode) {
+	localStorage.setItem("pixelfin_theme", mode);
+	applyTheme();
+	showToast(`${mode === "dark" ? "Dark" : "Light"} mode enabled.`);
+}
+function toggleTheme() {
+	localStorage.setItem("pixelfin_theme", document.body.classList.contains("dark") ? "light" : "dark");
+	applyTheme();
+}
+applyTheme();
+
+function showToast(message) {
+	const toast = document.getElementById("toast");
+	toast.textContent = message;
+	toast.classList.add("open");
+	clearTimeout(showToast.timer);
+	showToast.timer = setTimeout(() => toast.classList.remove("open"), 3600);
+}
+
+function setBusy(button, busyText = "Working...") {
+	if (!button) return () => {};
+	const original = button.textContent;
+	button.disabled = true;
+	button.textContent = busyText;
+	return () => {
+		button.disabled = false;
+		button.textContent = original;
+	};
+}
+
+function scrollToTop() {
+	window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+window.addEventListener("beforeunload", () => {
+	sessionStorage.setItem("pixelfin_scroll_y", String(window.scrollY));
+});
+document.addEventListener("DOMContentLoaded", () => {
+	const y = sessionStorage.getItem("pixelfin_scroll_y");
+	if (y) {
+		requestAnimationFrame(() => window.scrollTo(0, Number(y) || 0));
+		sessionStorage.removeItem("pixelfin_scroll_y");
+	}
+});
+
+async function api(url, options = {}) {
+	const res = await fetch(url, options);
+	const data = await res.json().catch(() => ({}));
+	if (!res.ok || data.status === "error") throw new Error(data.message || "Request failed");
+	return data;
+}
+function closeAllMenus() { document.querySelectorAll(".menu.open").forEach(m => m.classList.remove("open")); }
+function toggleMenu(event, id) {
+	event.stopPropagation();
+	const menu = document.getElementById(`menu-${id}`);
+	const open = menu.classList.contains("open");
+	closeAllMenus();
+	if (!open) menu.classList.add("open");
+}
+function toggleIssueMenu(event) {
+	event.stopPropagation();
+	const menu = document.getElementById("issueFilterMenu");
+	const open = menu.classList.contains("open");
+	closeAllMenus();
+	if (!open) menu.classList.add("open");
+}
+function getIssueFilters() {
+	return {
+		hideMissing: localStorage.getItem("pixelfin_hide_missing_images") === "1",
+		hideLow: localStorage.getItem("pixelfin_hide_low_images") === "1"
+	};
+}
+function imageVisibleByIssueFilter(img) {
+	const filters = getIssueFilters();
+	if (filters.hideMissing && (img.is_missing || img.status === "missing")) return false;
+	if (filters.hideLow && (img.is_low || img.status === "low")) return false;
+	return true;
+}
+function selectedCodesForItem(item) {
+	const raw = item.selected_images || currentLibraryPayload?.library?.selected_images || "[]";
+	try {
+		const selected = Array.isArray(raw) ? raw : JSON.parse(raw || "[]");
+		return new Set(selected.length ? selected : Object.keys(imageTypes));
+	} catch {
+		return new Set(Object.keys(imageTypes));
+	}
+}
+function imageSelectedForItem(item, img) {
+	return selectedCodesForItem(item).has(img.code);
+}
+function visibleImagesForItem(item) {
+	return (item.images || []).filter(img => !(img.code === "sp" && String(img.label || "").toLowerCase() === "season posters")).filter(img => imageSelectedForItem(item, img));
+}
+function normalImagesForItem(item) {
+	return visibleImagesForItem(item).filter(img => img.code !== "sp");
+}
+function seasonImagesForItem(item) {
+	return visibleImagesForItem(item).filter(img => img.code === "sp").sort((a, b) => {
+		const aSpecial = String(a.label || "").toLowerCase().startsWith("specials");
+		const bSpecial = String(b.label || "").toLowerCase().startsWith("specials");
+		if (aSpecial !== bSpecial) return aSpecial ? -1 : 1;
+		return String(a.label || "").localeCompare(String(b.label || ""), undefined, { numeric: true });
+	});
+}
+function visibleIssueCounts(item) {
+	const images = listedIssueImages(item);
+	const missing = images.missing;
+	const low = images.low;
+	return { missing, low, quantity: missing.length + low.length };
+}
+function listedIssueImages(item) {
+	const images = (item.images || []).filter(img => imageSelectedForItem(item, img)).filter(imageVisibleByIssueFilter);
+	const seasonImages = images.filter(img => img.code === "sp");
+	const normalImages = images.filter(img => img.code !== "sp");
+	const seasonMissing = seasonImages.some(img => img.is_missing || img.status === "missing");
+	const seasonLow = !seasonMissing && seasonImages.some(img => img.is_low || img.status === "low");
+	const seasonIssue = seasonMissing || seasonLow
+		? [{ code: "sp", label: "Season Posters", status: seasonMissing ? "missing" : "low", is_missing: seasonMissing ? 1 : 0, is_low: seasonLow ? 1 : 0 }]
+		: [];
+	return {
+		missing: normalImages.filter(img => img.is_missing || img.status === "missing").concat(seasonMissing ? seasonIssue : []),
+		low: normalImages.filter(img => img.is_low || img.status === "low").concat(seasonLow ? seasonIssue : [])
+	};
+}
+function hasVisibleAttention(item) {
+	return visibleIssueCounts(item).quantity > 0;
+}
+function filteredDetailItems(items, tasksOnly) {
+	if (!tasksOnly) return items;
+	return items.filter(item => hasVisibleAttention(item) || pinnedTaskItemIds.has(item.id));
+}
+function visibleListingItems(items, tasksOnly) {
+	const filtered = filteredDetailItems(items, tasksOnly);
+	return hideCompleteItems ? filtered.filter(item => hasVisibleAttention(item) || pinnedTaskItemIds.has(item.id)) : filtered;
+}
+function currentLightboxItems() {
+	const items = currentLibraryPayload?.items || [];
+	return visibleListingItems(items, currentDetailMode !== "library");
+}
+function syncIssueFilterControls() {
+	const filters = getIssueFilters();
+	const missing = document.getElementById("hideMissingToggle");
+	const low = document.getElementById("hideLowToggle");
+	if (missing) missing.checked = filters.hideMissing;
+	if (low) low.checked = filters.hideLow;
+}
+function saveIssueFilters() {
+	localStorage.setItem("pixelfin_hide_missing_images", document.getElementById("hideMissingToggle")?.checked ? "1" : "0");
+	localStorage.setItem("pixelfin_hide_low_images", document.getElementById("hideLowToggle")?.checked ? "1" : "0");
+	refreshIssueFilteredUi();
+	showToast("Count filters updated.");
+}
+async function refreshIssueFilteredUi() {
+	if (currentLibraryPayload?.items && document.getElementById("detail")?.classList.contains("open")) {
+		const library = currentDetailMode === "allTasks"
+			? { name: "All Tasks", task_count: currentLibraryPayload.items.length }
+			: currentLibraryPayload.library;
+		renderDetail(library, currentLibraryPayload.items, currentDetailMode !== "library");
+	}
+	await updateIssueCounts();
+}
+function toggleHideCompleteItems() {
+	hideCompleteItems = !hideCompleteItems;
+	if (currentLibraryPayload?.items) {
+		const library = currentDetailMode === "allTasks"
+			? { name: "All Tasks", task_count: currentLibraryPayload.items.length }
+			: currentLibraryPayload.library;
+		renderDetail(library, currentLibraryPayload.items, currentDetailMode !== "library");
+	}
+}
+function canToggleHideCompleteItems() {
+	return Boolean(currentLibraryPayload?.items && currentDetailMode !== "allTasks" && document.getElementById("detail")?.classList.contains("open"));
+}
+async function updateIssueCounts() {
+	try {
+		const data = await api("/fresh/api/tasks");
+		const counts = {};
+		data.items.filter(hasVisibleAttention).forEach(item => {
+			counts[item.library_id] = (counts[item.library_id] || 0) + 1;
+		});
+		let total = 0;
+		document.querySelectorAll("[data-task-badge]").forEach(badge => {
+			const count = counts[badge.dataset.taskBadge] || 0;
+			total += count;
+			badge.textContent = count;
+			badge.style.display = count ? "" : "none";
+		});
+		const totalNode = document.getElementById("totalTaskCount");
+		if (totalNode) totalNode.textContent = total;
+	} catch (err) {
+		console.warn(err);
+	}
+}
+document.addEventListener("DOMContentLoaded", () => {
+	syncIssueFilterControls();
+	const restoreY = Number(sessionStorage.getItem("pixelfin_scroll_y") || "");
+	if (!Number.isNaN(restoreY) && restoreY > 0) {
+		sessionStorage.removeItem("pixelfin_scroll_y");
+		requestAnimationFrame(() => window.scrollTo(0, restoreY));
+	}
+	updateIssueCounts();
+});
+document.addEventListener("click", closeAllMenus);
+document.querySelectorAll(".modal-backdrop").forEach(modal => {
+	modal.addEventListener("click", event => {
+		if (event.target === modal) modal.classList.remove("open");
+	});
+});
+document.querySelectorAll('input[name="restore_mode"]').forEach(input => {
+	input.addEventListener("change", updateRestoreSource);
+});
+document.getElementById("restoreServer")?.addEventListener("change", event => {
+	const option = event.target.selectedOptions[0];
+	document.querySelector('#restoreForm input[name="server"]').value = option?.dataset.url || "";
+	document.querySelector('#restoreForm input[name="apikey"]').value = option?.dataset.key || "";
+});
+function updateRestoreSource() {
+	const mode = document.querySelector('input[name="restore_mode"]:checked')?.value || "pixelfin";
+	document.getElementById("pixelfinZipPicker").style.display = mode === "pixelfin" ? "" : "none";
+	document.getElementById("externalZipPicker").style.display = mode === "device" ? "" : "none";
+}
+function toggleRestoreOverrides() {
+	const panel = document.getElementById("restoreOverridesPanel");
+	panel.style.display = document.getElementById("restoreOverridesToggle")?.checked ? "" : "none";
+}
+function restoreProcessing(form) {
+	sessionStorage.setItem("pixelfin_scroll_y", String(window.scrollY || 0));
+	const button = form.querySelector("#restoreSubmit");
+	if (button) {
+		button.disabled = true;
+		button.textContent = "Processing...";
+	}
+	document.getElementById("restoreProcessing").style.display = "";
+}
+
+document.getElementById("serverSelect")?.addEventListener("change", async event => {
+	if (!event.target.value) return;
+	serverEditingId = event.target.value;
+	await api(`/fresh/api/servers/${event.target.value}/activate`, { method: "POST" });
+	location.reload();
+});
+
+function openSettings(tab = "servers") {
+	document.getElementById("settingsModal").classList.add("open");
+	const btn = document.querySelector(`[data-tab="${tab}"]`);
+	if (btn) btn.click();
+}
+function closeModal(id) { document.getElementById(id).classList.remove("open"); }
+function selectTab(event) {
+	document.querySelectorAll(".tabs button").forEach(b => b.classList.remove("active"));
+	document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+	event.currentTarget.classList.add("active");
+	document.getElementById(`tab-${event.currentTarget.dataset.tab}`).classList.add("active");
+}
+
+function showNewServerForm() {
+	document.getElementById("newServerBlock").style.display = "";
+	document.getElementById("newServerName").value = "";
+	document.getElementById("newServerUrl").value = "";
+	document.getElementById("newServerKey").value = "";
+	document.getElementById("newServerName").focus();
+}
+function hideNewServerForm() {
+	document.getElementById("newServerBlock").style.display = "none";
+}
+
+async function saveServer(button) {
+	const done = setBusy(button, "Saving...");
+	try {
+		await api("/fresh/api/servers", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				id: serverEditingId,
+				name: document.getElementById("serverName").value,
+				url: document.getElementById("serverUrl").value,
+				api_key: document.getElementById("serverKey").value
+			})
+		});
+		showToast("Server saved.");
+		location.reload();
+	} catch (err) {
+		showToast(err.message);
+	} finally {
+		done();
+	}
+}
+async function saveNewServer(button) {
+	const done = setBusy(button, "Saving...");
+	try {
+		await api("/fresh/api/servers", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				id: "",
+				name: document.getElementById("newServerName").value,
+				url: document.getElementById("newServerUrl").value,
+				api_key: document.getElementById("newServerKey").value
+			})
+		});
+		showToast("Server added.");
+		location.reload();
+	} catch (err) {
+		showToast(err.message);
+	} finally {
+		done();
+	}
+}
+async function testActiveServer(button) {
+	const id = serverEditingId || document.getElementById("serverSelect")?.value;
+	if (!id) {
+		showToast("Save the server first, then test it.");
+		return;
+	}
+	const done = setBusy(button, "Testing...");
+	try {
+		const data = await api(`/fresh/api/servers/${id}/test`, { method: "POST" });
+		showToast(data.server_name || "Connected.");
+	} catch (err) {
+		showToast(err.message);
+	} finally {
+		done();
+	}
+}
+async function syncLibraries(button) {
+	const done = setBusy(button, "Syncing...");
+	try {
+		const data = await api("/fresh/api/sync-libraries", { method: "POST" });
+		showToast(`Synced ${data.count || 0} libraries.`);
+		location.reload();
+	} catch (err) {
+		showToast(err.message);
+	} finally {
+		done();
+	}
+}
+async function saveHiddenLibraries() {
+	const hidden = [...document.querySelectorAll(".hide-lib:checked")].map(el => el.value);
+	await api("/fresh/api/settings", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ hidden_libraries: hidden })
+	});
+	location.reload();
+}
+function markApplyThresholdsToAll() {
+	applyThresholdsToAll = true;
+	document.getElementById("thresholdApplyNote").style.display = "";
+	showToast("Image rules will apply to all libraries when you press Save.");
+}
+async function saveGlobalThresholds() {
+	const thresholds = {};
+	document.querySelectorAll(".global-thr-w").forEach(w => {
+		const code = w.dataset.code;
+		const h = document.querySelector(`.global-thr-h[data-code="${code}"]`);
+		if (w.value && h.value) thresholds[code] = [Number(w.value), Number(h.value)];
+	});
+	try {
+		await api("/fresh/api/settings", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ global_thresholds: thresholds, apply_to_all: applyThresholdsToAll })
+		});
+		showToast(applyThresholdsToAll ? "Image rules saved and applied to all libraries." : "Image rules saved.");
+		applyThresholdsToAll = false;
+		document.getElementById("thresholdApplyNote").style.display = "none";
+	} catch (err) {
+		showToast(err.message);
+	}
+}
+function markApplyZipnamesToAll() {
+	applyZipnamesToAll = true;
+	document.getElementById("zipApplyNote").style.display = "";
+	showToast("ZIP filenames will apply to all libraries when you press Save.");
+}
+async function saveGlobalZipnames() {
+	const zipnames = {};
+	document.querySelectorAll(".global-zip-name").forEach(input => {
+		if (input.value.trim()) zipnames[input.dataset.code] = input.value.trim();
+	});
+	try {
+		await api("/fresh/api/settings", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ global_zipnames: zipnames, apply_to_all: applyZipnamesToAll })
+		});
+		showToast(applyZipnamesToAll ? "ZIP filenames saved and applied to all libraries." : "ZIP filenames saved.");
+		applyZipnamesToAll = false;
+		document.getElementById("zipApplyNote").style.display = "none";
+	} catch (err) {
+		showToast(err.message);
+	}
+}
+async function saveAutoSettings() {
+	try {
+		await api("/fresh/api/settings", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				fresh_auto: {
+					cron: document.getElementById("autoCron").value,
+					fresh_scan_cron: document.getElementById("autoScanCron").value,
+					fresh_keep_zip: Number(document.getElementById("autoKeepZip").value || 0),
+					fresh_global_zip: document.getElementById("autoZipEnabled").checked
+				}
+			})
+		});
+		showToast("Auto ZIP settings saved.");
+	} catch (err) {
+		showToast(err.message);
+	}
+}
+async function saveLayout() {
+	const chosen = document.querySelector('input[name="layoutMode"]:checked')?.value || "full";
+	await setLayout(chosen);
+}
+async function setLayout(chosen) {
+	try {
+		const anchorItemId = currentVisibleEntryId();
+		const y = window.scrollY || 0;
+		await api("/fresh/api/settings", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ layout: chosen })
+		});
+		currentLayout = chosen;
+		const input = document.querySelector(`input[name="layoutMode"][value="${chosen}"]`);
+		if (input) input.checked = true;
+		if (currentLibraryPayload?.items && document.getElementById("detail")?.classList.contains("open")) {
+			const library = currentDetailMode === "allTasks"
+				? { name: "All Tasks", task_count: currentLibraryPayload.items.length }
+				: currentLibraryPayload.library;
+			renderDetail(library, currentLibraryPayload.items, currentDetailMode === "allTasks", false);
+			restoreDetailPosition(anchorItemId, y);
+		}
+		showToast("Layout saved.");
+	} catch (err) {
+		showToast(err.message);
+	}
+}
+async function saveJellytag() {
+	await api("/fresh/api/settings", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ jellytag_bypass: document.getElementById("jellytagToggle").checked })
+	});
+	location.reload();
+}
+
+async function scanLibrary(id) {
+	const card = document.querySelector(`[data-library-id="${id}"]`);
+	if (card) card.style.opacity = ".62";
+	const status = card?.querySelector(".scan-status");
+	if (status) status.textContent = "Scanning";
+	const detailStatus = document.getElementById("detailScanStatus");
+	if (detailStatus) detailStatus.textContent = "Scanning";
+	try {
+		await api(`/fresh/api/libraries/${id}/scan`, { method: "POST" });
+		showToast("Library scan complete.");
+		if (currentLibraryId === id) {
+			const data = await api(`/fresh/api/libraries/${id}`);
+			currentLibraryPayload = data;
+			renderDetail(data.library, data.items, false);
+		}
+		if (status) status.textContent = "Scanned";
+		if (detailStatus) detailStatus.textContent = "Scan complete";
+		setTimeout(() => {
+			sessionStorage.setItem("pixelfin_scroll_y", String(window.scrollY));
+			location.reload();
+		}, 650);
+	} catch (err) {
+		showToast(err.message);
+		if (card) card.style.opacity = "";
+		if (status) status.textContent = "";
+		if (detailStatus) detailStatus.textContent = "";
+	}
+	if (card) card.style.opacity = "";
+}
+async function globalScan(button) {
+	if (localStorage.getItem("pixelfin_hide_scan_warning") !== "1") {
+		const ok = window.confirm("Scanning all libraries checks many Jellyfin images and may briefly slow image loading for other clients. Continue?");
+		if (!ok) return;
+		if (window.confirm("Hide this scan warning next time?")) {
+			localStorage.setItem("pixelfin_hide_scan_warning", "1");
+		}
+	}
+	const original = button?.textContent || "Scan All Libraries";
+	if (button) button.textContent = "Scanning...";
+	try {
+		const libraryIds = Array.from(document.querySelectorAll("#libraryGrid [data-library-id]")).map(card => card.dataset.libraryId);
+		const data = await api("/fresh/api/scan-all", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ library_ids: libraryIds })
+		});
+		showToast(`Scanned ${data.results?.length || 0} libraries.`);
+		sessionStorage.setItem("pixelfin_scroll_y", String(window.scrollY));
+		location.reload();
+	} catch (err) {
+		showToast(err.message);
+	} finally {
+		if (button) button.textContent = original;
+	}
+}
+function applyLibraryCollapse() {
+	const collapsed = localStorage.getItem("pixelfin_libraries_collapsed") === "1";
+	const grid = document.getElementById("libraryGrid");
+	const btn = document.getElementById("collapseLibrariesBtn");
+	if (grid) grid.classList.toggle("collapsed", collapsed);
+	if (btn) btn.textContent = collapsed ? "Show Libraries" : "Collapse Libraries";
+}
+function toggleLibraries() {
+	const collapsed = localStorage.getItem("pixelfin_libraries_collapsed") === "1";
+	localStorage.setItem("pixelfin_libraries_collapsed", collapsed ? "0" : "1");
+	applyLibraryCollapse();
+}
+document.addEventListener("DOMContentLoaded", applyLibraryCollapse);
+async function openLibrary(id, tasksOnly, hideComplete = false) {
+	currentLibraryId = id;
+	currentDetailMode = tasksOnly ? "libraryTasks" : "library";
+	hideCompleteItems = hideComplete;
+	pinnedTaskItemIds = new Set();
+	const data = await api(`/fresh/api/libraries/${id}?tasks=${tasksOnly ? "1" : "0"}`);
+	currentLibraryPayload = data;
+	renderDetail(data.library, data.items, tasksOnly);
+}
+function openLibraryTasksFromBadge(event, id) {
+	event.preventDefault();
+	event.stopPropagation();
+	openLibrary(id, false, true);
+}
+function openLibraryTasksFromBadgeKey(event, id) {
+	if (event.key !== "Enter" && event.key !== " ") return;
+	openLibraryTasksFromBadge(event, id);
+}
+async function openAllTasks() {
+	currentLibraryId = "";
+	currentDetailMode = "allTasks";
+	hideCompleteItems = false;
+	pinnedTaskItemIds = new Set();
+	const data = await api("/fresh/api/tasks");
+	currentLibraryPayload = { items: data.items };
+	renderDetail({ name: "All Tasks", task_count: data.items.length }, data.items, true);
+}
+async function refreshAllTasks() {
+	const detailStatus = document.getElementById("detailScanStatus");
+	if (detailStatus) detailStatus.textContent = "Refreshing";
+	await openAllTasks();
+	const nextStatus = document.getElementById("detailScanStatus");
+	if (nextStatus) nextStatus.textContent = "Refreshed";
+}
+function renderDetail(library, items, tasksOnly, scrollIntoView = true) {
+	const detail = document.getElementById("detail");
+	const visibleItems = filteredDetailItems(items, tasksOnly);
+	const listingItems = visibleListingItems(items, tasksOnly);
+	const displayNames = buildDisplayNames(items);
+	const tableImageText = img => {
+		const dims = img.width && img.height ? ` (${img.width}x${img.height})` : "";
+		return `${img.label}${dims}`;
+	};
+	const rows = listingItems.map(item => {
+		const { quantity } = visibleIssueCounts(item);
+		const { missing, low } = listedIssueImages(item);
+		const missingHtml = missing.map(img => `<span class="missing-text">${escapeHtml(tableImageText(img))}</span>`).join("");
+		const lowHtml = low.map(img => `<span class="low-text">${escapeHtml(tableImageText(img))}</span>`).join("");
+		const quantityHtml = quantity ? String(quantity) : `<span class="complete-text">Complete</span>`;
+		const itemTitle = currentDetailMode === "allTasks" && item.library_name ? `${item.library_name} / ${displayNames[item.id]}` : displayNames[item.id];
+		return `<tr><td><a href="#item-${item.id}">${escapeHtml(itemTitle)}</a></td><td class="quantity">${quantityHtml}</td><td>${missingHtml}</td><td>${lowHtml}</td></tr>`;
+	}).join("");
+	const entries = listingItems.map(item => renderEntry({ ...item, images: visibleImagesForItem(item) }, displayNames[item.id])).join("");
+	const refreshButton = currentLibraryId
+		? `<button onclick="scanLibrary('${currentLibraryId}')">Refresh</button>`
+		: (currentDetailMode === "allTasks" ? `<button onclick="refreshAllTasks()">Refresh</button>` : "");
+	const hideCompleteButton = currentDetailMode === "allTasks"
+		? ""
+		: `<button onclick="toggleHideCompleteItems()">${hideCompleteItems ? "Show Complete Items" : "Hide Complete Items"}</button> `;
+	detail.innerHTML = `
+		<div class="detail-head">
+			<div><h1>${escapeHtml(library.name)}</h1><div class="subtle">${listingItems.length} ${tasksOnly ? "task" : "media"} items</div></div>
+			<div>${hideCompleteButton}${refreshButton} <button onclick="document.getElementById('detail').classList.remove('open')">Close</button><div id="detailScanStatus" class="subtle"></div></div>
+		</div>
+		<table class="summary"><thead><tr><th>Item</th><th>Quantity</th><th>Missing</th><th>Low Resolution</th></tr></thead><tbody>${rows || `<tr><td colspan="4">No media items to show.</td></tr>`}</tbody></table>
+		${entries || `<div class="notice">No scanned items yet.</div>`}
+	`;
+	detail.classList.add("open");
+	if (scrollIntoView) detail.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+function currentVisibleEntryId() {
+	const entries = [...document.querySelectorAll(".entry[id]")];
+	if (!entries.length) return "";
+	let best = entries[0];
+	let bestDistance = Infinity;
+	entries.forEach(entry => {
+		const rect = entry.getBoundingClientRect();
+		const distance = Math.abs(rect.top - 96);
+		if (rect.bottom > 0 && rect.top < window.innerHeight && distance < bestDistance) {
+			best = entry;
+			bestDistance = distance;
+		}
+	});
+	return best?.id?.replace(/^item-/, "") || "";
+}
+function restoreDetailPosition(itemId, fallbackY) {
+	requestAnimationFrame(() => {
+		const entry = itemId ? document.getElementById(`item-${itemId}`) : null;
+		if (entry) entry.scrollIntoView({ behavior: "auto", block: "start" });
+		else window.scrollTo(0, fallbackY || 0);
+	});
+}
+function buildDisplayNames(items) {
+	const groups = {};
+	items.forEach(item => {
+		if ((item.item_type || "").toLowerCase() === "movie") {
+			const key = (item.name || "").trim().toLowerCase();
+			groups[key] = (groups[key] || 0) + 1;
+		}
+	});
+	const names = {};
+	items.forEach(item => {
+		const isDuplicateMovie = (item.item_type || "").toLowerCase() === "movie" && groups[(item.name || "").trim().toLowerCase()] > 1;
+		names[item.id] = `${item.name || "Untitled"}${isDuplicateMovie && item.year ? ` (${item.year})` : ""}`;
+	});
+	return names;
+}
+function renderEntry(item, displayName) {
+	const layoutClass = currentLayout === "compact" ? "image-strip" : "full-layout";
+	const inner = currentLayout === "compact" ? renderCompactImages(item) : renderFullImages(item);
+	const disabled = item._updating ? " disabled" : "";
+	const label = item._updating ? "Updating..." : "Update";
+	const seasonButton = seasonImagesForItem(item).length
+		? `<button type="button" onclick="openSeasonPosters('${item.id}')">View Season Posters</button>`
+		: "";
+	return `<article class="entry" id="item-${item.id}"><h3><a href="${item.details_url}" target="_blank" rel="noopener noreferrer">${escapeHtml(displayName)}</a><span>${seasonButton}<button type="button"${disabled} onclick="updateMediaItem('${item.library_id}', '${item.id}', this)">${label}</button></span></h3><div class="${layoutClass}">${inner}</div></article>`;
+}
+function renderCompactImages(item) {
+	return item.images.filter(img => img.code !== "sp").map((img, index) => renderImageTile(item, img, index)).join("");
+}
+function renderFullImages(item) {
+	const byCode = {};
+	item.images.filter(img => img.code !== "sp").forEach((img, index) => {
+		byCode[img.code] = byCode[img.code] || [];
+		byCode[img.code].push({ img, index });
+	});
+	const renderCodes = codes => codes.flatMap(code => byCode[code] || []).map(({ img, index }) => renderImageTile(item, img, index)).join("");
+	const boxRow = renderCodes(["b", "br", "d"]);
+	return `
+		<div class="full-left">${renderCodes(["p", "t", "c", "m"])}</div>
+		<div class="full-right">
+			${renderCodes(["bd", "bn"])}
+			${boxRow ? `<div class="full-box-row">${boxRow}</div>` : ""}
+			${renderCodes(["l"])}
+		</div>
+	`;
+}
+function renderImageTile(item, img, index) {
+		const media = img.url && !img.is_missing
+			? `<img src="${img.proxy_url || img.url}" alt="${escapeHtml(img.label)}" loading="lazy" onclick="openLightbox('${item.id}', ${index})">`
+			: `<div class="placeholder" onclick="openLightbox('${item.id}', ${index})">Missing: ${escapeHtml(img.label)}</div>`;
+		const statusClass = img.status === "ok" ? "ok" : (img.status === "low" ? "low" : "missing");
+		const dims = img.width && img.height ? `${img.width}x${img.height}` : "";
+	return `<div class="image-tile" data-code="${escapeHtml(img.code)}">${media}<div class="caption"><span>${escapeHtml(img.label)}</span><span class="${statusClass}">${escapeHtml(img.status)} ${dims}</span></div></div>`;
+}
+function renderSeasonPosterTile(item, img, index) {
+	const media = img.url && !img.is_missing
+		? `<img src="${img.proxy_url || img.url}" alt="${escapeHtml(img.label)}" loading="lazy" onclick="openSeasonLightbox('${item.id}', ${index})">`
+		: `<div class="placeholder" onclick="openSeasonLightbox('${item.id}', ${index})">Missing: ${escapeHtml(img.label)}</div>`;
+	const statusClass = img.status === "ok" ? "ok" : (img.status === "low" ? "low" : "missing");
+	const dims = img.width && img.height ? `${img.width}x${img.height}` : "No resolution";
+	return `<div class="season-card">${media}<div class="caption"><span>${escapeHtml(img.label)}</span><span class="${statusClass}">${escapeHtml(img.status)} ${escapeHtml(dims)}</span></div></div>`;
+}
+function openSeasonPosters(itemId) {
+	const item = currentLibraryPayload?.items?.find(i => i.id === itemId);
+	if (!item) return;
+	const displayNames = buildDisplayNames(currentLibraryPayload?.items || []);
+	document.getElementById("seasonPosterTitle").textContent = `${displayNames[itemId] || item.name || "Season Posters"} Season Posters`;
+	const posters = seasonImagesForItem(item);
+	document.getElementById("seasonPosterBody").innerHTML = `
+		<div class="season-row">${posters.map((img, index) => renderSeasonPosterTile(item, img, index)).join("")}</div>
+		<p class="subtle">Season posters that are inherited from the series' primary image are counted as missing.</p>
+	`;
+	document.getElementById("seasonPosterModal").classList.add("open");
+}
+function moveSeasonPosterRow(delta) {
+	const row = document.querySelector("#seasonPosterModal.open .season-row");
+	if (!row) return;
+	const step = Math.max(180, Math.floor(row.clientWidth * 0.72));
+	row.scrollBy({ left: delta * step, behavior: "smooth" });
+}
+function openSeasonLightbox(itemId, imageIndex) {
+	const item = currentLibraryPayload?.items?.find(i => i.id === itemId);
+	if (!item) return;
+	lightboxItemId = itemId;
+	lightboxImages = seasonImagesForItem(item);
+	if (!lightboxImages.length) return;
+	lightboxIndex = Math.max(0, Math.min(imageIndex, lightboxImages.length - 1));
+	closeModal("seasonPosterModal");
+	showLightboxImage();
+	document.getElementById("lightbox").classList.add("open");
+}
+async function updateMediaItem(libraryId, itemId, button) {
+	if (!libraryId || !itemId) return;
+	const original = button?.textContent || "Update";
+	const y = window.scrollY || 0;
+	if (button) {
+		button.disabled = true;
+		button.textContent = "Updating...";
+	}
+	try {
+		const data = await api(`/fresh/api/libraries/${libraryId}/items/${itemId}/scan`, { method: "POST" });
+		if (currentDetailMode !== "library" || hideCompleteItems) pinnedTaskItemIds.add(itemId);
+		if (currentLibraryPayload?.items) {
+			const index = currentLibraryPayload.items.findIndex(item => item.id === itemId);
+			if (index >= 0) currentLibraryPayload.items[index] = data.item;
+		}
+		const library = currentDetailMode === "allTasks"
+			? { name: "All Tasks", task_count: currentLibraryPayload.items.length }
+			: currentLibraryPayload.library;
+		renderDetail(library, currentLibraryPayload.items, currentDetailMode !== "library", false);
+		restoreDetailPosition(itemId, y);
+		await updateIssueCounts();
+		showToast("Media item updated.");
+	} catch (err) {
+		showToast(err.message);
+		if (button) {
+			button.disabled = false;
+			button.textContent = original;
+		}
+	}
+}
+function escapeHtml(value) {
+	return String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+}
+
+function openLightbox(itemId, imageIndex) {
+	const item = currentLibraryPayload?.items?.find(i => i.id === itemId);
+	if (!item) return;
+	lightboxItemId = itemId;
+	lightboxImages = normalImagesForItem(item);
+	if (!lightboxImages.length) return;
+	const clicked = lightboxImages[imageIndex];
+	lightboxIndex = Math.max(0, lightboxImages.findIndex(img => img === clicked || (img.url === clicked?.url && img.label === clicked?.label && img.status === clicked?.status)));
+	showLightboxImage();
+	document.getElementById("lightbox").classList.add("open");
+}
+function showLightboxImage() {
+	if (!lightboxImages.length) return;
+	const img = lightboxImages[lightboxIndex];
+	const image = document.getElementById("lightboxImage");
+	const missing = document.getElementById("lightboxMissing");
+	const title = document.getElementById("lightboxTitle");
+	const info = document.getElementById("lightboxInfo");
+	const item = currentLibraryPayload?.items?.find(i => i.id === lightboxItemId);
+	const displayNames = buildDisplayNames(currentLightboxItems());
+	if (title) title.textContent = displayNames[lightboxItemId] || item?.name || "";
+	const statusClass = img.status === "ok" ? "ok" : (img.status === "low" ? "low" : "missing");
+	const dims = img.width && img.height ? `${img.width}x${img.height}` : "No resolution";
+	if (img.url && !img.is_missing) {
+		image.style.display = "";
+		missing.style.display = "none";
+		image.src = img.proxy_url || img.url;
+		image.alt = img.label;
+	} else {
+		image.style.display = "none";
+		image.removeAttribute("src");
+		missing.style.display = "grid";
+		missing.textContent = `Missing: ${img.label}`;
+	}
+	info.innerHTML = `<span>${escapeHtml(img.label)}</span><span class="${statusClass}">${escapeHtml(img.status)}</span><span>${escapeHtml(dims)}</span>`;
+	updateLightboxItemButtons();
+}
+function moveLightbox(delta) {
+	if (!lightboxImages.length) return;
+	if (lightboxImages[lightboxIndex]?.code === "sp") {
+		const next = lightboxIndex + delta;
+		if (next < 0 || next >= lightboxImages.length) return;
+		lightboxIndex = next;
+		showLightboxImage();
+		return;
+	}
+	lightboxIndex = (lightboxIndex + delta + lightboxImages.length) % lightboxImages.length;
+	showLightboxImage();
+}
+function moveLightboxItem(delta) {
+	const items = currentLightboxItems();
+	const currentIndex = items.findIndex(item => item.id === lightboxItemId);
+	const currentCode = lightboxImages[lightboxIndex]?.code;
+	for (let index = currentIndex + delta; index >= 0 && index < items.length; index += delta) {
+		const targetImages = currentCode === "sp" ? seasonImagesForItem(items[index]) : normalImagesForItem(items[index]);
+		const targetIndex = targetImages.findIndex(img => img.code === currentCode);
+		if (targetIndex >= 0) {
+			if (currentCode === "sp") openSeasonLightbox(items[index].id, targetIndex);
+			else openLightbox(items[index].id, targetIndex);
+			document.getElementById(`item-${items[index].id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+			return;
+		}
+	}
+}
+function updateLightboxItemButtons() {
+	const items = currentLightboxItems();
+	const currentIndex = items.findIndex(item => item.id === lightboxItemId);
+	const currentCode = lightboxImages[lightboxIndex]?.code;
+	const prev = document.getElementById("lightboxPrevItem");
+	const next = document.getElementById("lightboxNextItem");
+	const hasSameType = item => (currentCode === "sp" ? seasonImagesForItem(item) : normalImagesForItem(item)).some(img => img.code === currentCode);
+	const hasPrev = items.slice(0, currentIndex).some(hasSameType);
+	const hasNext = currentIndex >= 0 && items.slice(currentIndex + 1).some(hasSameType);
+	if (prev) prev.disabled = !hasPrev;
+	if (next) next.disabled = !hasNext;
+}
+function closeLightbox() {
+	document.getElementById("lightbox").classList.remove("open");
+	lightboxImages = [];
+	lightboxIndex = 0;
+	lightboxItemId = "";
+}
+function closeLightboxFromBackdrop(event) {
+	if (event.target.id === "lightbox") closeLightbox();
+}
+document.addEventListener("keydown", event => {
+	const tag = document.activeElement?.tagName;
+	const shortcutAllowed = !["INPUT", "TEXTAREA", "SELECT"].includes(tag) && !document.querySelector(".modal-backdrop.open");
+	if (event.key === "Escape") {
+		closeLightbox();
+		document.querySelectorAll(".modal-backdrop.open").forEach(modal => modal.classList.remove("open"));
+	}
+	if (document.getElementById("seasonPosterModal").classList.contains("open")) {
+		if (event.key === "ArrowLeft") moveSeasonPosterRow(-1);
+		if (event.key === "ArrowRight") moveSeasonPosterRow(1);
+		return;
+	}
+	if (document.getElementById("lightbox").classList.contains("open")) {
+		if (event.key === "ArrowLeft") moveLightbox(-1);
+		if (event.key === "ArrowRight") moveLightbox(1);
+		if (event.key === "ArrowUp") moveLightboxItem(-1);
+		if (event.key === "ArrowDown") moveLightboxItem(1);
+		return;
+	}
+	if (!shortcutAllowed) return;
+	const key = event.key.toLowerCase();
+	if (key === "t") {
+		scrollToTop();
+	}
+	if (key === "9") setLayout(currentLayout === "compact" ? "full" : "compact");
+	if (key === "a") openAllTasks();
+	if (key === "0") toggleTheme();
+	if (key === "o" && canToggleHideCompleteItems()) toggleHideCompleteItems();
+});
+
+async function openLibraryModal(id, mode) {
+	modalLibraryId = id;
+	const data = await api(`/fresh/api/libraries/${id}`);
+	const library = data.library;
+	const selected = JSON.parse(library.selected_images || "[]");
+	const thresholds = { ...globalThresholds, ...JSON.parse(library.thresholds || "{}") };
+	const zipnames = { ...defaultZipNames, ...globalZipNames, ...JSON.parse(library.zipnames || "{}") };
+	document.getElementById("libraryModalTitle").textContent = `${library.name} Settings`;
+	let html = "";
+	if (mode === "types") {
+		const normalTypes = Object.entries(imageTypes).filter(([code]) => code !== "sp").sort((a, b) => a[1].localeCompare(b[1]));
+		const seasonType = imageTypes.sp ? `<div class="special-setting"><label class="check-row"><input type="checkbox" class="edit-type" value="sp" ${selected.includes("sp") ? "checked" : ""}> ${escapeHtml(imageTypes.sp)}</label><p class="subtle">Season posters that are inherited from the series' primary image are counted as missing.</p></div>` : "";
+		html = `<div class="type-grid">${normalTypes.map(([code, label]) => `<label class="check-row"><input type="checkbox" class="edit-type" value="${code}" ${selected.includes(code) ? "checked" : ""}> ${escapeHtml(label)}</label>`).join("")}</div>${seasonType}<p><button class="primary" onclick="saveLibraryTypes()">Save Image Types</button></p>`;
+	}
+	if (mode === "thresholds") {
+		const normalTypes = Object.entries(imageTypes).filter(([code]) => code !== "sp").sort((a, b) => a[1].localeCompare(b[1]));
+		const row = ([code, label]) => `<tr><td>${escapeHtml(label)}</td><td><input type="number" class="thr-w" data-code="${code}" value="${thresholds[code]?.[0] || ""}"></td><td><input type="number" class="thr-h" data-code="${code}" value="${thresholds[code]?.[1] || ""}"></td></tr>`;
+		const seasonRow = imageTypes.sp ? `<tbody class="special-setting">${row(["sp", imageTypes.sp])}</tbody>` : "";
+		html = `<table class="rules-table"><thead><tr><th>Image Type</th><th>Min Width</th><th>Min Height</th></tr></thead><tbody>${normalTypes.map(row).join("")}</tbody>${seasonRow}</table><p><button class="primary" onclick="saveLibraryThresholds()">Save Thresholds</button></p>`;
+	}
+	if (mode === "zipnames") {
+		html = `<table class="rules-table"><thead><tr><th>Image Type</th><th>ZIP Filename</th></tr></thead><tbody>${Object.entries(imageTypes).sort((a, b) => a[1].localeCompare(b[1])).map(([code, label]) => `<tr><td>${escapeHtml(label)}</td><td><input type="text" class="zip-name" data-code="${code}" value="${escapeHtml(zipnames[code] || "")}"></td></tr>`).join("")}</tbody></table><p><button class="primary" onclick="saveLibraryZipnames()">Save ZIP Filenames</button></p>`;
+	}
+	document.getElementById("libraryModalBody").innerHTML = html;
+	document.getElementById("libraryModal").classList.add("open");
+}
+async function saveLibraryTypes() {
+	const selected = [...document.querySelectorAll(".edit-type:checked")].map(el => el.value);
+	await saveLibrarySettings({ selected_images: selected });
+}
+async function saveLibraryThresholds() {
+	const thresholds = {};
+	document.querySelectorAll(".thr-w").forEach(w => {
+		const code = w.dataset.code;
+		const h = document.querySelector(`.thr-h[data-code="${code}"]`);
+		if (w.value && h.value) thresholds[code] = [Number(w.value), Number(h.value)];
+	});
+	await saveLibrarySettings({ thresholds });
+}
+async function saveLibraryZipnames() {
+	const zipnames = {};
+	document.querySelectorAll(".zip-name").forEach(input => {
+		if (input.value.trim()) zipnames[input.dataset.code] = input.value.trim();
+	});
+	await saveLibrarySettings({ zipnames });
+}
+async function saveLibrarySettings(payload) {
+	const targetLibraryId = modalLibraryId || currentLibraryId;
+	const detailOpen = document.getElementById("detail")?.classList.contains("open");
+	const viewMode = currentDetailMode;
+	const wasHideComplete = hideCompleteItems;
+	const y = window.scrollY;
+	await api(`/fresh/api/libraries/${targetLibraryId}/settings`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(payload)
+	});
+	closeModal("libraryModal");
+	modalLibraryId = "";
+	if (detailOpen && viewMode === "allTasks") {
+		const data = await api("/fresh/api/tasks");
+		currentLibraryPayload = { items: data.items };
+		currentDetailMode = "allTasks";
+		renderDetail({ name: "All Tasks", task_count: data.items.length }, data.items, true, false);
+		requestAnimationFrame(() => window.scrollTo(0, y));
+	} else if (detailOpen && currentLibraryId) {
+		const data = await api(`/fresh/api/libraries/${currentLibraryId}?tasks=${viewMode === "libraryTasks" ? "1" : "0"}`);
+		currentLibraryPayload = data;
+		currentDetailMode = viewMode;
+		hideCompleteItems = wasHideComplete;
+		renderDetail(data.library, data.items, viewMode !== "library", false);
+		requestAnimationFrame(() => window.scrollTo(0, y));
+	} else {
+		await updateIssueCounts();
+	}
+	showToast("Library settings saved.");
+}
+function openRestore(libraryName) {
+	document.getElementById("restoreLibrary").value = libraryName;
+	filterRestoreZips(libraryName);
+	document.getElementById("restoreModal").classList.add("open");
+}
+function safeLibraryFolder(name) {
+	return String(name || "").replace(/[^A-Za-z0-9_-]/g, "_");
+}
+function filterRestoreZips(libraryName) {
+	const select = document.querySelector('select[name="pixelfin_zip"]');
+	if (!select) return;
+	let firstVisible = null;
+	const safeName = safeLibraryFolder(libraryName);
+	[...select.options].forEach(option => {
+		const visible = option.dataset.library === libraryName || option.dataset.folder === safeName;
+		option.hidden = !visible;
+		option.disabled = !visible;
+		if (visible && !firstVisible) firstVisible = option;
+	});
+	if (!firstVisible) {
+		[...select.options].forEach(option => {
+			option.hidden = false;
+			option.disabled = false;
+		});
+		firstVisible = select.options[0] || null;
+	}
+	if (firstVisible) {
+		select.disabled = false;
+		select.value = firstVisible.value;
+	}
+}
+async function downloadLibraryFile(event, libraryId) {
+	event.preventDefault();
+	sessionStorage.setItem("pixelfin_scroll_y", String(window.scrollY || 0));
+	const card = document.querySelector(`[data-library-id="${libraryId}"]`);
+	const status = card?.querySelector(".scan-status");
+	if (status) status.textContent = "Downloading";
+	const form = event.currentTarget;
+	const button = form?.querySelector("button");
+	const original = button?.textContent || "Download";
+	if (button) {
+		button.disabled = true;
+		button.textContent = "Downloading";
+	}
+	try {
+		const response = await fetch(form.action, {
+			method: "POST",
+			headers: { "X-Requested-With": "fetch" }
+		});
+		const data = await response.json();
+		if (!response.ok || data.status !== "ok" || !data.download_url) {
+			throw new Error(data.message || "Download failed.");
+		}
+		const link = document.createElement("a");
+		link.href = data.download_url;
+		link.style.display = "none";
+		document.body.appendChild(link);
+		link.click();
+		link.remove();
+		if (status) status.textContent = "Downloaded";
+		setTimeout(() => location.reload(), 900);
+	} catch (err) {
+		showToast(err.message);
+		if (status) status.textContent = "";
+		if (button) {
+			button.disabled = false;
+			button.textContent = original;
+		}
+	}
+	return false;
+}
+</script>
+</body>
+</html>

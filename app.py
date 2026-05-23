@@ -8,6 +8,7 @@ from flask import (
 	redirect,
 	url_for,
 	stream_with_context,
+	has_request_context,
 )
 import subprocess
 import os
@@ -21,8 +22,24 @@ import base64
 import re
 import requests
 import shutil
+import zipfile
 from urllib.parse import quote
-from restore import run_restore_streamed
+from restore import run_restore, run_restore_streamed
+from io import BytesIO
+from generate_html import add_jellytag_bypass as generate_add_jellytag_bypass
+from generate_html import check_low_res
+import fresh_state
+from fresh_jellyfin import (
+	DEFAULT_SELECTED_IMAGES,
+	DEFAULT_THRESHOLDS,
+	DEFAULT_ZIP_BASENAMES as FRESH_DEFAULT_ZIP_BASENAMES,
+	IMAGE_TYPE_OPTIONS as FRESH_IMAGE_TYPE_OPTIONS,
+	is_supported_library,
+	list_views,
+	scan_library,
+	scan_media_item,
+	test_server,
+)
 
 # ---------------------------------------------------------------------
 # Force all paths to resolve relative to this file (like the old system)
@@ -36,10 +53,12 @@ KEEP_FILE = "data/keep.json"  # ✅ NEW: Keep/Dont-Keep storage
 app = Flask(__name__, template_folder="templates")
 BASE_OUTPUT_DIR = "output"
 ASSETS_DIR = "assets"
+FRESH_COVER_CACHE_DIR = os.path.join("data", "fresh_cover_cache")
 
 os.makedirs("data", exist_ok=True)
 os.makedirs(BASE_OUTPUT_DIR, exist_ok=True)
 os.makedirs(ASSETS_DIR, exist_ok=True)
+os.makedirs(FRESH_COVER_CACHE_DIR, exist_ok=True)
 
 logging.basicConfig(level=logging.INFO)
 app.logger.addHandler(logging.StreamHandler())
@@ -241,6 +260,10 @@ def load_auto():
 	data.setdefault("cron", "")
 	data.setdefault("jobs", [])
 	data.setdefault("last_run_minute", "")
+	data.setdefault("fresh_global_zip", False)
+	data.setdefault("fresh_keep_zip", 2)
+	data.setdefault("fresh_scan_cron", "")
+	data.setdefault("fresh_scan_last_run_minute", "")
 
 	norm = []
 	for j in data["jobs"]:
@@ -371,7 +394,7 @@ def list_zip_files():
 
 
 def now_in_tz():
-	tzname = os.environ.get("TZ")
+	tzname = os.environ.get("PIXELFIN_TIMEZONE") or os.environ.get("TIMEZONE") or os.environ.get("TZ")
 	try:
 		if tzname:
 			return datetime.now(ZoneInfo(tzname))
@@ -677,6 +700,32 @@ def _run_generate_zip_once(server, apikey, library, images, zipnames, sort_order
 
 
 def _run_auto_sequence():
+	try:
+		conn = _fresh_conn()
+		fresh_auto = load_auto()
+		if fresh_auto.get("fresh_global_zip"):
+			server = _fresh_active_server(conn)
+			if server:
+				keep_zip = int(fresh_auto.get("fresh_keep_zip") or 0)
+				for library in _fresh_libraries(conn, server["id"]):
+					try:
+						_lib, images, _thresholds, zipnames = _fresh_library_export_settings(conn, server, library["id"])
+						_run_generate_zip_once(
+							server=server["url"],
+							apikey=server["api_key"],
+							library=library["name"],
+							images=images,
+							zipnames=zipnames,
+							sort_order="alphabetical",
+							jellytag_bypass=_fresh_jellytag_enabled(conn),
+						)
+						_prune_outputs_for_library(library["name"], keep_html=0, keep_zip=keep_zip)
+					except Exception as e:
+						app.logger.exception("FRESH AUTO: ZIP failed for %s: %s", library.get("name"), e)
+			return
+	except Exception:
+		app.logger.exception("FRESH AUTO: failed before legacy auto fallback")
+
 	history = load_history()
 	auto = load_auto()
 
@@ -751,6 +800,34 @@ def _run_auto_sequence():
 			pass
 
 
+def _run_fresh_scan_all(server=None):
+	conn = _fresh_conn()
+	server = server or _fresh_active_server(conn)
+	if not server:
+		return []
+	results = []
+	library_ids = None
+	if has_request_context() and request.is_json:
+		library_ids = set((request.get_json(silent=True) or {}).get("library_ids") or [])
+	libraries = _fresh_libraries(conn, server["id"])
+	if library_ids:
+		libraries = [library for library in libraries if library["id"] in library_ids]
+	for library in libraries:
+		try:
+			result = scan_library(
+				conn,
+				server,
+				library,
+				global_thresholds=_fresh_global_thresholds(conn),
+				jellytag_bypass=_fresh_jellytag_enabled(conn),
+			)
+			results.append({"library": library["name"], "status": "ok", **result})
+		except Exception as e:
+			app.logger.exception("Fresh scan failed for %s", library["name"])
+			results.append({"library": library["name"], "status": "error", "message": str(e)})
+	return results
+
+
 def _auto_scheduler_loop():
 	app.logger.info("AUTO scheduler thread started")
 	while True:
@@ -764,6 +841,15 @@ def _auto_scheduler_loop():
 					app.logger.info("AUTO cron matched (%s); running jobs...", expr)
 					_run_auto_sequence()
 					auto["last_run_minute"] = minute_key
+					save_auto(auto)
+			scan_expr = (auto.get("fresh_scan_cron") or "").strip()
+			if scan_expr:
+				now = now_in_tz()
+				minute_key = now.strftime("%Y-%m-%d %H:%M")
+				if cron_matches(now, scan_expr) and auto.get("fresh_scan_last_run_minute") != minute_key:
+					app.logger.info("FRESH AUTO scan cron matched (%s); scanning libraries...", scan_expr)
+					_run_fresh_scan_all()
+					auto["fresh_scan_last_run_minute"] = minute_key
 					save_auto(auto)
 		except Exception as e:
 			app.logger.exception("AUTO scheduler error: %s", e)
@@ -784,6 +870,152 @@ _LAST_BULK_MAPPINGS = {
 	"mappings": [],  # list of {folder, match}
 	"updated_at": "",
 }
+
+_FRESH_RESTORE_CONTEXT = {}
+
+
+def _fresh_restore_overrides_from_form(form):
+	overrides = {}
+	for key, value in form.items():
+		if not key.startswith("restore_name_"):
+			continue
+		image_type = key.replace("restore_name_", "", 1).strip()
+		name = (value or "").strip()
+		if image_type and name:
+			overrides[image_type] = name
+	return overrides
+
+
+def _fresh_restore_match_options(server, apikey, library):
+	try:
+		from restore import get_library_items
+		items, _collection_type = get_library_items(server, apikey, library)
+	except Exception:
+		app.logger.warning("Unable to fetch Fresh restore match options", exc_info=True)
+		return []
+	options = []
+	for item in items:
+		name = (item.get("Name") or "").strip()
+		if not name:
+			continue
+		year = item.get("ProductionYear") or item.get("Year") or ""
+		display = f"{name} ({year})" if year and (item.get("Type") or "").lower() == "movie" else name
+		options.append({"value": name, "display": display})
+	return sorted(options, key=lambda row: row["display"].lower())
+
+
+def _fresh_restore_library_selected_types(conn, target_server_id, library_name):
+	row = None
+	try:
+		if target_server_id:
+			row = conn.execute(
+				"SELECT * FROM libraries WHERE server_id = ? AND name = ? COLLATE NOCASE",
+				(int(target_server_id), library_name),
+			).fetchone()
+		if not row:
+			server = _fresh_active_server(conn)
+			if server:
+				row = conn.execute(
+					"SELECT * FROM libraries WHERE server_id = ? AND name = ? COLLATE NOCASE",
+					(server["id"], library_name),
+				).fetchone()
+	except Exception:
+		row = None
+	if not row:
+		return None
+	return set(_fresh_selected_images(dict(row)))
+
+
+def _fresh_restore_group_for_filename(filename, overrides):
+	from restore import _infer_type, _season_number_from_name
+	if _season_number_from_name(filename) is not None:
+		return "Season Posters"
+	return _infer_type(filename, overrides)
+
+
+def _fresh_restore_image_groups(path, overrides, selected_codes):
+	selected_labels = None
+	if selected_codes is not None:
+		selected_labels = {FRESH_IMAGE_TYPE_OPTIONS.get(code, code) for code in selected_codes}
+	groups_by_folder = {}
+	def add_file(folder, filename):
+		ext = os.path.splitext(filename)[1].lower()
+		if ext not in (".jpg", ".jpeg", ".png"):
+			return
+		group = _fresh_restore_group_for_filename(filename, overrides)
+		if not group:
+			return
+		if group != "Season Posters" and selected_labels is not None and group not in selected_labels:
+			return
+		groups_by_folder.setdefault(folder, set()).add(group)
+	if os.path.isfile(path) and path.lower().endswith(".zip"):
+		with zipfile.ZipFile(path, "r") as zf:
+			for name in zf.namelist():
+				parts = name.replace("\\", "/").split("/")
+				if len(parts) >= 2:
+					add_file(parts[-2], parts[-1])
+	else:
+		base = path
+		for folder in os.listdir(base) if os.path.isdir(base) else []:
+			folder_path = os.path.join(base, folder)
+			if not os.path.isdir(folder_path):
+				continue
+			for filename in os.listdir(folder_path):
+				add_file(folder, filename)
+	return {folder: sorted(groups) for folder, groups in groups_by_folder.items()}
+
+
+def _fresh_restore_folder_files(path, folder):
+	files = []
+	try:
+		if os.path.isfile(path) and path.lower().endswith(".zip"):
+			with zipfile.ZipFile(path, "r") as zf:
+				prefix = f"{folder}/".replace("\\", "/")
+				for name in zf.namelist():
+					if not name.replace("\\", "/").startswith(prefix):
+						continue
+					filename = name.replace("\\", "/").split("/")[-1]
+					if os.path.splitext(filename)[1].lower() in (".jpg", ".jpeg", ".png"):
+						files.append(filename)
+		else:
+			folder_path = os.path.join(path, folder)
+			for filename in os.listdir(folder_path) if os.path.isdir(folder_path) else []:
+				if os.path.splitext(filename)[1].lower() in (".jpg", ".jpeg", ".png"):
+					files.append(filename)
+	except Exception:
+		files = []
+	return sorted(set(files), key=str.lower)
+
+
+def _fresh_restore_annotate_result(result, path, overrides, selected_codes):
+	groups_by_folder = _fresh_restore_image_groups(path, overrides, selected_codes)
+	for collection in ("matched", "below_threshold", "unmatched", "unmatched_folders"):
+		for row in result.get(collection) or []:
+			folder = row.get("folder") or ""
+			row["image_groups"] = groups_by_folder.get(folder, [])
+			row["images"] = _fresh_restore_folder_files(path, folder)
+			row["restore_key"] = re.sub(r"[^A-Za-z0-9_.-]+", "_", folder) or "folder"
+	for match in result.get("matches") or []:
+		folder = match.get("folder") or ""
+		match["image_groups"] = groups_by_folder.get(folder, [])
+		if not match.get("images"):
+			match["images"] = _fresh_restore_folder_files(path, folder)
+	return result
+
+
+def _fresh_restore_filters_from_form(form):
+	included = []
+	types_by_folder = {}
+	for key, value in form.items():
+		if not key.startswith("folder_"):
+			continue
+		row_key = key.replace("folder_", "", 1)
+		folder = (value or "").strip()
+		if not folder or form.get(f"include_{row_key}") != "on":
+			continue
+		included.append(folder)
+		types_by_folder[folder] = form.getlist(f"types_{row_key}")
+	return included, types_by_folder
 
 
 @app.route("/restore_apply_bulk", methods=["POST"])
@@ -887,7 +1119,872 @@ def restore_execute():
 
 
 # ----------------- Routes -----------------
-@app.route("/", methods=["GET", "POST"])
+def _json_response(payload, status=200):
+	return Response(json.dumps(payload), mimetype="application/json", status=status)
+
+
+def _fresh_conn():
+	return fresh_state.connect()
+
+
+def _fresh_active_server(conn):
+	row = conn.execute("SELECT * FROM servers WHERE is_active = 1 ORDER BY id LIMIT 1").fetchone()
+	if row:
+		return dict(row)
+	row = conn.execute("SELECT * FROM servers ORDER BY id LIMIT 1").fetchone()
+	if row:
+		conn.execute("UPDATE servers SET is_active = CASE WHEN id = ? THEN 1 ELSE 0 END", (row["id"],))
+		conn.commit()
+		return dict(row)
+	return None
+
+
+def _fresh_global_thresholds(conn):
+	return fresh_state.get_json(conn, "global_thresholds", DEFAULT_THRESHOLDS)
+
+
+def _fresh_global_zipnames(conn):
+	return fresh_state.get_json(conn, "global_zipnames", {})
+
+
+def _fresh_jellytag_enabled(conn):
+	return bool(fresh_state.get_json(conn, "jellytag_bypass", False))
+
+
+def _fresh_layout(conn):
+	layout = str(fresh_state.get_json(conn, "layout", "full") or "full").lower()
+	return layout if layout in ("full", "compact") else "full"
+
+
+def _fresh_servers(conn):
+	return fresh_state.rows_to_dicts(conn.execute("SELECT * FROM servers ORDER BY is_active DESC, name COLLATE NOCASE").fetchall())
+
+
+def _fresh_libraries(conn, server_id, include_hidden=False):
+	sql = "SELECT * FROM libraries WHERE server_id = ?"
+	params = [server_id]
+	if not include_hidden:
+		sql += " AND hidden = 0"
+	sql += " ORDER BY name COLLATE NOCASE"
+	libraries = [lib for lib in fresh_state.rows_to_dicts(conn.execute(sql, params).fetchall()) if is_supported_library(lib)]
+	for library in libraries:
+		lib_folder = os.path.join(BASE_OUTPUT_DIR, _safe_library_folder(library["name"]))
+		try:
+			library["zip_count"] = len([f for f in os.listdir(lib_folder) if f.lower().endswith(".zip")])
+		except Exception:
+			library["zip_count"] = 0
+		task_count = 0
+		items = fresh_state.rows_to_dicts(
+			conn.execute("SELECT * FROM media_items WHERE server_id = ? AND library_id = ?", (server_id, library["id"])).fetchall()
+		)
+		for item in items:
+			item["images"] = fresh_state.rows_to_dicts(
+				conn.execute(
+					"SELECT * FROM item_images WHERE server_id = ? AND item_id = ? ORDER BY code, label",
+					(server_id, item["id"]),
+				).fetchall()
+			)
+			if _fresh_apply_runtime_image_rules(conn, library, item).get("needs_attention"):
+				task_count += 1
+		library["task_count"] = task_count
+	return libraries
+
+
+def _fresh_runtime_thresholds(conn, library):
+	thresholds = dict(_fresh_global_thresholds(conn) or {})
+	try:
+		thresholds.update(json.loads(library.get("thresholds") or "{}"))
+	except Exception:
+		pass
+	return thresholds
+
+
+def _fresh_selected_images(library):
+	try:
+		selected = json.loads(library.get("selected_images") or "[]")
+	except Exception:
+		selected = []
+	return selected or list(DEFAULT_SELECTED_IMAGES)
+
+
+def _fresh_apply_runtime_image_rules(conn, library, item):
+	selected = set(_fresh_selected_images(library))
+	thresholds = _fresh_runtime_thresholds(conn, library)
+	images = [
+		image for image in (item.get("images") or [])
+		if not (image.get("code") == "sp" and str(image.get("label") or "").strip().lower() == "season posters")
+	]
+	existing_codes = {image.get("code") for image in images}
+	for code in selected:
+		if code == "sp":
+			continue
+		if code not in existing_codes and code in FRESH_IMAGE_TYPE_OPTIONS:
+			images.append({
+				"server_id": item.get("server_id"),
+				"item_id": item.get("id"),
+				"code": code,
+				"label": FRESH_IMAGE_TYPE_OPTIONS.get(code, code),
+				"url": "",
+				"width": 0,
+				"height": 0,
+				"status": "missing",
+				"is_low": 0,
+				"is_missing": 1,
+				"last_checked": item.get("last_scanned") or "",
+			})
+	needs_attention = False
+	for image in images:
+		is_missing = bool(image.get("is_missing") or image.get("status") == "missing")
+		is_low = False
+		if not is_missing:
+			code = image.get("code")
+			width = int(image.get("width") or 0)
+			height = int(image.get("height") or 0)
+			if code in thresholds:
+				is_low = bool(check_low_res(code, width, height, {code: tuple(thresholds[code])}))
+		image["is_missing"] = int(is_missing)
+		image["is_low"] = int(is_low)
+		image["status"] = "missing" if is_missing else ("low" if is_low else "ok")
+		if image.get("code") in selected and (is_missing or is_low):
+			needs_attention = True
+	item["images"] = images
+	item["needs_attention"] = int(needs_attention)
+	item["selected_images"] = json.dumps(list(selected))
+	_fresh_attach_image_urls(item)
+	return item
+
+
+def _fresh_cover_cache_key(server_id, library_id):
+	raw = f"{server_id}_{library_id}"
+	return re.sub(r"[^A-Za-z0-9_.-]+", "_", raw)
+
+
+def _fresh_image_proxy_url(item_id, code, label):
+	return url_for("fresh_item_image", item_id=item_id, code=code, label=label or "")
+
+
+def _fresh_attach_image_urls(item):
+	for image in item.get("images") or []:
+		if image.get("url") and not image.get("is_missing"):
+			image["proxy_url"] = _fresh_image_proxy_url(item["id"], image["code"], image["label"])
+	return item
+
+
+def _fresh_sync_libraries(conn, server):
+	views = list_views(server)
+	now = fresh_state.utc_now()
+	seen = set()
+	for row in conn.execute("SELECT * FROM libraries WHERE server_id = ?", (server["id"],)).fetchall():
+		if not is_supported_library(dict(row)):
+			conn.execute("DELETE FROM libraries WHERE server_id = ? AND id = ?", (server["id"], row["id"]))
+	for view in views:
+		seen.add(view["id"])
+		existing = conn.execute(
+			"SELECT * FROM libraries WHERE server_id = ? AND id = ?",
+			(server["id"], view["id"]),
+		).fetchone()
+		if existing:
+			conn.execute(
+				"UPDATE libraries SET name = ?, collection_type = ?, thumbnail_url = ? WHERE server_id = ? AND id = ?",
+				(view["name"], view["collection_type"], view["thumbnail_url"], server["id"], view["id"]),
+			)
+		else:
+			conn.execute(
+				"""
+				INSERT INTO libraries(server_id, id, name, collection_type, thumbnail_url, selected_images, thresholds, zipnames, last_scanned)
+				VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)
+				""",
+				(
+					server["id"],
+					view["id"],
+					view["name"],
+					view["collection_type"],
+					view["thumbnail_url"],
+					json.dumps(DEFAULT_SELECTED_IMAGES),
+					json.dumps({}),
+					json.dumps({}),
+					"",
+				),
+			)
+	conn.commit()
+	return len(seen)
+
+
+@app.route("/", methods=["GET"])
+def fresh_index():
+	conn = _fresh_conn()
+	server = _fresh_active_server(conn)
+	libraries = _fresh_libraries(conn, server["id"]) if server else []
+	hidden_libraries = _fresh_libraries(conn, server["id"], include_hidden=True) if server else []
+	total_tasks = sum(int(lib.get("task_count") or 0) for lib in libraries)
+	return render_template(
+		"fresh.html",
+		servers=_fresh_servers(conn),
+		active_server=server,
+		libraries=libraries,
+		all_libraries=hidden_libraries,
+		total_tasks=total_tasks,
+		image_types=FRESH_IMAGE_TYPE_OPTIONS,
+		default_selected=DEFAULT_SELECTED_IMAGES,
+		global_thresholds=_fresh_global_thresholds(conn),
+		global_zipnames=_fresh_global_zipnames(conn),
+		default_zip_basenames=FRESH_DEFAULT_ZIP_BASENAMES,
+		jellytag_bypass=_fresh_jellytag_enabled(conn),
+		layout=_fresh_layout(conn),
+		auto=load_auto(),
+		generated=list_generated_htmls(),
+		active_page="fresh",
+	)
+
+
+@app.route("/fresh/api/servers", methods=["POST"])
+def fresh_save_server():
+	conn = _fresh_conn()
+	payload = request.get_json(silent=True) or request.form.to_dict()
+	server_id = payload.get("id")
+	name = (payload.get("name") or payload.get("url") or "Jellyfin").strip()
+	url = (payload.get("url") or "").strip().rstrip("/")
+	api_key = (payload.get("api_key") or payload.get("apikey") or "").strip()
+	if not url or not api_key:
+		return _json_response({"status": "error", "message": "Server URL and API key are required."}, 400)
+	now = fresh_state.utc_now()
+	if server_id:
+		conn.execute(
+			"UPDATE servers SET name = ?, url = ?, api_key = ?, updated_at = ? WHERE id = ?",
+			(name, url, api_key, now, server_id),
+		)
+	else:
+		is_first = conn.execute("SELECT COUNT(*) AS c FROM servers").fetchone()["c"] == 0
+		conn.execute(
+			"INSERT INTO servers(name, url, api_key, is_active, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?)",
+			(name, url, api_key, int(is_first), now, now),
+		)
+	conn.commit()
+	return _json_response({"status": "ok", "servers": _fresh_servers(conn)})
+
+
+@app.route("/fresh/api/servers/<int:server_id>/activate", methods=["POST"])
+def fresh_activate_server(server_id):
+	conn = _fresh_conn()
+	conn.execute("UPDATE servers SET is_active = CASE WHEN id = ? THEN 1 ELSE 0 END", (server_id,))
+	conn.commit()
+	return _json_response({"status": "ok"})
+
+
+@app.route("/fresh/api/servers/<int:server_id>/test", methods=["POST"])
+def fresh_test_server(server_id):
+	conn = _fresh_conn()
+	server = fresh_state.row_to_dict(conn.execute("SELECT * FROM servers WHERE id = ?", (server_id,)).fetchone())
+	if not server:
+		return _json_response({"status": "error", "message": "Server not found."}, 404)
+	try:
+		info = test_server(server)
+		conn.execute(
+			"UPDATE servers SET last_checked = ?, last_status = ? WHERE id = ?",
+			(fresh_state.utc_now(), "ok", server_id),
+		)
+		conn.commit()
+		return _json_response({"status": "ok", "server_name": info.get("ServerName") or info.get("LocalAddress") or "Connected"})
+	except Exception as e:
+		conn.execute(
+			"UPDATE servers SET last_checked = ?, last_status = ? WHERE id = ?",
+			(fresh_state.utc_now(), str(e)[:200], server_id),
+		)
+		conn.commit()
+		return _json_response({"status": "error", "message": str(e)}, 502)
+
+
+@app.route("/fresh/api/sync-libraries", methods=["POST"])
+def fresh_sync_libraries():
+	conn = _fresh_conn()
+	server = _fresh_active_server(conn)
+	if not server:
+		return _json_response({"status": "error", "message": "Add a Jellyfin server first."}, 400)
+	try:
+		count = _fresh_sync_libraries(conn, server)
+		return _json_response({"status": "ok", "count": count})
+	except Exception as e:
+		return _json_response({"status": "error", "message": str(e)}, 502)
+
+
+@app.route("/fresh/api/settings", methods=["POST"])
+def fresh_save_settings():
+	conn = _fresh_conn()
+	payload = request.get_json(silent=True) or {}
+	if "global_thresholds" in payload:
+		fresh_state.set_json(conn, "global_thresholds", payload.get("global_thresholds") or {})
+		if payload.get("apply_to_all"):
+			server = _fresh_active_server(conn)
+			if server:
+				conn.execute(
+					"UPDATE libraries SET thresholds = ? WHERE server_id = ?",
+					(json.dumps(payload.get("global_thresholds") or {}), server["id"]),
+				)
+				conn.commit()
+	if "global_zipnames" in payload:
+		fresh_state.set_json(conn, "global_zipnames", payload.get("global_zipnames") or {})
+		if payload.get("apply_to_all"):
+			server = _fresh_active_server(conn)
+			if server:
+				conn.execute(
+					"UPDATE libraries SET zipnames = ? WHERE server_id = ?",
+					(json.dumps(payload.get("global_zipnames") or {}), server["id"]),
+				)
+				conn.commit()
+	if "fresh_auto" in payload:
+		auto = load_auto()
+		fresh_auto = payload.get("fresh_auto") or {}
+		auto["cron"] = (fresh_auto.get("cron") or "").strip()
+		auto["fresh_scan_cron"] = (fresh_auto.get("fresh_scan_cron") or "").strip()
+		auto["fresh_global_zip"] = bool(fresh_auto.get("fresh_global_zip"))
+		try:
+			auto["fresh_keep_zip"] = int(fresh_auto.get("fresh_keep_zip") or 0)
+		except Exception:
+			auto["fresh_keep_zip"] = 0
+		save_auto(auto)
+	if "layout" in payload:
+		layout = str(payload.get("layout") or "full").lower()
+		fresh_state.set_json(conn, "layout", layout if layout in ("full", "compact") else "full")
+	if "jellytag_bypass" in payload:
+		fresh_state.set_json(conn, "jellytag_bypass", bool(payload.get("jellytag_bypass")))
+	if "hidden_libraries" in payload:
+		server = _fresh_active_server(conn)
+		if server:
+			hidden = set(payload.get("hidden_libraries") or [])
+			for lib in _fresh_libraries(conn, server["id"], include_hidden=True):
+				conn.execute(
+					"UPDATE libraries SET hidden = ? WHERE server_id = ? AND id = ?",
+					(1 if lib["id"] in hidden else 0, server["id"], lib["id"]),
+				)
+			conn.commit()
+	return _json_response({"status": "ok"})
+
+
+@app.route("/fresh/api/scan-all", methods=["POST"])
+def fresh_scan_all():
+	conn = _fresh_conn()
+	server = _fresh_active_server(conn)
+	if not server:
+		return _json_response({"status": "error", "message": "No active server."}, 400)
+	results = _run_fresh_scan_all(server)
+	return _json_response({"status": "ok", "results": results})
+
+
+@app.route("/fresh/api/libraries/<library_id>/settings", methods=["POST"])
+def fresh_save_library_settings(library_id):
+	conn = _fresh_conn()
+	server = _fresh_active_server(conn)
+	if not server:
+		return _json_response({"status": "error", "message": "No active server."}, 400)
+	payload = request.get_json(silent=True) or {}
+	fields = []
+	values = []
+	if "selected_images" in payload:
+		selected = [c for c in payload.get("selected_images") or [] if c in FRESH_IMAGE_TYPE_OPTIONS]
+		fields.append("selected_images = ?")
+		values.append(json.dumps(selected))
+	if "thresholds" in payload:
+		fields.append("thresholds = ?")
+		values.append(json.dumps(payload.get("thresholds") or {}))
+	if "zipnames" in payload:
+		fields.append("zipnames = ?")
+		values.append(json.dumps(payload.get("zipnames") or {}))
+	if not fields:
+		return _json_response({"status": "ok"})
+	values.extend([server["id"], library_id])
+	conn.execute(f"UPDATE libraries SET {', '.join(fields)} WHERE server_id = ? AND id = ?", values)
+	conn.commit()
+	library = fresh_state.row_to_dict(conn.execute("SELECT * FROM libraries WHERE server_id = ? AND id = ?", (server["id"], library_id)).fetchone())
+	return _json_response({"status": "ok", "library": library})
+
+
+@app.route("/fresh/api/libraries/<library_id>/scan", methods=["POST"])
+def fresh_scan_library(library_id):
+	conn = _fresh_conn()
+	server = _fresh_active_server(conn)
+	if not server:
+		return _json_response({"status": "error", "message": "No active server."}, 400)
+	library = conn.execute("SELECT * FROM libraries WHERE server_id = ? AND id = ?", (server["id"], library_id)).fetchone()
+	if not library:
+		return _json_response({"status": "error", "message": "Library not found."}, 404)
+	if not is_supported_library(dict(library)):
+		return _json_response({"status": "error", "message": "This library type is not supported by Pixelfin."}, 400)
+	if library["hidden"]:
+		return _json_response({"status": "error", "message": "Hidden libraries are paused."}, 400)
+	try:
+		result = scan_library(
+			conn,
+			server,
+			library,
+			global_thresholds=_fresh_global_thresholds(conn),
+			jellytag_bypass=_fresh_jellytag_enabled(conn),
+		)
+		return _json_response({"status": "ok", **result})
+	except Exception as e:
+		app.logger.exception("Fresh scan failed")
+		return _json_response({"status": "error", "message": str(e)}, 502)
+
+
+@app.route("/fresh/api/libraries/<library_id>")
+def fresh_library_data(library_id):
+	conn = _fresh_conn()
+	server = _fresh_active_server(conn)
+	if not server:
+		return _json_response({"status": "error", "message": "No active server."}, 400)
+	tasks_only = request.args.get("tasks") == "1"
+	library = fresh_state.row_to_dict(conn.execute("SELECT * FROM libraries WHERE server_id = ? AND id = ?", (server["id"], library_id)).fetchone())
+	if not library:
+		return _json_response({"status": "error", "message": "Library not found."}, 404)
+	items = fresh_state.rows_to_dicts(conn.execute(
+		"SELECT * FROM media_items WHERE server_id = ? AND library_id = ? ORDER BY name COLLATE NOCASE",
+		(server["id"], library_id),
+	).fetchall())
+	runtime_items = []
+	for item in items:
+		item["images"] = fresh_state.rows_to_dicts(
+			conn.execute(
+				"SELECT * FROM item_images WHERE server_id = ? AND item_id = ? ORDER BY code, label",
+				(server["id"], item["id"]),
+			).fetchall()
+		)
+		item = _fresh_apply_runtime_image_rules(conn, library, item)
+		if not tasks_only or item.get("needs_attention"):
+			runtime_items.append(item)
+	return _json_response({"status": "ok", "library": library, "items": runtime_items})
+
+
+@app.route("/fresh/api/libraries/<library_id>/items/<item_id>/scan", methods=["POST"])
+def fresh_scan_media_item(library_id, item_id):
+	conn = _fresh_conn()
+	server = _fresh_active_server(conn)
+	if not server:
+		return _json_response({"status": "error", "message": "No active server."}, 400)
+	library = conn.execute("SELECT * FROM libraries WHERE server_id = ? AND id = ?", (server["id"], library_id)).fetchone()
+	if not library:
+		return _json_response({"status": "error", "message": "Library not found."}, 404)
+	try:
+		result = scan_media_item(
+			conn,
+			server,
+			library,
+			item_id,
+			global_thresholds=_fresh_global_thresholds(conn),
+			jellytag_bypass=_fresh_jellytag_enabled(conn),
+		)
+		item = fresh_state.row_to_dict(
+			conn.execute(
+				"SELECT media_items.*, libraries.name AS library_name, libraries.selected_images AS selected_images FROM media_items JOIN libraries ON libraries.server_id = media_items.server_id AND libraries.id = media_items.library_id WHERE media_items.server_id = ? AND media_items.id = ?",
+				(server["id"], item_id),
+			).fetchone()
+		)
+		item["images"] = fresh_state.rows_to_dicts(
+			conn.execute(
+				"SELECT * FROM item_images WHERE server_id = ? AND item_id = ? ORDER BY code, label",
+				(server["id"], item_id),
+			).fetchall()
+		)
+		item = _fresh_apply_runtime_image_rules(conn, dict(library), item)
+		return _json_response({"status": "ok", **result, "item": item})
+	except Exception as e:
+		app.logger.exception("Fresh item scan failed")
+		return _json_response({"status": "error", "message": str(e)}, 502)
+
+
+@app.route("/fresh/api/tasks")
+def fresh_all_tasks():
+	conn = _fresh_conn()
+	server = _fresh_active_server(conn)
+	if not server:
+		return _json_response({"status": "error", "message": "No active server."}, 400)
+	items = fresh_state.rows_to_dicts(
+		conn.execute(
+			"""
+			SELECT media_items.*, libraries.name AS library_name, libraries.selected_images AS selected_images, libraries.thresholds AS thresholds
+			FROM media_items
+			JOIN libraries ON libraries.server_id = media_items.server_id AND libraries.id = media_items.library_id
+			WHERE media_items.server_id = ? AND libraries.hidden = 0
+			ORDER BY libraries.name COLLATE NOCASE, media_items.name COLLATE NOCASE
+			""",
+			(server["id"],),
+		).fetchall()
+	)
+	runtime_items = []
+	for item in items:
+		item["images"] = fresh_state.rows_to_dicts(
+			conn.execute(
+				"SELECT * FROM item_images WHERE server_id = ? AND item_id = ? ORDER BY code, label",
+				(server["id"], item["id"]),
+			).fetchall()
+		)
+		item = _fresh_apply_runtime_image_rules(conn, item, item)
+		if item.get("needs_attention"):
+			runtime_items.append(item)
+	return _json_response({"status": "ok", "items": runtime_items})
+
+
+@app.route("/fresh/library-cover/<library_id>")
+def fresh_library_cover(library_id):
+	conn = _fresh_conn()
+	server = _fresh_active_server(conn)
+	if not server:
+		return Response(status=404)
+	library = conn.execute(
+		"SELECT * FROM libraries WHERE server_id = ? AND id = ?",
+		(server["id"], library_id),
+	).fetchone()
+	if not library or not library["thumbnail_url"]:
+		return Response(status=404)
+	key = _fresh_cover_cache_key(server["id"], library_id)
+	image_path = os.path.join(FRESH_COVER_CACHE_DIR, f"{key}.bin")
+	meta_path = os.path.join(FRESH_COVER_CACHE_DIR, f"{key}.json")
+	content_type = "image/jpeg"
+	try:
+		with open(meta_path, "r", encoding="utf-8") as fh:
+			meta = json.load(fh)
+	except Exception:
+		meta = {}
+	if os.path.exists(image_path) and meta.get("thumbnail_url") == library["thumbnail_url"]:
+		content_type = meta.get("content_type") or content_type
+		with open(image_path, "rb") as fh:
+			return Response(fh.read(), mimetype=content_type, headers={"Cache-Control": "public, max-age=3600"})
+	try:
+		resp = requests.get(library["thumbnail_url"], timeout=(5, 20))
+		resp.raise_for_status()
+		content_type = resp.headers.get("Content-Type") or content_type
+		with open(image_path, "wb") as fh:
+			fh.write(resp.content)
+		with open(meta_path, "w", encoding="utf-8") as fh:
+			json.dump({"thumbnail_url": library["thumbnail_url"], "content_type": content_type}, fh)
+		return Response(resp.content, mimetype=content_type, headers={"Cache-Control": "public, max-age=3600"})
+	except Exception:
+		app.logger.warning("Fresh cover cache fetch failed for %s", library_id, exc_info=True)
+		if os.path.exists(image_path):
+			with open(image_path, "rb") as fh:
+				return Response(fh.read(), mimetype=content_type, headers={"Cache-Control": "public, max-age=3600"})
+	return Response(status=404)
+
+
+@app.route("/fresh/item-image/<item_id>/<code>/<path:label>")
+def fresh_item_image(item_id, code, label):
+	conn = _fresh_conn()
+	server = _fresh_active_server(conn)
+	if not server:
+		return Response(status=404)
+	image = conn.execute(
+		"SELECT * FROM item_images WHERE server_id = ? AND item_id = ? AND code = ? AND label = ?",
+		(server["id"], item_id, code, label),
+	).fetchone()
+	if not image or not image["url"]:
+		return Response(status=404)
+	try:
+		resp = requests.get(image["url"], timeout=(5, 30))
+		resp.raise_for_status()
+		content_type = resp.headers.get("Content-Type") or "image/jpeg"
+		return Response(
+			resp.content,
+			mimetype=content_type,
+			headers={
+				"Content-Disposition": "inline",
+				"Cache-Control": "private, max-age=300",
+			},
+		)
+	except Exception:
+		app.logger.warning("Fresh image proxy failed for %s %s %s", item_id, code, label, exc_info=True)
+		return Response(status=404)
+
+
+def _fresh_library_export_settings(conn, server, library_id):
+	library = conn.execute("SELECT * FROM libraries WHERE server_id = ? AND id = ?", (server["id"], library_id)).fetchone()
+	if not library:
+		raise RuntimeError("Library not found")
+	images = json.loads(library["selected_images"] or "[]") or DEFAULT_SELECTED_IMAGES
+	thresholds = _fresh_global_thresholds(conn)
+	thresholds.update(json.loads(library["thresholds"] or "{}"))
+	zipnames = dict(FRESH_DEFAULT_ZIP_BASENAMES)
+	zipnames.update(_fresh_global_zipnames(conn))
+	zipnames.update(json.loads(library["zipnames"] or "{}"))
+	return dict(library), images, thresholds, zipnames
+
+
+@app.route("/fresh/libraries/<library_id>/download-html", methods=["POST"])
+def fresh_download_html(library_id):
+	conn = _fresh_conn()
+	server = _fresh_active_server(conn)
+	if not server:
+		return Response("No active server", status=400)
+	try:
+		library, images, thresholds, zipnames = _fresh_library_export_settings(conn, server, library_id)
+		ok = _run_generate_html_once(
+			server=server["url"],
+			apikey=server["api_key"],
+			library=library["name"],
+			bgcolor="#101419",
+			textcolor="#f5f7fb",
+			tablebgcolor="#151b22",
+			images=images,
+			minres=thresholds,
+			zipnames=zipnames,
+			sort_order="alphabetical",
+			jellytag_bypass=_fresh_jellytag_enabled(conn),
+		)
+		if not ok:
+			return Response("HTML export failed", status=500)
+		safe_library = _safe_library_folder(library["name"])
+		filename = _newest_file_in_folder(os.path.join(BASE_OUTPUT_DIR, safe_library), exts=(".html",), exclude_prefixes=("restore-",))
+		if request.headers.get("X-Requested-With") == "fetch":
+			return _json_response({"status": "ok", "download_url": url_for("download_embedded", library=safe_library, filename=filename)})
+		return redirect(url_for("download_embedded", library=safe_library, filename=filename))
+	except Exception as e:
+		return Response(str(e), status=500)
+
+
+@app.route("/fresh/libraries/<library_id>/download-zip", methods=["POST"])
+def fresh_download_zip(library_id):
+	conn = _fresh_conn()
+	server = _fresh_active_server(conn)
+	if not server:
+		return Response("No active server", status=400)
+	try:
+		library, images, _thresholds, zipnames = _fresh_library_export_settings(conn, server, library_id)
+		jellytag_bypass = _fresh_jellytag_enabled(conn)
+		app.logger.info("FRESH: ZIP export library=%s jellytag_bypass=%s", library["name"], jellytag_bypass)
+		ok = _run_generate_zip_once(
+			server=server["url"],
+			apikey=server["api_key"],
+			library=library["name"],
+			images=images,
+			zipnames=zipnames,
+			sort_order="alphabetical",
+			jellytag_bypass=jellytag_bypass,
+		)
+		if not ok:
+			return Response("ZIP export failed", status=500)
+		safe_library = _safe_library_folder(library["name"])
+		auto = load_auto()
+		try:
+			keep_zip = int(auto.get("fresh_keep_zip") or 0)
+		except Exception:
+			keep_zip = 0
+		if keep_zip > 0:
+			_prune_outputs_for_library(library["name"], keep_html=0, keep_zip=keep_zip)
+		filename = _newest_file_in_folder(os.path.join(BASE_OUTPUT_DIR, safe_library), exts=(".zip",))
+		if request.headers.get("X-Requested-With") == "fetch":
+			return _json_response({"status": "ok", "download_url": url_for("serve_output", library=safe_library, filename=filename)})
+		return redirect(url_for("serve_output", library=safe_library, filename=filename))
+	except Exception as e:
+		return Response(str(e), status=500)
+
+
+@app.route("/fresh/restore/review", methods=["POST"])
+def fresh_restore_review():
+	try:
+		form = request.form.to_dict()
+		conn = _fresh_conn()
+		library = (form.get("library") or "").strip()
+		threshold = float(form.get("threshold") or 0.75)
+		dry_run = "dry_run" in request.form
+		restore_mode = form.get("restore_mode", "pixelfin")
+		server = form.get("server", "")
+		apikey = form.get("apikey", "")
+		overrides = _fresh_restore_overrides_from_form(form)
+		if _fresh_jellytag_enabled(conn):
+			overrides["__jellytag_bypass"] = True
+
+		tmp_path = None
+		if restore_mode == "device":
+			file = request.files.get("zip_file")
+			if file and file.filename:
+				tmp_path = os.path.join("/tmp", file.filename)
+				file.save(tmp_path)
+		else:
+			pixelfin_zip = form.get("pixelfin_zip", "")
+			if pixelfin_zip:
+				tmp_path = os.path.join("output", pixelfin_zip)
+
+		if not tmp_path:
+			return Response("Choose a ZIP file to restore.", status=400)
+
+		selected_restore_types = _fresh_restore_library_selected_types(conn, form.get("target_server_id"), library)
+		result = run_restore(
+			path=tmp_path,
+			library=library,
+			threshold=threshold,
+			dry_run=True,
+			comparison_html=False,
+			server=server,
+			apikey=apikey,
+			restore_filename_overrides=overrides,
+		)
+		result = _fresh_restore_annotate_result(result, tmp_path, overrides, selected_restore_types)
+		match_options = _fresh_restore_match_options(server, apikey, library)
+
+		_FRESH_RESTORE_CONTEXT.clear()
+		_FRESH_RESTORE_CONTEXT.update({
+			"path": tmp_path,
+			"library": library,
+			"threshold": threshold,
+			"dry_run": dry_run,
+			"server": server,
+			"apikey": apikey,
+			"restore_filename_overrides": overrides,
+			"all_matches": result.get("all_matches") or [],
+			"match_options": match_options,
+			"selected_restore_types": list(selected_restore_types) if selected_restore_types is not None else None,
+			"result": result,
+		})
+
+		return render_template(
+			"fresh_restore.html",
+			result=result,
+			library=library,
+			threshold=threshold,
+			dry_run=dry_run,
+			comparison_token="active",
+			completed=False,
+			pixelfin_favicon=PIXELFIN_FAVICON_BASE64,
+			match_options=match_options,
+			selected_restore_types=selected_restore_types,
+		)
+	except Exception as e:
+		app.logger.exception("Fresh restore review failed")
+		return Response(str(e), status=500)
+
+
+@app.route("/fresh/restore/run", methods=["POST"])
+def fresh_restore_run():
+	if not _FRESH_RESTORE_CONTEXT:
+		return Response("No restore review is active.", status=400)
+	forced = {}
+	for key, value in request.form.items():
+		if key.startswith("map_") and value.strip():
+			forced[key.replace("map_", "", 1)] = value.strip()
+	try:
+		included_folders, included_image_types_by_folder = _fresh_restore_filters_from_form(request.form)
+		result = run_restore(
+			path=_FRESH_RESTORE_CONTEXT["path"],
+			library=_FRESH_RESTORE_CONTEXT["library"],
+			threshold=float(_FRESH_RESTORE_CONTEXT["threshold"]),
+			dry_run=False,
+			comparison_html=False,
+			server=_FRESH_RESTORE_CONTEXT["server"],
+			apikey=_FRESH_RESTORE_CONTEXT["apikey"],
+			forced_mappings=forced,
+			restore_filename_overrides=_FRESH_RESTORE_CONTEXT.get("restore_filename_overrides") or {},
+			included_folders=included_folders,
+			included_image_types_by_folder=included_image_types_by_folder,
+		)
+		result = _fresh_restore_annotate_result(
+			result,
+			_FRESH_RESTORE_CONTEXT["path"],
+			_FRESH_RESTORE_CONTEXT.get("restore_filename_overrides") or {},
+			set(_FRESH_RESTORE_CONTEXT.get("selected_restore_types") or []) if _FRESH_RESTORE_CONTEXT.get("selected_restore_types") is not None else None,
+		)
+		_FRESH_RESTORE_CONTEXT["result"] = result
+		return render_template(
+			"fresh_restore.html",
+			result=result,
+			library=_FRESH_RESTORE_CONTEXT["library"],
+			threshold=_FRESH_RESTORE_CONTEXT["threshold"],
+			dry_run=False,
+			comparison_token="active",
+			completed=True,
+			pixelfin_favicon=PIXELFIN_FAVICON_BASE64,
+			match_options=_FRESH_RESTORE_CONTEXT.get("match_options") or [],
+			selected_restore_types=set(_FRESH_RESTORE_CONTEXT.get("selected_restore_types") or []) if _FRESH_RESTORE_CONTEXT.get("selected_restore_types") is not None else None,
+		)
+	except Exception as e:
+		app.logger.exception("Fresh restore run failed")
+		return Response(str(e), status=500)
+
+
+@app.route("/fresh/restore/preview/after/<token>/<path:folder>/<path:filename>")
+def fresh_restore_preview_file(token, folder, filename):
+	if token != "active" or not _FRESH_RESTORE_CONTEXT:
+		return Response("Preview expired", status=404)
+	path = _FRESH_RESTORE_CONTEXT.get("path") or ""
+	arcname = f"{folder}/{filename}".replace("\\", "/")
+	try:
+		if os.path.isfile(path) and path.lower().endswith(".zip"):
+			from zipfile import ZipFile
+			with ZipFile(path, "r") as zf:
+				data = zf.read(arcname)
+			return Response(data, mimetype="image/jpeg")
+		full = os.path.abspath(os.path.join(path, folder, filename))
+		base = os.path.abspath(path)
+		if not full.startswith(base + os.sep):
+			return Response("Invalid path", status=400)
+		return send_from_directory(os.path.dirname(full), os.path.basename(full))
+	except Exception:
+		return Response("Preview not found", status=404)
+
+
+@app.route("/fresh/restore/preview/before/<token>/<int:match_index>/<int:before_index>")
+def fresh_restore_preview_before(token, match_index, before_index):
+	if token != "active" or not _FRESH_RESTORE_CONTEXT:
+		return Response("Preview expired", status=404)
+	try:
+		result = _FRESH_RESTORE_CONTEXT.get("result") or {}
+		match = (result.get("matches") or [])[match_index]
+		before_path = (match.get("before_images") or [])[before_index]
+		return send_from_directory(os.path.dirname(before_path), os.path.basename(before_path))
+	except Exception:
+		return Response("Preview not found", status=404)
+
+
+@app.route("/fresh/restore/preview/current/<token>/<path:match>/<path:filename>")
+def fresh_restore_preview_current(token, match, filename):
+	if token != "active" or not _FRESH_RESTORE_CONTEXT:
+		return Response("Preview expired", status=404)
+	try:
+		from restore import (
+			SESSION,
+			USER_AGENT,
+			_DEFAULT_TIMEOUT,
+			_get_season_items,
+			_infer_type,
+			_normalize_title,
+			_season_number_from_name,
+			get_library_items,
+		)
+		server = _FRESH_RESTORE_CONTEXT["server"]
+		apikey = _FRESH_RESTORE_CONTEXT["apikey"]
+		library = _FRESH_RESTORE_CONTEXT["library"]
+		items, _collection_type = get_library_items(server, apikey, library)
+		target = None
+		for item in items:
+			if _normalize_title(item.get("Name") or "") == _normalize_title(match):
+				target = item
+				break
+		if not target:
+			return Response("Preview not found", status=404)
+		season_number = _season_number_from_name(filename)
+		if season_number is not None:
+			season_item = _get_season_items(server, apikey, target["Id"]).get(season_number)
+			if not season_item:
+				return Response("Preview not found", status=404)
+			url = f"{server.rstrip('/')}/Items/{season_item['Id']}/Images/Primary"
+		else:
+			image_type = _infer_type(filename, _FRESH_RESTORE_CONTEXT.get("restore_filename_overrides") or {})
+			if not image_type:
+				return Response("Preview not found", status=404)
+			url = f"{server.rstrip('/')}/Items/{target['Id']}/Images/{image_type}"
+		if (_FRESH_RESTORE_CONTEXT.get("restore_filename_overrides") or {}).get("__jellytag_bypass"):
+			url = generate_add_jellytag_bypass(url, True)
+		response = SESSION.get(
+			url,
+			headers={"X-Emby-Token": apikey, "User-Agent": USER_AGENT},
+			timeout=_DEFAULT_TIMEOUT,
+		)
+		if not response.ok or not response.content:
+			return Response("Preview not found", status=404)
+		content_type = response.headers.get("Content-Type") or "image/jpeg"
+		return Response(response.content, mimetype=content_type)
+	except Exception:
+		app.logger.warning("Fresh current restore preview failed", exc_info=True)
+		return Response("Preview not found", status=404)
+
+
+@app.route("/classic", methods=["GET", "POST"])
 def index():
 	history = load_history()
 	last_used = history.get("last_used", {})
@@ -1426,10 +2523,15 @@ def download_embedded(library, filename):
 
 	with open(file_path, "r", encoding="utf-8") as f:
 		html = f.read()
+	try:
+		conn = _fresh_conn()
+		jellytag_bypass = _fresh_jellytag_enabled(conn)
+	except Exception:
+		jellytag_bypass = False
 
 	def embed_img(match):
 		full_tag = match.group(0)
-		url = match.group(1)
+		url = generate_add_jellytag_bypass(match.group(1), jellytag_bypass)
 
 		try:
 			# Leave already-embedded images alone

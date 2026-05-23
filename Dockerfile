@@ -5,7 +5,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app.py generate_html.py restore.py /app/
+COPY app.py generate_html.py restore.py fresh_jellyfin.py fresh_state.py /app/
 COPY assets /app/assets
 COPY templates /app/templates
 
@@ -14,4 +14,3 @@ RUN mkdir -p /app/data /app/output
 EXPOSE 1280
 
 CMD ["gunicorn", "--bind", "0.0.0.0:1280", "--timeout", "300", "app:app"]
-

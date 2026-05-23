@@ -56,6 +56,7 @@ IMAGE_TYPES_MAP = {
 	"l": "Logo",
 	"m": "Menu",
 	"t": "Thumb",
+	"sp": "Season Posters",
 }
 
 IMAGE_TYPES_REVERSE = {v: k for k, v in IMAGE_TYPES_MAP.items()}
@@ -570,12 +571,12 @@ def _build_issue_list_html(missing_types: List[str], lowres_types: List[str]) ->
 	if missing_types:
 		missing_html = "<br>".join(missing_types)
 		parts.append(
-			f'<div class="issue-block"><div class="issue-heading">Missing:</div><div>{missing_html}</div></div>'
+			f'<div class="issue-block missing-issue"><div class="issue-heading">Missing:</div><div>{missing_html}</div></div>'
 		)
 	if lowres_types:
 		lowres_html = "<br>".join(lowres_types)
 		parts.append(
-			f'<div class="issue-block"><div class="issue-heading">Low Resolution:</div><div>{lowres_html}</div></div>'
+			f'<div class="issue-block lowres-issue"><div class="issue-heading">Low Resolution:</div><div>{lowres_html}</div></div>'
 		)
 	if not parts:
 		return ""
@@ -615,6 +616,7 @@ table {{ border-collapse: collapse; margin-bottom: 40px; width: 100%; background
 th, td {{ border: 1px solid #ccc; padding: 8px; text-align: left; font-size: 18px; color: {textcolor}; }}
 th {{ background-color: rgba(200,200,200,0.2); }}
 .missing-list {{ color:red; font-weight:bold; text-align:center; margin-top:auto; padding-top: 8px; }}
+.lowres-issue {{ color:#ffb347; }}
 .issue-block {{ margin-top: 12px; }}
 .issue-heading {{ margin-bottom: 4px; }}
 .placeholder {{ border:2px dashed red; border-radius:5px; color:red; font-weight:bold; display:flex; align-items:center; justify-content:center; height:150px; }}
@@ -624,8 +626,9 @@ a:hover {{ text-decoration: underline; }}
 .scroll-top {{ text-align:center; margin-top:10px; }}
 .entry-title {{ margin-bottom:15px; }}
 .resolution {{ font-size:14px; opacity:0.9; }}
-.lowres {{ color: #ff6767; font-weight: bold; }}
+.lowres {{ color: #ffb347; font-weight: bold; }}
 .missing {{ color: #ffb347; font-weight: bold; }}
+.scroll-top-fixed {{ position:fixed; right:18px; bottom:18px; z-index:900; padding:10px 14px; border-radius:8px; border:1px solid #777; background:#111; color:#fff; text-decoration:none; font-weight:bold; }}
 .pixelfin-corner {{
 	position: absolute;
 	top: 14px;
@@ -749,7 +752,18 @@ def _write_lightbox(fp):
 
 
 def _write_footer(fp):
-	fp.write("</body></html>\n")
+	fp.write("""
+<a class="scroll-top-fixed" href="#top" title="Scroll to top (T)">Top</a>
+<script>
+document.addEventListener('keydown', function(e) {
+  const tag = (document.activeElement && document.activeElement.tagName || '').toUpperCase();
+  if (e.key && e.key.toLowerCase() === 't' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+});
+</script>
+</body></html>
+""")
 
 
 def generate_html(
@@ -1002,6 +1016,8 @@ def create_zip(
 			folder = sanitize_folder_name(name_map.get(item_id, _safe_name(item)))
 
 			for code in image_types:
+				if code == "sp":
+					continue
 				image_type_name = IMAGE_TYPES_MAP.get(code)
 				if not image_type_name:
 					continue
@@ -1030,7 +1046,7 @@ def create_zip(
 					except Exception as e:
 						print(f"Failed to add image for item '{_safe_name(item)}' ({image_type_name}): {e}")
 
-			if is_series_library and user_id and (item.get("Type") or "").lower() == "series":
+			if "sp" in image_types and is_series_library and user_id and (item.get("Type") or "").lower() == "series":
 				try:
 					seasons = get_series_seasons(base_url, api_key, user_id, item_id)
 				except Exception as e:

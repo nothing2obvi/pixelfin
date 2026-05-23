@@ -24,6 +24,7 @@ import requests
 from datetime import datetime
 from typing import Dict, List, Tuple, Optional
 from difflib import SequenceMatcher
+from generate_html import add_jellytag_bypass
 import re
 
 # ---------------------------------------------------------------------
@@ -77,6 +78,30 @@ def _match_components(a: str, b: str) -> Tuple[float, float, float]:
 
 def fuzzy_match(a: str, b: str) -> float:
 	return _match_components(a, b)[0]
+
+
+def _split_title_year(title: str) -> Tuple[str, Optional[int]]:
+	raw = (title or "").strip()
+	if not raw:
+		return "", None
+	match = re.search(r"\s*\((19\d{2}|20\d{2})\)\s*$", raw)
+	if not match:
+		match = re.search(r"\s+(19\d{2}|20\d{2})\s*$", raw)
+	if not match:
+		return raw, None
+	year = int(match.group(1))
+	cleaned = raw[:match.start()].strip()
+	return cleaned or raw, year
+
+
+def _matching_title(item: Dict) -> Tuple[str, Optional[int]]:
+	name, title_year = _split_title_year(item.get("Name") or "")
+	item_year = item.get("ProductionYear") or item.get("Year") or title_year
+	try:
+		item_year = int(item_year) if item_year else None
+	except Exception:
+		item_year = title_year
+	return name, item_year
 
 
 def ensure_dir(path: str) -> None:
@@ -626,8 +651,18 @@ def _season_number_from_name(filename: str) -> Optional[int]:
 	return None
 
 
-def _infer_type(filename: str) -> Optional[str]:
+def _normalize_restore_basename(value: str) -> str:
+	return re.sub(r"[^a-z0-9]+", "", os.path.splitext(os.path.basename(value or ""))[0].strip().lower())
+
+
+def _infer_type(filename: str, filename_overrides: Optional[Dict[str, str]] = None) -> Optional[str]:
 	base = os.path.splitext(os.path.basename(filename))[0].strip().lower()
+	norm_base = _normalize_restore_basename(filename)
+	for image_type, override in (filename_overrides or {}).items():
+		if str(image_type).startswith("__"):
+			continue
+		if override and norm_base == _normalize_restore_basename(override):
+			return image_type
 	if _season_number_from_name(filename) is not None:
 		return None
 	if "backdrop" in base or base.startswith("bd_"):
@@ -891,6 +926,9 @@ def run_restore(
 	server: str = "",
 	apikey: str = "",
 	forced_mappings: Optional[Dict[str, str]] = None,
+	restore_filename_overrides: Optional[Dict[str, str]] = None,
+	included_folders: Optional[List[str]] = None,
+	included_image_types_by_folder: Optional[Dict[str, List[str]]] = None,
 ) -> Dict:
 	"""
 	Perform restore from images into Jellyfin; optional HTML report.
@@ -922,6 +960,9 @@ def run_restore(
 
 	tmpdir: Optional[str] = None
 	forced_mappings = forced_mappings or {}
+	included_folder_set = set(included_folders) if included_folders is not None else None
+	included_image_types_by_folder = included_image_types_by_folder or {}
+	restore_filename_overrides = restore_filename_overrides or {}
 
 	try:
 		if os.path.isfile(path) and path.lower().endswith(".zip"):
@@ -954,6 +995,12 @@ def run_restore(
 			name = (item.get("Name") or "").strip()
 			if name:
 				items_by_norm_name.setdefault(_normalize_title(name), item)
+		match_title_counts: Dict[str, int] = {}
+		for item in items:
+			match_title, _item_year = _matching_title(item)
+			if match_title:
+				key = _normalize_title(match_title)
+				match_title_counts[key] = match_title_counts.get(key, 0) + 1
 
 		all_titles = sorted(
 			{(i.get("Name") or "").strip() for i in items if (i.get("Name") or "").strip()},
@@ -967,6 +1014,9 @@ def run_restore(
 		unmatched_folders: List[Dict] = []
 
 		for folder in sorted(folders, key=lambda s: s.lower()):
+			if included_folder_set is not None and folder not in included_folder_set:
+				log(f"[INFO] Skipping excluded restore folder: {folder}")
+				continue
 			folder_path = os.path.join(base_dir, folder)
 
 			forced_title = (forced_mappings.get(folder) or "").strip()
@@ -981,9 +1031,15 @@ def run_restore(
 			best_item: Optional[Dict] = forced_item
 			best_score = 1.0 if forced_item else -1.0
 
+			folder_title, folder_year = _split_title_year(folder)
+			folder_match_key = _normalize_title(folder_title)
 			for item in items:
 				name = item.get("Name", "") or ""
-				score, _, _ = _match_components(folder, name)
+				item_title, item_year = _matching_title(item)
+				score, _, _ = _match_components(folder_title, item_title)
+				if folder_year and item_year and match_title_counts.get(folder_match_key, 0) > 1:
+					score += 0.12 if folder_year == item_year else -0.12
+					score = max(0.0, min(score, 1.0))
 				if score > best_score:
 					best_score = score
 					best_item = item
@@ -1014,6 +1070,13 @@ def run_restore(
 				f for f in os.listdir(folder_path)
 				if os.path.splitext(f)[1].lower() in (".jpg", ".jpeg", ".png")
 			], key=lambda s: s.lower())
+			has_explicit_groups = folder in included_image_types_by_folder
+			allowed_groups = set(included_image_types_by_folder.get(folder) or [])
+			if has_explicit_groups:
+				image_files = [
+					f for f in image_files
+					if ("Season Posters" if _season_number_from_name(f) is not None else _infer_type(f, restore_filename_overrides)) in allowed_groups
+				]
 			if not image_files:
 				continue
 
@@ -1029,12 +1092,14 @@ def run_restore(
 					if not season_item:
 						continue
 					before_url = f"{server.rstrip('/')}/Items/{season_item['Id']}/Images/Primary"
+					before_url = add_jellytag_bypass(before_url, bool(restore_filename_overrides.get("__jellytag_bypass")))
 					before_path = os.path.join(before_dir, f"{safe_basename(item_name)}_Season{season_number:02d}_Primary_before.jpg")
 				else:
-					img_type = _infer_type(img)
+					img_type = _infer_type(img, restore_filename_overrides)
 					if not img_type:
 						continue
 					before_url = f"{server.rstrip('/')}/Items/{item_id}/Images/{img_type}"
+					before_url = add_jellytag_bypass(before_url, bool(restore_filename_overrides.get("__jellytag_bypass")))
 					before_path = os.path.join(before_dir, f"{safe_basename(item_name)}_{img_type}_before.jpg")
 				try:
 					r = SESSION.get(
@@ -1075,7 +1140,7 @@ def run_restore(
 					delete_images(server, apikey, season_item["Id"], "Primary")
 					upload_image(server, apikey, season_item["Id"], "Primary", image_path)
 					continue
-				img_type = _infer_type(img)
+				img_type = _infer_type(img, restore_filename_overrides)
 				if not img_type:
 					log(f"[INFO] Skipping unrecognized image name for {item_name}: {img}")
 					continue

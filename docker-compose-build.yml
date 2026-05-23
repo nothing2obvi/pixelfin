@@ -3,9 +3,9 @@ services:
     build: .
     container_name: pixelfin-develop
     ports:
-      - "2180:1280"
+      - "1280:1280"
     environment:
-      - TZ=America/Chicago
+      - TZ=Etc/UTC
     volumes:
       - ./output:/app/output
       - ./assets:/app/assets

@@ -9,5 +9,5 @@ services:
       - ./data:/app/data
     restart: unless-stopped
     environment:
-      - TZ=America/Phoenix
+      - TZ=Etc/UTC
       - CACHE_DIR=/app/data/cache

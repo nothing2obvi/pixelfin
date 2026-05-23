@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pixelfin Restore</title>
+<link rel="icon" type="image/png" href="data:image/png;base64,{{ pixelfin_favicon }}">
+<style>
+:root { color-scheme: light; --bg:#f5f7fb; --panel:#fff; --panel2:#eef2f7; --text:#15202b; --muted:#607086; --line:#d9e0ea; --accent:#0f8b8d; --purple:#8d61ff; --warn:#b7791f; --bad:#c33149; --ok:#287d46; }
+body.dark { color-scheme: dark; --bg:#101419; --panel:#171d24; --panel2:#202832; --text:#edf2f7; --muted:#9aa8ba; --line:#2d3744; --accent:#35b9b4; --purple:#b994ff; --warn:#f4b04f; --bad:#ff6b7f; --ok:#72d18a; }
+body { margin:0; background:var(--bg); color:var(--text); font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+main { max-width:1200px; margin:0 auto; padding:24px; }
+a { color:var(--accent); }
+.top { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:20px; }
+.back-link { display:inline-flex; align-items:center; gap:8px; text-decoration:none; font-weight:800; }
+.back-link img { width:28px; height:28px; object-fit:contain; }
+.card { border:1px solid var(--line); background:var(--panel); border-radius:8px; padding:16px; margin-bottom:16px; }
+.notice { border:1px solid var(--line); background:var(--panel2); border-radius:8px; padding:12px 14px; color:var(--muted); }
+.dry { color:var(--warn); font-weight:800; }
+table { width:100%; border-collapse:collapse; }
+th, td { border-bottom:1px solid var(--line); padding:9px 10px; text-align:left; vertical-align:top; }
+th { color:var(--muted); background:var(--panel2); }
+.score { color:var(--purple); font-weight:800; }
+.ok { color:var(--ok); font-weight:800; }
+.warn { color:var(--warn); font-weight:800; }
+.bad { color:var(--bad); font-weight:800; }
+select, button { min-height:36px; border-radius:8px; border:1px solid var(--line); background:var(--panel2); color:var(--text); padding:7px 10px; }
+button.primary { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:800; }
+.actions { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+.center-actions { justify-content:center; margin-top:18px; }
+.section-head { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.include-cell { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.include-cell input[disabled] + span, .include-cell button:disabled { opacity:.55; }
+.small { color:var(--muted); font-size:13px; }
+.comparisons { display:none; margin-top:14px; }
+.comparisons.open { display:grid; gap:16px; }
+.comparison-item { border:1px solid var(--line); border-radius:8px; background:var(--panel2); padding:14px; }
+.comparison-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; align-items:start; }
+.comparison-image { display:grid; gap:8px; justify-items:center; min-width:0; }
+.comparison-image img { width:100%; max-height:520px; object-fit:contain; border-radius:8px; background:#05080c; cursor:pointer; }
+.comparison-placeholder { width:100%; min-height:180px; border:1px dashed var(--line); border-radius:8px; display:grid; place-items:center; color:var(--muted); }
+.comparison-label { color:var(--muted); font-weight:800; }
+.scroll-top-btn { position:fixed; right:18px; bottom:18px; z-index:20; box-shadow:0 10px 28px rgba(0,0,0,.18); min-width:44px; width:44px; height:44px; padding:0; border-radius:999px; background:var(--accent); border-color:var(--accent); color:#fff; font-size:20px; font-weight:800; }
+.restore-lightbox { position:fixed; inset:0; background:rgba(0,0,0,.88); display:none; align-items:center; justify-content:center; padding:24px; z-index:70; }
+.restore-lightbox.open { display:flex; }
+.restore-lightbox-inner { max-width:min(1100px,96vw); max-height:92vh; display:grid; gap:10px; justify-items:center; }
+.restore-lightbox-stage { display:grid; place-items:center; max-width:min(1100px,96vw); max-height:78vh; }
+.restore-lightbox-stage img { max-width:100%; max-height:78vh; object-fit:contain; border-radius:8px; background:#05080c; }
+.restore-lightbox-caption { color:#fff; font-weight:800; text-align:center; }
+.restore-lightbox-side { position:fixed; top:50%; transform:translateY(-50%); min-width:42px; font-size:22px; background:rgba(10,15,21,.78); color:#fff; border-color:rgba(255,255,255,.35); }
+.restore-lightbox-side.left { left:28px; }
+.restore-lightbox-side.right { right:28px; }
+.restore-lightbox-item-nav { position:fixed; left:50%; bottom:26px; transform:translateX(-50%); display:flex; gap:12px; }
+.restore-lightbox-item-nav button { min-width:42px; font-size:22px; }
+.restore-lightbox-item-nav button:disabled { visibility:hidden; }
+.type-modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index:80; padding:20px; }
+.type-modal-backdrop.open { display:flex; }
+.type-modal { width:min(520px,96vw); max-height:86vh; overflow:auto; border:1px solid var(--line); background:var(--panel); color:var(--text); border-radius:8px; box-shadow:0 20px 60px rgba(0,0,0,.35); padding:16px; }
+.type-modal header { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:10px; }
+.type-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:8px; margin-top:12px; }
+.type-option { display:flex; align-items:center; gap:8px; border:1px solid var(--line); border-radius:8px; padding:8px; background:var(--panel2); }
+@media (max-width: 760px) { .comparison-grid { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<script>
+document.body.classList.toggle("dark", (localStorage.getItem("pixelfin_theme") || "dark") === "dark");
+</script>
+<main>
+	<div class="top">
+		<div>
+			<h1>Restore {{ library }}</h1>
+			<div class="small">Match threshold: {{ threshold }}</div>
+		</div>
+		<a href="/" class="back-link"><img src="{{ url_for('serve_assets', filename='Pixelfin_Favicon.png') }}" alt=""> Home</a>
+	</div>
+
+	{% if dry_run %}
+	<div class="notice dry">Dry run: no images will be uploaded to Jellyfin.</div>
+	{% elif not completed %}
+	<div class="notice">Review matches below, choose any manual matches, then run the restore.</div>
+	{% else %}
+	<div class="notice ok">Restore run complete.</div>
+	{% endif %}
+
+	{% if result.status != 'ok' %}
+	<div class="card bad">{{ result.message or 'Restore failed.' }}</div>
+	{% endif %}
+
+	{% set matched = result.matched or [] %}
+	{% set below = result.below_threshold or result.unmatched or [] %}
+	{% set unmatched = result.unmatched_folders or [] %}
+	{% set all_matches = result.all_matches or [] %}
+
+	<form method="post" action="{{ url_for('fresh_restore_run') }}">
+	<div class="card">
+		<div class="section-head">
+			<h2>Matches</h2>
+			<button type="button" data-section-toggle="matches" onclick="toggleSectionIncludes('matches', this)">Exclude All</button>
+		</div>
+		<table>
+			<thead><tr><th>ZIP Folder</th><th>Score</th><th>Matched Item</th><th>Include</th></tr></thead>
+			<tbody>
+				{% for row in matched %}
+				<tr>
+					<td><a href="#comparison-{{ loop.index0 }}" onclick="showComparison(event, 'comparison-{{ loop.index0 }}')">{{ row.folder }}</a><input type="hidden" name="folder_{{ row.restore_key }}" value="{{ row.folder }}"></td>
+					<td class="score">{{ "%.2f"|format(row.similarity) }}%</td>
+					<td>{{ row.best_match }}</td>
+					<td class="include-cell">
+						<label><input type="checkbox" name="include_{{ row.restore_key }}" data-section="matches" checked> <span>Include</span></label>
+						<button type="button" onclick="openTypeModal('{{ row.restore_key }}')" {% if not row.image_groups %}disabled{% endif %}>Image Types</button>
+					</td>
+				</tr>
+				{% else %}
+				<tr><td colspan="4">No above-threshold matches.</td></tr>
+				{% endfor %}
+			</tbody>
+		</table>
+	</div>
+
+		<div class="card">
+			<div class="section-head">
+				<h2>Below Threshold</h2>
+				<button type="button" data-section-toggle="below" onclick="toggleSectionIncludes('below', this)">Exclude All</button>
+			</div>
+			<table>
+				<thead><tr><th>ZIP Folder</th><th>Score</th><th>Suggested Match</th><th>Include</th><th>Manual Match</th></tr></thead>
+				<tbody>
+					{% for row in below %}
+					<tr>
+						<td><a href="#comparison-dynamic-{{ row.restore_key }}" onclick="showDynamicComparison(event, '{{ row.restore_key }}')">{{ row.folder }}</a><input type="hidden" name="folder_{{ row.restore_key }}" value="{{ row.folder }}"></td>
+						<td class="warn">{{ "%.2f"|format(row.similarity or 0) }}%</td>
+						<td>{{ row.best_match or 'No suggestion' }}</td>
+						<td class="include-cell">
+							<label><input type="checkbox" name="include_{{ row.restore_key }}" data-section="below" checked> <span>Include</span></label>
+							<button type="button" onclick="openTypeModal('{{ row.restore_key }}')" {% if not row.image_groups %}disabled{% endif %}>Image Types</button>
+						</td>
+						<td>
+							<select name="map_{{ row.folder }}" data-manual-key="{{ row.restore_key }}" onchange="syncManualInclude(this, '{{ row.restore_key }}')">
+								<option value="">Leave unmatched</option>
+								{% for option in match_options %}
+								<option value="{{ option.value }}" {% if option.value == row.best_match %}selected{% endif %}>{{ option.display }}</option>
+								{% else %}
+								{% for title in all_matches %}
+								<option value="{{ title }}" {% if title == row.best_match %}selected{% endif %}>{{ title }}</option>
+								{% endfor %}
+								{% endfor %}
+							</select>
+						</td>
+					</tr>
+					{% else %}
+					<tr><td colspan="5">None.</td></tr>
+					{% endfor %}
+					{% for row in unmatched %}
+					<tr>
+						<td><a href="#comparison-dynamic-{{ row.restore_key }}" onclick="showDynamicComparison(event, '{{ row.restore_key }}')">{{ row.folder }}</a><input type="hidden" name="folder_{{ row.restore_key }}" value="{{ row.folder }}"></td>
+						<td class="bad">{{ "%.2f"|format(row.similarity or 0) }}%</td>
+						<td>{{ row.best_match or 'No suggestion' }}</td>
+						<td class="include-cell">
+							<label><input type="checkbox" name="include_{{ row.restore_key }}" data-section="below" disabled> <span>Include</span></label>
+							<button type="button" onclick="openTypeModal('{{ row.restore_key }}')" {% if not row.image_groups %}disabled{% endif %}>Image Types</button>
+						</td>
+						<td>
+							<select name="map_{{ row.folder }}" data-manual-key="{{ row.restore_key }}" onchange="syncManualInclude(this, '{{ row.restore_key }}')">
+								<option value="">Leave unmatched</option>
+								{% for option in match_options %}
+								<option value="{{ option.value }}">{{ option.display }}</option>
+								{% else %}
+								{% for title in all_matches %}
+								<option value="{{ title }}">{{ title }}</option>
+								{% endfor %}
+								{% endfor %}
+							</select>
+						</td>
+					</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		</div>
+
+		<div class="card">
+			<h2>Comparison</h2>
+			<button type="button" onclick="toggleComparisons(this)">View Comparisons</button>
+			<div class="comparisons" id="comparisons">
+				{% for item in result.matches or [] %}
+				{% set item_index = loop.index0 %}
+				<div class="comparison-item" id="comparison-{{ item_index }}">
+					<h3>{{ item.match }}</h3>
+					{% for image_name in item.images or [] %}
+					{% set after_url = url_for('fresh_restore_preview_file', token=comparison_token, folder=item.folder, filename=image_name) %}
+					<div class="comparison-grid" loading="lazy">
+						<div class="comparison-image">
+							{% if item.before_images and loop.index0 < item.before_images|length %}
+							<img loading="lazy" src="{{ url_for('fresh_restore_preview_before', token=comparison_token, match_index=item_index, before_index=loop.index0) }}" alt="Before {{ image_name }}" onclick="openRestoreLightbox({{ item_index }}, {{ loop.index0 }}, 0)">
+							{% else %}
+							<div class="comparison-placeholder">No current image</div>
+							{% endif %}
+							<div class="comparison-label">Before</div>
+						</div>
+						<div class="comparison-image">
+							<img loading="lazy" src="{{ after_url }}" alt="After {{ image_name }}" onclick="openRestoreLightbox({{ item_index }}, {{ loop.index0 }}, 1)">
+							<div class="comparison-label">{{ 'Would be After' if dry_run else 'After' }}: {{ image_name }}</div>
+						</div>
+					</div>
+					{% endfor %}
+				</div>
+				{% else %}
+				<p class="small">No comparison images were found.</p>
+				{% endfor %}
+				<div id="dynamicComparisons"></div>
+			</div>
+		</div>
+
+		{% for row in matched + below + unmatched %}
+		<div class="type-modal-backdrop" id="type-modal-{{ row.restore_key }}" onclick="closeTypeModalFromBackdrop(event, '{{ row.restore_key }}')">
+			<div class="type-modal">
+				<header>
+					<div>
+						<h3>{{ row.folder }} Image Types</h3>
+						<div class="small">Only image types enabled in the target library's Image Types setting are shown. Season Posters appears when present.</div>
+					</div>
+					<button type="button" onclick="closeTypeModal('{{ row.restore_key }}')">×</button>
+				</header>
+				<div class="type-grid">
+					{% for image_group in row.image_groups or [] %}
+					<label class="type-option"><input type="checkbox" name="types_{{ row.restore_key }}" value="{{ image_group }}" checked> {{ image_group }}</label>
+					{% else %}
+					<div class="small">No restorable image types found for this ZIP folder.</div>
+					{% endfor %}
+				</div>
+			</div>
+		</div>
+		{% endfor %}
+
+		{% if not completed %}
+		<div class="actions center-actions">
+			{% if dry_run %}
+			<button class="primary" type="button" disabled>This is a dry run</button>
+			{% else %}
+			<button class="primary" type="submit" onclick="this.textContent='Processing...'; this.disabled=true; this.form.submit();">Run Restore</button>
+			{% endif %}
+		</div>
+		{% endif %}
+	</form>
+</main>
+<button class="scroll-top-btn" onclick="scrollToTop()" title="Scroll to top (T)">↑</button>
+<div class="restore-lightbox" id="restoreLightbox" onclick="closeRestoreLightboxFromBackdrop(event)">
+	<div class="restore-lightbox-inner">
+		<div class="restore-lightbox-stage">
+			<button type="button" class="restore-lightbox-side left" onclick="moveRestoreLightboxSide(-1)">←</button>
+			<img id="restoreLightboxImage" src="" alt="">
+			<button type="button" class="restore-lightbox-side right" onclick="moveRestoreLightboxSide(1)">→</button>
+		</div>
+		<div class="restore-lightbox-caption" id="restoreLightboxCaption"></div>
+		<div class="restore-lightbox-item-nav">
+			<button type="button" id="restoreLightboxPrev" onclick="moveRestoreLightboxImage(-1)">↑</button>
+			<button type="button" id="restoreLightboxNext" onclick="moveRestoreLightboxImage(1)">↓</button>
+		</div>
+	</div>
+</div>
+<script>
+const restoreComparisons = [
+	{% for item in result.matches or [] %}
+	{% set item_index = loop.index0 %}
+	{
+		title: {{ item.match|tojson }},
+		images: [
+			{% for image_name in item.images or [] %}
+			{
+				name: {{ image_name|tojson }},
+				before: {% if item.before_images and loop.index0 < item.before_images|length %}{{ url_for('fresh_restore_preview_before', token=comparison_token, match_index=item_index, before_index=loop.index0)|tojson }}{% else %}null{% endif %},
+				after: {{ url_for('fresh_restore_preview_file', token=comparison_token, folder=item.folder, filename=image_name)|tojson }},
+				afterLabel: {{ ('Would be After' if dry_run else 'After')|tojson }}
+			},
+			{% endfor %}
+		]
+	},
+	{% endfor %}
+];
+const dynamicComparisons = {
+	{% for row in below + unmatched %}
+	{{ row.restore_key|tojson }}: {
+		key: {{ row.restore_key|tojson }},
+		folder: {{ row.folder|tojson }},
+		images: [
+			{% for image_name in row.images or [] %}
+			{
+				name: {{ image_name|tojson }},
+				after: {{ url_for('fresh_restore_preview_file', token=comparison_token, folder=row.folder, filename=image_name)|tojson }}
+			},
+			{% endfor %}
+		]
+	},
+	{% endfor %}
+};
+let restoreLightboxItem = 0;
+let restoreLightboxImage = 0;
+let restoreLightboxSide = 1;
+function toggleComparisons(button) {
+	const panel = document.getElementById("comparisons");
+	panel.classList.toggle("open");
+	button.textContent = panel.classList.contains("open") ? "Hide Comparisons" : "View Comparisons";
+}
+function showComparison(event, id) {
+	event.preventDefault();
+	const panel = document.getElementById("comparisons");
+	const button = document.querySelector('button[onclick="toggleComparisons(this)"]');
+	panel.classList.add("open");
+	if (button) button.textContent = "Hide Comparisons";
+	document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+function showDynamicComparison(event, key) {
+	event.preventDefault();
+	renderDynamicComparisons();
+	const panel = document.getElementById("comparisons");
+	const button = document.querySelector('button[onclick="toggleComparisons(this)"]');
+	panel.classList.add("open");
+	if (button) button.textContent = "Hide Comparisons";
+	document.getElementById(`comparison-dynamic-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+function scrollToTop() {
+	window.scrollTo({ top: 0, behavior: "smooth" });
+}
+function openTypeModal(key) {
+	document.getElementById(`type-modal-${key}`)?.classList.add("open");
+}
+function closeTypeModal(key) {
+	document.getElementById(`type-modal-${key}`)?.classList.remove("open");
+}
+function closeTypeModalFromBackdrop(event, key) {
+	if (event.target.id === `type-modal-${key}`) closeTypeModal(key);
+}
+function toggleSectionIncludes(section, button) {
+	const boxes = [...document.querySelectorAll(`input[data-section="${section}"]:not(:disabled)`)];
+	const include = button.textContent.trim() === "Include All";
+	boxes.forEach(box => { box.checked = include; });
+	button.textContent = include ? "Exclude All" : "Include All";
+}
+function syncManualInclude(select, key) {
+	const checkbox = document.querySelector(`input[name="include_${key}"]`);
+	if (!checkbox) return;
+	const hasMatch = Boolean(select.value);
+	checkbox.disabled = !hasMatch;
+	checkbox.checked = hasMatch;
+	renderDynamicComparisons();
+}
+function escapeHtml(value) {
+	return String(value ?? "").replace(/[&<>"']/g, ch => ({
+		"&": "&amp;",
+		"<": "&lt;",
+		">": "&gt;",
+		'"': "&quot;",
+		"'": "&#39;"
+	}[ch]));
+}
+function renderDynamicComparisons() {
+	const host = document.getElementById("dynamicComparisons");
+	if (!host) return;
+	const rows = Object.values(dynamicComparisons).map(row => {
+		const select = document.querySelector(`select[data-manual-key="${row.key}"]`);
+		const match = select?.value || "";
+		if (!match) return "";
+		const images = row.images.map((image, imageIndex) => {
+			const before = `/fresh/restore/preview/current/active/${encodeURIComponent(match)}/${encodeURIComponent(image.name)}`;
+			return `<div class="comparison-grid" loading="lazy">
+				<div class="comparison-image">
+					<img loading="lazy" src="${before}" alt="Before ${escapeHtml(image.name)}" onclick="openDynamicRestoreLightbox('${row.key}', ${imageIndex}, 0)">
+					<div class="comparison-label">Before</div>
+				</div>
+				<div class="comparison-image">
+					<img loading="lazy" src="${image.after}" alt="After ${escapeHtml(image.name)}" onclick="openDynamicRestoreLightbox('${row.key}', ${imageIndex}, 1)">
+					<div class="comparison-label">{{ 'Would be After' if dry_run else 'After' }}: ${escapeHtml(image.name)}</div>
+				</div>
+			</div>`;
+		}).join("");
+		return `<div class="comparison-item" id="comparison-dynamic-${escapeHtml(row.key)}"><h3>${escapeHtml(match)}</h3>${images || '<p class="small">No comparison images were found.</p>'}</div>`;
+	}).join("");
+	host.innerHTML = rows;
+}
+function openDynamicRestoreLightbox(key, imageIndex, side) {
+	const row = dynamicComparisons[key];
+	if (!row) return;
+	const select = document.querySelector(`select[data-manual-key="${key}"]`);
+	const match = select?.value || "";
+	if (!match) return;
+	const before = `/fresh/restore/preview/current/active/${encodeURIComponent(match)}/${encodeURIComponent(row.images[imageIndex].name)}`;
+	restoreComparisons.push({
+		title: match,
+		images: row.images.map(image => ({
+			name: image.name,
+			before: `/fresh/restore/preview/current/active/${encodeURIComponent(match)}/${encodeURIComponent(image.name)}`,
+			after: image.after,
+			afterLabel: {{ ('Would be After' if dry_run else 'After')|tojson }}
+		}))
+	});
+	restoreLightboxItem = restoreComparisons.length - 1;
+	restoreLightboxImage = imageIndex;
+	restoreLightboxSide = side;
+	showRestoreLightbox();
+	document.getElementById("restoreLightbox").classList.add("open");
+}
+function openRestoreLightbox(itemIndex, imageIndex, side) {
+	restoreLightboxItem = itemIndex;
+	restoreLightboxImage = imageIndex;
+	restoreLightboxSide = side;
+	showRestoreLightbox();
+	document.getElementById("restoreLightbox").classList.add("open");
+}
+function showRestoreLightbox() {
+	const item = restoreComparisons[restoreLightboxItem];
+	const image = item?.images?.[restoreLightboxImage];
+	if (!item || !image) return;
+	const src = restoreLightboxSide === 0 ? image.before : image.after;
+	if (!src && restoreLightboxSide === 0) restoreLightboxSide = 1;
+	const finalSrc = restoreLightboxSide === 0 ? image.before : image.after;
+	document.getElementById("restoreLightboxImage").src = finalSrc;
+	document.getElementById("restoreLightboxCaption").textContent = `${restoreLightboxSide === 0 ? "Before" : image.afterLabel}: ${image.name}`;
+	document.getElementById("restoreLightboxPrev").disabled = restoreLightboxImage <= 0;
+	document.getElementById("restoreLightboxNext").disabled = restoreLightboxImage >= item.images.length - 1;
+}
+function moveRestoreLightboxSide(delta) {
+	const item = restoreComparisons[restoreLightboxItem];
+	const image = item?.images?.[restoreLightboxImage];
+	if (!image) return;
+	const target = restoreLightboxSide + delta;
+	if (target < 0 || target > 1) return;
+	if (target === 0 && !image.before) return;
+	restoreLightboxSide = target;
+	showRestoreLightbox();
+}
+function moveRestoreLightboxImage(delta) {
+	const item = restoreComparisons[restoreLightboxItem];
+	if (!item) return;
+	const target = restoreLightboxImage + delta;
+	if (target < 0 || target >= item.images.length) return;
+	restoreLightboxImage = target;
+	const image = item.images[restoreLightboxImage];
+	if (restoreLightboxSide === 0 && !image.before) restoreLightboxSide = 1;
+	showRestoreLightbox();
+}
+function closeRestoreLightbox() {
+	document.getElementById("restoreLightbox").classList.remove("open");
+}
+function closeRestoreLightboxFromBackdrop(event) {
+	if (event.target.id === "restoreLightbox") closeRestoreLightbox();
+}
+document.addEventListener("keydown", event => {
+	const tag = document.activeElement?.tagName;
+	if (["INPUT", "TEXTAREA", "SELECT"].includes(tag)) return;
+	if (document.getElementById("restoreLightbox").classList.contains("open")) {
+		if (event.key === "Escape") closeRestoreLightbox();
+		if (event.key === "ArrowLeft") moveRestoreLightboxSide(-1);
+		if (event.key === "ArrowRight") moveRestoreLightboxSide(1);
+		if (event.key === "ArrowUp") moveRestoreLightboxImage(-1);
+		if (event.key === "ArrowDown") moveRestoreLightboxImage(1);
+		return;
+	}
+	if (event.key === "Escape") {
+		document.querySelectorAll(".type-modal-backdrop.open").forEach(modal => modal.classList.remove("open"));
+	}
+	if (event.key.toLowerCase() === "t") scrollToTop();
+});
+renderDynamicComparisons();
+</script>
+</body>
+</html>
