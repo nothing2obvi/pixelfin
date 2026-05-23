@@ -5,6 +5,20 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.0.1 - 2026-05-23
+
+#### Changed
+- **Develop reset:** Reset `develop` to match `main` so future work starts from the released Pixelfin v1 codebase.
+- **Docker Compose naming:** Updated both Compose files to use the `pixelfin` container name.
+- **README screenshots:** Added the dry-run comparison screenshot and cleaned screenshot metadata.
+- **Asset cleanup:** Removed old README screenshots that are no longer referenced by the project or README.
+
+#### Verified
+- New server saves already refresh the page after a successful save.
+- `main` and `develop` were checked before release so `develop` could be synced cleanly back to `main`.
+
+---
+
 ## v0.35.8 - 2026-05-21
 
 #### Added

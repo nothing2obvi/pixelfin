@@ -80,6 +80,9 @@ Breaking or migration notes:
 ### Restore Review
 ![Restore Review](assets/screenshots/pixelfin-restore-review.png)
 
+### Comparison (Dry-Run)
+![Comparison (Dry-Run)](assets/screenshots/pixelfin-comparison.png)
+
 ## Features
 
 ### Local Web App
@@ -259,10 +262,10 @@ The default image is:
 ghcr.io/nothing2obvi/pixelfin:latest
 ```
 
-The release image for v1.0.0 is:
+The current release image is:
 
 ```text
-ghcr.io/nothing2obvi/pixelfin:v1.0.0
+ghcr.io/nothing2obvi/pixelfin:v1.0.1
 ```
 
 Open:
@@ -273,14 +276,14 @@ http://localhost:1280
 
 ## Docker Images
 
-The v1.0.0 Docker release is intended to publish multi-architecture images for:
+The current Docker release publishes multi-architecture images for:
 
 - `linux/amd64`
 - `linux/arm64`
 
 Tags:
 
-- `ghcr.io/nothing2obvi/pixelfin:v1.0.0`
+- `ghcr.io/nothing2obvi/pixelfin:v1.0.1`
 - `ghcr.io/nothing2obvi/pixelfin:latest`
 
 ## Useful Notes

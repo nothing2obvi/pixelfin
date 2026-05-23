@@ -1,7 +1,7 @@
 services:
   pixelfin:
     build: .
-    container_name: pixelfin-develop
+    container_name: pixelfin
     ports:
       - "1280:1280"
     environment:
