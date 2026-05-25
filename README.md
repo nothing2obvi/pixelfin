@@ -14,7 +14,7 @@ One thing I’m especially obsessive about is artwork. Posters, backdrops, logos
 
 And that last bit is thanks to Pixelfin.
 
-Pixelfin is an app that helps you audit and review the artwork in your Jellyfin libraries. It can generate galleries of your media so you can quickly see what artwork each media item has, what it’s missing, and what might need improvement. It checks image types like Primary, Backdrop, Logo, ClearArt, Banner, Thumb, and more, and it can flag images that fall below a minimum resolution threshold that you set.
+Pixelfin is an app that helps you audit and review the artwork in your Jellyfin libraries. It can generate galleries of your media so you can quickly see what artwork each media item has, what it’s missing, and what might need improvement. It checks image types like Primary, Backdrop, Logo, ClearArt, Banner, Thumb, and more, and can flag images that fall below your minimum resolution threshold or exceed your maximum resolution threshold.
 
 **The main point is pretty simple: I wanted a faster way to look at my library’s artwork and make judgment calls.**
 
