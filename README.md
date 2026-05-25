@@ -67,17 +67,17 @@ Breaking or migration notes:
 ### Table
 ![Table](assets/screenshots/pixelfin-table.png)
 
-### All Images: Compact, Missing Images
-![All Images: Compact, Missing Images](assets/screenshots/pixelfin-all-images-compact-missing.png)
+### All Images: Compact, Missing, Low Resolution, and High Resolution Images
+![All Images: Compact, Missing, Low Resolution, and High Resolution Images](assets/screenshots/pixelfin-all-images-compact-missing-low-high.png)
 
-### All Images: Full, Missing and Low Resolution Images
-![All Images: Full, Missing and Low Resolution Images](assets/screenshots/pixelfin-all-images-full-missing-low.png)
+### All Images: Full, Missing, Low Resolution, and High Resolution Images
+![All Images: Full, Missing, Low Resolution, and High Resolution Images](assets/screenshots/pixelfin-all-images-full-missing-low-high.png)
 
-### Select Images: Compact, Low Resolution Image
-![Select Images: Compact, Low Resolution Image](assets/screenshots/pixelfin-select-images-compact-low.png)
+### Select Images: Compact, Low Resolution and High Resolution Images
+![Select Images: Compact, Low Resolution and High Resolution Images](assets/screenshots/pixelfin-select-images-compact-low-high.png)
 
-### Select Images: Full, Missing and Low Resolution Images
-![Select Images: Full, Missing and Low Resolution Images](assets/screenshots/pixelfin-select-images-full-missing-low.png)
+### Select Images: Full, Missing, Low Resolution, and High Resolution Images
+![Select Images: Full, Missing, Low Resolution, and High Resolution Images](assets/screenshots/pixelfin-select-images-full-missing-low-high.png)
 
 ### Select Images: Full, Complete
 ![Select Images: Full, Complete](assets/screenshots/pixelfin-select-images-full-complete.png)
