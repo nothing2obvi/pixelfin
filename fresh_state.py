@@ -30,6 +30,7 @@ def init_db(conn):
 			name TEXT NOT NULL,
 			url TEXT NOT NULL,
 			api_key TEXT NOT NULL,
+			sync_user_id TEXT NOT NULL DEFAULT '',
 			is_active INTEGER NOT NULL DEFAULT 0,
 			last_checked TEXT,
 			last_status TEXT,
@@ -87,13 +88,24 @@ def init_db(conn):
 			status TEXT NOT NULL,
 			is_low INTEGER NOT NULL DEFAULT 0,
 			is_missing INTEGER NOT NULL DEFAULT 0,
+			is_high INTEGER NOT NULL DEFAULT 0,
 			last_checked TEXT,
 			PRIMARY KEY (server_id, item_id, code, label),
 			FOREIGN KEY(server_id, item_id) REFERENCES media_items(server_id, id) ON DELETE CASCADE
 		);
 		"""
 	)
+	_migrate_column(conn, "servers", "sync_user_id", "TEXT NOT NULL DEFAULT ''")
+	_migrate_column(conn, "libraries", "high_thresholds", "TEXT NOT NULL DEFAULT '{}'")
+	_migrate_column(conn, "libraries", "sort_order", "TEXT NOT NULL DEFAULT ''")
+	_migrate_column(conn, "item_images", "is_high", "INTEGER NOT NULL DEFAULT 0")
 	conn.commit()
+
+
+def _migrate_column(conn, table, column, definition):
+	existing = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+	if column not in existing:
+		conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 
 def get_json(conn, key, default):

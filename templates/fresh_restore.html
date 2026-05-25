@@ -38,7 +38,8 @@ button.primary { background:var(--accent); border-color:var(--accent); color:#ff
 .comparison-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; align-items:start; }
 .comparison-image { display:grid; gap:8px; justify-items:center; min-width:0; }
 .comparison-image img { width:100%; max-height:520px; object-fit:contain; border-radius:8px; background:#05080c; cursor:pointer; }
-.comparison-placeholder { width:100%; min-height:180px; border:1px dashed var(--line); border-radius:8px; display:grid; place-items:center; color:var(--muted); }
+.comparison-placeholder { width:100%; min-height:180px; border:2px dashed var(--bad); border-radius:8px; display:grid; place-items:center; color:var(--bad); font-weight:800; background:color-mix(in srgb, var(--bad) 8%, transparent); }
+.comparison-placeholder.keep-server { border-color:var(--purple); color:var(--purple); background:color-mix(in srgb, var(--purple) 10%, transparent); text-align:center; padding:16px; }
 .comparison-label { color:var(--muted); font-weight:800; margin-bottom:12px; }
 .scroll-top-btn { position:fixed; right:18px; bottom:18px; z-index:20; box-shadow:0 10px 28px rgba(0,0,0,.18); min-width:44px; width:44px; height:44px; padding:0; border-radius:999px; background:var(--accent); border-color:var(--accent); color:#fff; font-size:20px; font-weight:800; }
 .restore-lightbox { position:fixed; inset:0; background:rgba(0,0,0,.88); display:none; align-items:center; justify-content:center; padding:24px; z-index:70; }
@@ -46,6 +47,8 @@ button.primary { background:var(--accent); border-color:var(--accent); color:#ff
 .restore-lightbox-inner { max-width:min(1100px,96vw); max-height:92vh; display:grid; gap:10px; justify-items:center; }
 .restore-lightbox-stage { display:grid; place-items:center; max-width:min(1100px,96vw); max-height:78vh; }
 .restore-lightbox-stage img { max-width:100%; max-height:78vh; object-fit:contain; border-radius:8px; background:#05080c; }
+.restore-lightbox-missing { width:min(760px,86vw); height:min(480px,55vh); border:2px dashed var(--bad); border-radius:8px; display:none; place-items:center; color:var(--bad); font-weight:800; background:rgba(195,49,73,.12); text-align:center; padding:16px; }
+.restore-lightbox-missing.keep-server { border-color:var(--purple); color:var(--purple); background:rgba(141,97,255,.14); }
 .restore-lightbox-caption { color:#fff; font-weight:800; text-align:center; }
 .restore-lightbox-side { position:fixed; top:50%; transform:translateY(-50%); min-width:42px; font-size:22px; background:rgba(10,15,21,.78); color:#fff; border-color:rgba(255,255,255,.35); }
 .restore-lightbox-side.left { left:28px; }
@@ -186,19 +189,20 @@ document.body.classList.toggle("dark", (localStorage.getItem("pixelfin_theme") |
 				{% set item_index = loop.index0 %}
 				<div class="comparison-item" id="comparison-{{ item_index }}">
 					<h3>{{ item.match }}</h3>
-					{% for image_name in item.images or [] %}
+					{% for image in item.comparison_images or [] %}
+					{% set image_name = image.name %}
 					{% set after_url = url_for('fresh_restore_preview_file', token=comparison_token, folder=item.folder, filename=image_name) %}
 					<div class="comparison-grid" loading="lazy">
 						<div class="comparison-image">
-							{% if item.before_images and loop.index0 < item.before_images|length %}
-							<img loading="lazy" src="{{ url_for('fresh_restore_preview_before', token=comparison_token, match_index=item_index, before_index=loop.index0) }}" alt="Before {{ image_name }}" onclick="openRestoreLightbox({{ item_index }}, {{ loop.index0 }}, 0)">
-							{% else %}
-							<div class="comparison-placeholder">No current image</div>
-							{% endif %}
+							<img loading="lazy" src="{{ url_for('fresh_restore_preview_current', token=comparison_token, match=item.match, filename=image_name) }}" alt="Before {{ image_name }}" onclick="openRestoreLightbox({{ item_index }}, {{ loop.index0 }}, 0)" onerror="replaceComparisonImage(this, 'Missing current image')">
 							<div class="comparison-label">Before</div>
 						</div>
 						<div class="comparison-image">
-							<img loading="lazy" src="{{ after_url }}" alt="After {{ image_name }}" onclick="openRestoreLightbox({{ item_index }}, {{ loop.index0 }}, 1)">
+							{% if image.after_exists %}
+							<img loading="lazy" src="{{ after_url }}" alt="After {{ image_name }}" onclick="openRestoreLightbox({{ item_index }}, {{ loop.index0 }}, 1)" onerror="replaceComparisonImage(this, 'Missing ZIP image')">
+							{% else %}
+							<div class="comparison-placeholder keep-server" onclick="openRestoreLightbox({{ item_index }}, {{ loop.index0 }}, 1)">Missing from ZIP, will keep server image.</div>
+							{% endif %}
 							<div class="comparison-label">{{ 'Would be After' if dry_run else 'After' }}: {{ image_name }}</div>
 						</div>
 					</div>
@@ -249,6 +253,7 @@ document.body.classList.toggle("dark", (localStorage.getItem("pixelfin_theme") |
 		<div class="restore-lightbox-stage">
 			<button type="button" class="restore-lightbox-side left" onclick="moveRestoreLightboxSide(-1)">←</button>
 			<img id="restoreLightboxImage" src="" alt="">
+			<div class="restore-lightbox-missing" id="restoreLightboxMissing">Missing image</div>
 			<button type="button" class="restore-lightbox-side right" onclick="moveRestoreLightboxSide(1)">→</button>
 		</div>
 		<div class="restore-lightbox-caption" id="restoreLightboxCaption"></div>
@@ -265,28 +270,35 @@ const restoreComparisons = [
 	{
 		title: {{ item.match|tojson }},
 		images: [
-			{% for image_name in item.images or [] %}
+			{% for image in item.comparison_images or [] %}
 			{
-				name: {{ image_name|tojson }},
-				before: {% if item.before_images and loop.index0 < item.before_images|length %}{{ url_for('fresh_restore_preview_before', token=comparison_token, match_index=item_index, before_index=loop.index0)|tojson }}{% else %}null{% endif %},
-				after: {{ url_for('fresh_restore_preview_file', token=comparison_token, folder=item.folder, filename=image_name)|tojson }},
-				afterLabel: {{ ('Would be After' if dry_run else 'After')|tojson }}
+				name: {{ image.name|tojson }},
+				before: {{ url_for('fresh_restore_preview_current', token=comparison_token, match=item.match, filename=image.name)|tojson }},
+				after: {% if image.after_exists %}{{ url_for('fresh_restore_preview_file', token=comparison_token, folder=item.folder, filename=image.name)|tojson }}{% else %}null{% endif %},
+				afterLabel: {{ ('Would be After' if dry_run else 'After')|tojson }},
+				afterMissingLabel: {% if image.after_exists %}"Missing ZIP image"{% else %}"Missing from ZIP, will keep server image."{% endif %},
+				afterMissingClass: {% if image.after_exists %}""{% else %}"keep-server"{% endif %}
 			},
 			{% endfor %}
 		]
 	},
 	{% endfor %}
 ];
+const serverComparisonGroups = {{ (result.server_comparison_groups or {})|tojson }};
+const comparisonDefaultFilenames = {{ (result.comparison_default_filenames or {})|tojson }};
 const dynamicComparisons = {
 	{% for row in below + unmatched %}
 	{{ row.restore_key|tojson }}: {
 		key: {{ row.restore_key|tojson }},
 		folder: {{ row.folder|tojson }},
 		images: [
-			{% for image_name in row.images or [] %}
+			{% for image in row.comparison_images or [] %}
 			{
-				name: {{ image_name|tojson }},
-				after: {{ url_for('fresh_restore_preview_file', token=comparison_token, folder=row.folder, filename=image_name)|tojson }}
+				name: {{ image.name|tojson }},
+				group: {{ image.group|tojson }},
+				after: {% if image.after_exists %}{{ url_for('fresh_restore_preview_file', token=comparison_token, folder=row.folder, filename=image.name)|tojson }}{% else %}null{% endif %},
+				afterMissingLabel: {% if image.after_exists %}"Missing ZIP image"{% else %}"Missing from ZIP, will keep server image."{% endif %},
+				afterMissingClass: {% if image.after_exists %}""{% else %}"keep-server"{% endif %}
 			},
 			{% endfor %}
 		]
@@ -353,6 +365,40 @@ function escapeHtml(value) {
 		"'": "&#39;"
 	}[ch]));
 }
+function replaceComparisonImage(image, label, className = "") {
+	const box = document.createElement("div");
+	box.className = `comparison-placeholder ${className}`.trim();
+	box.textContent = label || "Missing image";
+	image.replaceWith(box);
+}
+function normalizeRestoreTitle(value) {
+	return String(value || "").trim().replace(/\s+/g, " ").toLocaleLowerCase();
+}
+function orderedComparisonImages(images) {
+	const order = ["Primary", "Art", "Backdrop", "Banner", "Box", "BoxRear", "Disc", "Logo", "Menu", "Thumb", "Season Posters"];
+	return [...images].sort((a, b) => {
+		const ai = order.indexOf(a.group || "");
+		const bi = order.indexOf(b.group || "");
+		return (ai < 0 ? 999 : ai) - (bi < 0 ? 999 : bi) || String(a.name).localeCompare(String(b.name));
+	});
+}
+function dynamicImagesForMatch(row, match) {
+	const byGroup = new Map();
+	row.images.forEach(image => byGroup.set(image.group || image.name, image));
+	(serverComparisonGroups[normalizeRestoreTitle(match)] || []).forEach(group => {
+		if (byGroup.has(group)) return;
+		const filename = comparisonDefaultFilenames[group];
+		if (!filename) return;
+		byGroup.set(group, {
+			name: filename,
+			group,
+			after: null,
+			afterMissingLabel: "Missing from ZIP, will keep server image.",
+			afterMissingClass: "keep-server"
+		});
+	});
+	return orderedComparisonImages([...byGroup.values()]);
+}
 function renderDynamicComparisons() {
 	const host = document.getElementById("dynamicComparisons");
 	if (!host) return;
@@ -360,15 +406,19 @@ function renderDynamicComparisons() {
 		const select = document.querySelector(`select[data-manual-key="${row.key}"]`);
 		const match = select?.value || "";
 		if (!match) return "";
-		const images = row.images.map((image, imageIndex) => {
+		const imagesForMatch = dynamicImagesForMatch(row, match);
+		const images = imagesForMatch.map((image, imageIndex) => {
 			const before = `/fresh/restore/preview/current/active/${encodeURIComponent(match)}/${encodeURIComponent(image.name)}`;
+			const after = image.after
+				? `<img loading="lazy" src="${image.after}" alt="After ${escapeHtml(image.name)}" onclick="openDynamicRestoreLightbox('${row.key}', ${imageIndex}, 1)" onerror="replaceComparisonImage(this, 'Missing ZIP image')">`
+				: `<div class="comparison-placeholder keep-server" onclick="openDynamicRestoreLightbox('${row.key}', ${imageIndex}, 1)">Missing from ZIP, will keep server image.</div>`;
 			return `<div class="comparison-grid" loading="lazy">
 				<div class="comparison-image">
-					<img loading="lazy" src="${before}" alt="Before ${escapeHtml(image.name)}" onclick="openDynamicRestoreLightbox('${row.key}', ${imageIndex}, 0)">
+					<img loading="lazy" src="${before}" alt="Before ${escapeHtml(image.name)}" onclick="openDynamicRestoreLightbox('${row.key}', ${imageIndex}, 0)" onerror="replaceComparisonImage(this, 'Missing current image')">
 					<div class="comparison-label">Before</div>
 				</div>
 				<div class="comparison-image">
-					<img loading="lazy" src="${image.after}" alt="After ${escapeHtml(image.name)}" onclick="openDynamicRestoreLightbox('${row.key}', ${imageIndex}, 1)">
+					${after}
 					<div class="comparison-label">{{ 'Would be After' if dry_run else 'After' }}: ${escapeHtml(image.name)}</div>
 				</div>
 			</div>`;
@@ -383,14 +433,16 @@ function openDynamicRestoreLightbox(key, imageIndex, side) {
 	const select = document.querySelector(`select[data-manual-key="${key}"]`);
 	const match = select?.value || "";
 	if (!match) return;
-	const before = `/fresh/restore/preview/current/active/${encodeURIComponent(match)}/${encodeURIComponent(row.images[imageIndex].name)}`;
+	const images = dynamicImagesForMatch(row, match);
 	restoreComparisons.push({
 		title: match,
-		images: row.images.map(image => ({
+		images: images.map(image => ({
 			name: image.name,
 			before: `/fresh/restore/preview/current/active/${encodeURIComponent(match)}/${encodeURIComponent(image.name)}`,
 			after: image.after,
-			afterLabel: {{ ('Would be After' if dry_run else 'After')|tojson }}
+			afterLabel: {{ ('Would be After' if dry_run else 'After')|tojson }},
+			afterMissingLabel: image.afterMissingLabel || "Missing ZIP image",
+			afterMissingClass: image.afterMissingClass || ""
 		}))
 	});
 	restoreLightboxItem = restoreComparisons.length - 1;
@@ -410,10 +462,26 @@ function showRestoreLightbox() {
 	const item = restoreComparisons[restoreLightboxItem];
 	const image = item?.images?.[restoreLightboxImage];
 	if (!item || !image) return;
-	const src = restoreLightboxSide === 0 ? image.before : image.after;
-	if (!src && restoreLightboxSide === 0) restoreLightboxSide = 1;
 	const finalSrc = restoreLightboxSide === 0 ? image.before : image.after;
-	document.getElementById("restoreLightboxImage").src = finalSrc;
+	const img = document.getElementById("restoreLightboxImage");
+	const missing = document.getElementById("restoreLightboxMissing");
+	if (finalSrc) {
+		img.style.display = "";
+		missing.style.display = "none";
+		missing.classList.remove("keep-server");
+		img.onerror = () => {
+			img.style.display = "none";
+			missing.style.display = "grid";
+			missing.classList.toggle("keep-server", restoreLightboxSide === 1 && image.afterMissingClass === "keep-server");
+			missing.textContent = restoreLightboxSide === 0 ? "Missing current image" : (image.afterMissingLabel || "Missing ZIP image");
+		};
+		img.src = finalSrc;
+	} else {
+		img.style.display = "none";
+		missing.style.display = "grid";
+		missing.classList.toggle("keep-server", restoreLightboxSide === 1 && image.afterMissingClass === "keep-server");
+		missing.textContent = restoreLightboxSide === 0 ? "Missing current image" : (image.afterMissingLabel || "Missing ZIP image");
+	}
 	document.getElementById("restoreLightboxCaption").textContent = `${restoreLightboxSide === 0 ? "Before" : image.afterLabel}: ${image.name}`;
 	document.getElementById("restoreLightboxPrev").disabled = restoreLightboxImage <= 0;
 	document.getElementById("restoreLightboxNext").disabled = restoreLightboxImage >= item.images.length - 1;
@@ -424,7 +492,6 @@ function moveRestoreLightboxSide(delta) {
 	if (!image) return;
 	const target = restoreLightboxSide + delta;
 	if (target < 0 || target > 1) return;
-	if (target === 0 && !image.before) return;
 	restoreLightboxSide = target;
 	showRestoreLightbox();
 }
@@ -435,7 +502,6 @@ function moveRestoreLightboxImage(delta) {
 	if (target < 0 || target >= item.images.length) return;
 	restoreLightboxImage = target;
 	const image = item.images[restoreLightboxImage];
-	if (restoreLightboxSide === 0 && !image.before) restoreLightboxSide = 1;
 	showRestoreLightbox();
 }
 function closeRestoreLightbox() {

@@ -17,6 +17,7 @@
 	--accent-2: #d95d39;
 	--danger: #c33149;
 	--warn: #b7791f;
+	--high: #2563eb;
 	--ok: #287d46;
 	--shadow: 0 16px 42px rgba(28, 39, 54, .12);
 }
@@ -31,6 +32,7 @@ body.dark {
 	--accent-2: #f08a5d;
 	--danger: #ff6b7f;
 	--warn: #f4b04f;
+	--high: #6ea8ff;
 	--ok: #72d18a;
 	--shadow: 0 18px 46px rgba(0, 0, 0, .28);
 }
@@ -222,6 +224,11 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 	background: var(--panel);
 }
 #issueFilterMenu label { position: relative; z-index: 1; }
+#issueFilterMenu.menu.open,
+#issueFilterMenu.menu.open label,
+#issueFilterMenu.menu.open button {
+	background-color: var(--panel) !important;
+}
 .menu button, .menu form button {
 	display: flex;
 	align-items: center;
@@ -286,6 +293,7 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 .summary .quantity { font-weight: 800; }
 .summary .missing-text { color: var(--danger); font-weight: 800; display: block; }
 .summary .low-text { color: var(--warn); font-weight: 800; display: block; }
+.summary .high-text { color: var(--high); font-weight: 800; display: block; }
 .summary .complete-text { color: var(--ok); font-weight: 800; }
 .entry {
 	border: 1px solid var(--line);
@@ -344,6 +352,7 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 }
 .caption { padding: 8px 10px; display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 13px; }
 .low { color: var(--warn); font-weight: 800; }
+.high { color: var(--high); font-weight: 800; }
 .missing { color: var(--danger); font-weight: 800; }
 .ok { color: var(--ok); font-weight: 800; }
 .lightbox {
@@ -457,7 +466,8 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 .tab-panel.active { display: block; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .form-grid label { display: grid; gap: 5px; color: var(--muted); font-size: 13px; }
-.form-grid.server-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) auto; align-items: end; }
+.form-grid input, .form-grid select { width: 100%; min-width: 0; }
+.form-grid.server-grid { grid-template-columns: minmax(120px, .8fr) minmax(180px, 1fr) minmax(100px, .6fr) minmax(180px, 1fr) auto; align-items: end; }
 .settings-block { border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-bottom: 12px; background: var(--panel); }
 .settings-block h3 { margin: 0 0 10px; }
 .type-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
@@ -481,6 +491,13 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 .rules-table { width: 100%; border-collapse: collapse; }
 .rules-table th, .rules-table td { border-bottom: 1px solid var(--line); padding: 8px; text-align: left; }
 .rules-table input { width: 100%; min-width: 76px; }
+.segmented { display:inline-flex; gap:6px; margin:8px 0 12px; padding:4px; border:1px solid var(--line); border-radius:8px; background:var(--panel); }
+.segmented button.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+.settings-section { margin-bottom: 22px; }
+.shortcut-list { display:grid; gap:8px; }
+.shortcut-list div { display:flex; justify-content:space-between; gap:14px; border-bottom:1px solid var(--line); padding:6px 0; }
+.shortcut-list kbd { font-weight:800; color:var(--accent); }
+.shortcut-list span { color: var(--muted); }
 .notice {
 	padding: 14px;
 	border: 1px solid var(--line);
@@ -565,6 +582,7 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 					<div class="menu" id="issueFilterMenu">
 						<label><input type="checkbox" id="hideMissingToggle" onchange="saveIssueFilters()"> Ignore missing images in counts</label>
 						<label><input type="checkbox" id="hideLowToggle" onchange="saveIssueFilters()"> Ignore low-resolution images in counts</label>
+						<label class="high-filter-action" {% if not additional_criteria.high_resolution %}style="display:none;"{% endif %}><input type="checkbox" id="hideHighToggle" onchange="saveIssueFilters()"> Ignore high-resolution images in counts</label>
 					</div>
 				</div>
 				<button onclick="globalScan(this)">Scan All Libraries</button>
@@ -648,6 +666,14 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 					<div class="form-grid server-grid">
 						<label>Name<input type="text" id="serverName" value="{{ active_server.name if active_server else '' }}"></label>
 						<label>Server URL<input type="text" id="serverUrl" value="{{ active_server.url if active_server else '' }}"></label>
+						<label>Admin User
+							<select id="serverSyncUser">
+								<option value="">Auto</option>
+								{% for user in admin_users %}
+								<option value="{{ user.id }}" {% if active_server and active_server.sync_user_id == user.id %}selected{% endif %}>{{ user.name }}</option>
+								{% endfor %}
+							</select>
+						</label>
 						<label>API Key<input type="password" id="serverKey" value="{{ active_server.api_key if active_server else '' }}"></label>
 						<button onclick="syncLibraries(this)">Sync Libraries</button>
 					</div>
@@ -664,14 +690,27 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 				</div>
 			</section>
 			<section class="tab-panel" id="tab-libraries">
+				<h3>Visible Libraries</h3>
 				<div class="type-grid">
 					{% for library in all_libraries %}
 					<label class="check-row"><input type="checkbox" class="hide-lib" value="{{ library.id }}" {% if library.hidden %}checked{% endif %}> Hide {{ library.name }}</label>
 					{% endfor %}
 				</div>
 				<p><button class="primary" onclick="saveHiddenLibraries()">Save Libraries</button></p>
+				<h3>Sort</h3>
+				<div class="segmented">
+					<button type="button" id="globalSortDate" onclick="setGlobalSortMode('date_added')">Sort by Date Added</button>
+					<button type="button" id="globalSortTitle" onclick="setGlobalSortMode('title')">Sort by Title</button>
+				</div>
+				<p class="subtle">These settings apply globally. You can override them per library.</p>
+				<p><button class="primary" onclick="saveGlobalSortOrder()">Apply to All Libraries</button></p>
 			</section>
 			<section class="tab-panel" id="tab-rules">
+				<div class="settings-section">
+					<h3>Additional Criteria</h3>
+					<label class="toggle-row"><input type="checkbox" id="criteriaHigh" onchange="syncCriteriaVisibility()" {% if additional_criteria.high_resolution %}checked{% endif %}><span class="toggle-track"></span><span>High Resolution</span></label>
+					<p class="subtle">These criteria will not be scanned for until you hit Save and run a scan.</p>
+				</div>
 				<h3>Image Types</h3>
 				<div class="type-grid">
 					{% for code, label in image_types|dictsort(false, 'value') %}
@@ -689,7 +728,11 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 				<p class="subtle">These settings apply globally. You can override them per library.</p>
 				<p><button class="primary" onclick="saveGlobalImageTypes()">Apply to All Libraries</button></p>
 				<h3>Image Thresholds</h3>
-				<table class="rules-table">
+				<div class="segmented">
+					<button type="button" id="globalLowMode" class="active" onclick="setThresholdMode('low')">Low Resolution</button>
+					<button type="button" id="globalHighMode" onclick="setThresholdMode('high')">High Resolution</button>
+				</div>
+				<table class="rules-table" id="globalLowThresholdTable">
 					<thead><tr><th>Image Type</th><th>Global Min Width</th><th>Global Min Height</th></tr></thead>
 					<tbody>
 						{% for code, label in image_types|dictsort(false, 'value') %}
@@ -697,6 +740,18 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 							<td>{{ label }}</td>
 							<td><input type="number" class="global-thr-w" data-code="{{ code }}" value="{{ global_thresholds[code][0] if code in global_thresholds else '' }}"></td>
 							<td><input type="number" class="global-thr-h" data-code="{{ code }}" value="{{ global_thresholds[code][1] if code in global_thresholds else '' }}"></td>
+						</tr>
+						{% endfor %}
+					</tbody>
+				</table>
+				<table class="rules-table" id="globalHighThresholdTable" style="display:none;">
+					<thead><tr><th>Image Type</th><th>Global Max Width</th><th>Global Max Height</th></tr></thead>
+					<tbody>
+						{% for code, label in image_types|dictsort(false, 'value') %}
+						<tr>
+							<td>{{ label }}</td>
+							<td><input type="number" class="global-high-w" data-code="{{ code }}" value="{{ global_high_thresholds[code][0] if code in global_high_thresholds else '' }}"></td>
+							<td><input type="number" class="global-high-h" data-code="{{ code }}" value="{{ global_high_thresholds[code][1] if code in global_high_thresholds else '' }}"></td>
 						</tr>
 						{% endfor %}
 					</tbody>
@@ -717,6 +772,7 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 				</table>
 				<p class="subtle">These settings apply globally. You can override them per library.</p>
 				<p><button class="primary" onclick="saveGlobalZipnames()">Apply to All Libraries</button></p>
+				<p><button class="primary" onclick="saveImageRules()">Save</button></p>
 			</section>
 			<section class="tab-panel" id="tab-layout">
 				<label class="check-row"><input type="radio" name="layoutMode" value="full" {% if layout == 'full' %}checked{% endif %}> Full</label>
@@ -766,7 +822,7 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 				</a>
 				<p><button class="primary" onclick="saveJellytag()">Save</button></p>
 			</section>
-			<div class="settings-version">v1.0.1</div>
+			<div class="settings-version">v1.0.2</div>
 		</div>
 	</div>
 </div>
@@ -802,6 +858,27 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 			<button class="icon-btn" onclick="closeModal('seasonPosterModal')">×</button>
 		</header>
 		<div class="modal-body" id="seasonPosterBody"></div>
+	</div>
+</div>
+
+<div class="modal-backdrop" id="shortcutModal">
+	<div class="modal small-modal">
+		<header>
+			<h2>Keyboard Shortcuts</h2>
+			<button class="icon-btn" onclick="closeModal('shortcutModal')">×</button>
+		</header>
+		<div class="modal-body shortcut-list">
+			<div><kbd>\</kbd><span>Show shortcuts</span></div>
+			<div><kbd>t</kbd><span>Scroll to top</span></div>
+			<div><kbd>a</kbd><span>Open All Tasks</span></div>
+			<div><kbd>9</kbd><span>Toggle Full or Compact layout</span></div>
+			<div><kbd>0</kbd><span>Toggle light or dark mode</span></div>
+			<div><kbd>c</kbd><span>Hide or show complete items</span></div>
+			<div><kbd>s</kbd><span>Toggle title or date added sort</span></div>
+			<div><kbd>Esc</kbd><span>Close popups and lightbox</span></div>
+			<div><kbd>← / →</kbd><span>Move between images</span></div>
+			<div><kbd>↑ / ↓</kbd><span>Move between media items in lightbox</span></div>
+		</div>
 	</div>
 </div>
 
@@ -863,8 +940,14 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 const imageTypes = {{ image_types|tojson }};
 const defaultZipNames = {{ default_zip_basenames|tojson }};
 const globalThresholds = {{ global_thresholds|tojson }};
+const globalHighThresholds = {{ global_high_thresholds|tojson }};
 const globalZipNames = {{ global_zipnames|tojson }};
+let activeAdditionalCriteria = {{ additional_criteria|tojson }};
+const globalSortOrder = {{ global_sort_order|tojson }};
 let currentLayout = "{{ layout }}";
+let thresholdMode = "low";
+let globalSortMode = globalSortOrder || "title";
+let detailSortMode = globalSortMode;
 let currentLibraryId = "";
 let currentLibraryPayload = null;
 let serverEditingId = document.getElementById("serverSelect")?.value || "";
@@ -960,13 +1043,15 @@ function toggleIssueMenu(event) {
 function getIssueFilters() {
 	return {
 		hideMissing: localStorage.getItem("pixelfin_hide_missing_images") === "1",
-		hideLow: localStorage.getItem("pixelfin_hide_low_images") === "1"
+		hideLow: localStorage.getItem("pixelfin_hide_low_images") === "1",
+		hideHigh: localStorage.getItem("pixelfin_hide_high_images") === "1"
 	};
 }
 function imageVisibleByIssueFilter(img) {
 	const filters = getIssueFilters();
 	if (filters.hideMissing && (img.is_missing || img.status === "missing")) return false;
 	if (filters.hideLow && (img.is_low || img.status === "low")) return false;
+	if (filters.hideHigh && (img.is_high || img.status === "high")) return false;
 	return true;
 }
 function selectedCodesForItem(item) {
@@ -999,7 +1084,8 @@ function visibleIssueCounts(item) {
 	const images = listedIssueImages(item);
 	const missing = images.missing;
 	const low = images.low;
-	return { missing, low, quantity: missing.length + low.length };
+	const high = images.high;
+	return { missing, low, high, quantity: missing.length + low.length + high.length };
 }
 function listedIssueImages(item) {
 	const images = (item.images || []).filter(img => imageSelectedForItem(item, img)).filter(imageVisibleByIssueFilter);
@@ -1007,12 +1093,14 @@ function listedIssueImages(item) {
 	const normalImages = images.filter(img => img.code !== "sp");
 	const seasonMissing = seasonImages.some(img => img.is_missing || img.status === "missing");
 	const seasonLow = !seasonMissing && seasonImages.some(img => img.is_low || img.status === "low");
-	const seasonIssue = seasonMissing || seasonLow
-		? [{ code: "sp", label: "Season Posters", status: seasonMissing ? "missing" : "low", is_missing: seasonMissing ? 1 : 0, is_low: seasonLow ? 1 : 0 }]
+	const seasonHigh = !seasonMissing && seasonImages.some(img => img.is_high || img.status === "high");
+	const seasonIssue = seasonMissing || seasonLow || seasonHigh
+		? [{ code: "sp", label: "Season Posters", status: seasonMissing ? "missing" : (seasonLow ? "low" : "high"), is_missing: seasonMissing ? 1 : 0, is_low: seasonLow ? 1 : 0, is_high: seasonHigh ? 1 : 0 }]
 		: [];
 	return {
 		missing: normalImages.filter(img => img.is_missing || img.status === "missing").concat(seasonMissing ? seasonIssue : []),
-		low: normalImages.filter(img => img.is_low || img.status === "low").concat(seasonLow ? seasonIssue : [])
+		low: normalImages.filter(img => img.is_low || img.status === "low").concat(seasonLow ? seasonIssue : []),
+		high: normalImages.filter(img => img.is_high || img.status === "high").concat(seasonHigh ? seasonIssue : [])
 	};
 }
 function hasVisibleAttention(item) {
@@ -1024,7 +1112,38 @@ function filteredDetailItems(items, tasksOnly) {
 }
 function visibleListingItems(items, tasksOnly) {
 	const filtered = filteredDetailItems(items, tasksOnly);
-	return hideCompleteItems ? filtered.filter(item => hasVisibleAttention(item) || pinnedTaskItemIds.has(item.id)) : filtered;
+	const listing = hideCompleteItems ? filtered.filter(item => hasVisibleAttention(item) || pinnedTaskItemIds.has(item.id)) : filtered;
+	return sortDetailItems(listing);
+}
+function sortDetailItems(items) {
+	const sorted = [...items];
+	if (detailSortMode === "date_added") {
+		return sorted.sort((a, b) => String(b.date_added || "").localeCompare(String(a.date_added || "")) || String(a.name || "").localeCompare(String(b.name || "")));
+	}
+	return sorted.sort((a, b) => String(a.sort_name || a.name || "").localeCompare(String(b.sort_name || b.name || ""), undefined, { numeric: true }));
+}
+async function toggleDetailSort() {
+	detailSortMode = detailSortMode === "date_added" ? "title" : "date_added";
+	if (currentLibraryPayload?.items) {
+		const anchorItemId = currentVisibleEntryId();
+		const y = window.scrollY || 0;
+		const library = currentDetailMode === "allTasks"
+			? { name: "All Tasks", task_count: currentLibraryPayload.items.length }
+			: currentLibraryPayload.library;
+		renderDetail(library, currentLibraryPayload.items, currentDetailMode !== "library", false);
+		restoreDetailPosition(anchorItemId, y);
+	}
+	if (currentLibraryId && currentDetailMode !== "allTasks") {
+		try {
+			await api(`/fresh/api/libraries/${currentLibraryId}/settings`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ sort_order: detailSortMode })
+			});
+		} catch (err) {
+			showToast(err.message);
+		}
+	}
 }
 function currentLightboxItems() {
 	const items = currentLibraryPayload?.items || [];
@@ -1034,12 +1153,15 @@ function syncIssueFilterControls() {
 	const filters = getIssueFilters();
 	const missing = document.getElementById("hideMissingToggle");
 	const low = document.getElementById("hideLowToggle");
+	const high = document.getElementById("hideHighToggle");
 	if (missing) missing.checked = filters.hideMissing;
 	if (low) low.checked = filters.hideLow;
+	if (high) high.checked = filters.hideHigh;
 }
 function saveIssueFilters() {
 	localStorage.setItem("pixelfin_hide_missing_images", document.getElementById("hideMissingToggle")?.checked ? "1" : "0");
 	localStorage.setItem("pixelfin_hide_low_images", document.getElementById("hideLowToggle")?.checked ? "1" : "0");
+	localStorage.setItem("pixelfin_hide_high_images", document.getElementById("hideHighToggle")?.checked ? "1" : "0");
 	refreshIssueFilteredUi();
 	showToast("Count filters updated.");
 }
@@ -1058,13 +1180,13 @@ async function refreshIssueFilteredUi() {
 function toggleHideCompleteItems() {
 	hideCompleteItems = !hideCompleteItems;
 	if (currentLibraryPayload?.items) {
-		const anchorItemId = currentVisibleEntryId();
-		const y = window.scrollY || 0;
+		const summary = document.querySelector("#detail .summary");
+		const y = summary ? window.scrollY + summary.getBoundingClientRect().top - 96 : (window.scrollY || 0);
 		const library = currentDetailMode === "allTasks"
 			? { name: "All Tasks", task_count: currentLibraryPayload.items.length }
 			: currentLibraryPayload.library;
 		renderDetail(library, currentLibraryPayload.items, currentDetailMode !== "library", false);
-		restoreDetailPosition(anchorItemId, y);
+		requestAnimationFrame(() => window.scrollTo(0, Math.max(0, y)));
 	}
 }
 function canToggleHideCompleteItems() {
@@ -1092,6 +1214,8 @@ async function updateIssueCounts() {
 }
 document.addEventListener("DOMContentLoaded", () => {
 	syncIssueFilterControls();
+	syncCriteriaVisibility();
+	syncGlobalSortControls();
 	updateIssueCounts();
 });
 document.addEventListener("click", closeAllMenus);
@@ -1171,6 +1295,7 @@ async function saveServer(button) {
 				id: serverEditingId,
 				name: document.getElementById("serverName").value,
 				url: document.getElementById("serverUrl").value,
+				sync_user_id: document.getElementById("serverSyncUser").value,
 				api_key: document.getElementById("serverKey").value
 			})
 		});
@@ -1244,6 +1369,28 @@ async function saveHiddenLibraries() {
 	saveNavigationState();
 	location.reload();
 }
+function syncGlobalSortControls() {
+	document.getElementById("globalSortDate")?.classList.toggle("active", globalSortMode === "date_added");
+	document.getElementById("globalSortTitle")?.classList.toggle("active", globalSortMode !== "date_added");
+}
+function setGlobalSortMode(mode) {
+	globalSortMode = mode === "date_added" ? "date_added" : "title";
+	syncGlobalSortControls();
+}
+async function saveGlobalSortOrder() {
+	try {
+		await api("/fresh/api/settings", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ global_sort_order: globalSortMode, apply_to_all: true })
+		});
+		detailSortMode = globalSortMode;
+		await refreshCurrentDetailView();
+		showToast("Sort applied to all libraries.");
+	} catch (err) {
+		showToast(err.message);
+	}
+}
 async function saveGlobalImageTypes() {
 	const selected = [...document.querySelectorAll(".global-type:checked")].map(el => el.value);
 	try {
@@ -1259,22 +1406,72 @@ async function saveGlobalImageTypes() {
 		showToast(err.message);
 	}
 }
-async function saveGlobalThresholds() {
-	const thresholds = {};
-	document.querySelectorAll(".global-thr-w").forEach(w => {
+function thresholdValues(selectorW, selectorH) {
+	const values = {};
+	document.querySelectorAll(selectorW).forEach(w => {
 		const code = w.dataset.code;
-		const h = document.querySelector(`.global-thr-h[data-code="${code}"]`);
-		if (w.value && h.value) thresholds[code] = [Number(w.value), Number(h.value)];
+		const h = document.querySelector(`${selectorH}[data-code="${code}"]`);
+		if (w.value && h.value) values[code] = [Number(w.value), Number(h.value)];
+	});
+	return values;
+}
+function syncCriteriaVisibility() {
+	const highEnabled = Boolean(document.getElementById("criteriaHigh")?.checked);
+	const highButton = document.getElementById("globalHighMode");
+	if (highButton) highButton.style.display = highEnabled ? "" : "none";
+	document.querySelectorAll(".high-filter-action").forEach(el => {
+		el.style.display = highEnabled ? "" : "none";
+	});
+	if (!highEnabled && thresholdMode === "high") setThresholdMode("low");
+}
+function setThresholdMode(mode) {
+	thresholdMode = mode === "high" ? "high" : "low";
+	document.getElementById("globalLowMode")?.classList.toggle("active", thresholdMode === "low");
+	document.getElementById("globalHighMode")?.classList.toggle("active", thresholdMode === "high");
+	document.getElementById("globalLowThresholdTable").style.display = thresholdMode === "low" ? "" : "none";
+	document.getElementById("globalHighThresholdTable").style.display = thresholdMode === "high" ? "" : "none";
+}
+async function saveGlobalThresholds() {
+	const thresholds = thresholdValues(".global-thr-w", ".global-thr-h");
+	const highThresholds = thresholdValues(".global-high-w", ".global-high-h");
+	try {
+		await api("/fresh/api/settings", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ global_thresholds: thresholds, global_high_thresholds: highThresholds, apply_to_all: true })
+		});
+		showToast("Image thresholds applied to all libraries.");
+		await refreshCurrentDetailView();
+		await updateIssueCounts();
+	} catch (err) {
+		showToast(err.message);
+	}
+}
+async function saveImageRules() {
+	const criteria = {
+		high_resolution: Boolean(document.getElementById("criteriaHigh")?.checked)
+	};
+	const thresholds = thresholdValues(".global-thr-w", ".global-thr-h");
+	const highThresholds = thresholdValues(".global-high-w", ".global-high-h");
+	const zipnames = {};
+	document.querySelectorAll(".global-zip-name").forEach(input => {
+		if (input.value.trim()) zipnames[input.dataset.code] = input.value.trim();
 	});
 	try {
 		await api("/fresh/api/settings", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ global_thresholds: thresholds, apply_to_all: true })
+			body: JSON.stringify({
+				additional_criteria: criteria,
+				global_thresholds: thresholds,
+				global_high_thresholds: highThresholds,
+				global_zipnames: zipnames
+			})
 		});
-		showToast("Image thresholds applied to all libraries.");
+		activeAdditionalCriteria = criteria;
 		await refreshCurrentDetailView();
 		await updateIssueCounts();
+		showToast("Image rules saved. Run a scan to update new criteria.");
 	} catch (err) {
 		showToast(err.message);
 	}
@@ -1436,7 +1633,7 @@ function scheduleScanCompletionReload() {
 	if (scanReloadScheduled) return;
 	scanReloadScheduled = true;
 	setTimeout(() => {
-		saveNavigationState();
+		saveScanCompletionNavigationState();
 		try {
 			window.stop();
 		} catch (err) {
@@ -1490,6 +1687,12 @@ document.addEventListener("DOMContentLoaded", applyLibraryCollapse);
 function detailIsOpen() {
 	return document.getElementById("detail")?.classList.contains("open");
 }
+function detailIsVisibleInViewport() {
+	const detail = document.getElementById("detail");
+	if (!detail?.classList.contains("open")) return false;
+	const rect = detail.getBoundingClientRect();
+	return rect.bottom > 80 && rect.top < window.innerHeight - 80;
+}
 function closeDetail() {
 	document.getElementById("detail")?.classList.remove("open");
 	clearNavigationState();
@@ -1497,6 +1700,20 @@ function closeDetail() {
 function saveNavigationState() {
 	sessionStorage.setItem("pixelfin_scroll_y", String(window.scrollY || 0));
 	if (!detailIsOpen() || !currentDetailMode) {
+		sessionStorage.removeItem("pixelfin_view_state");
+		return;
+	}
+	sessionStorage.setItem("pixelfin_view_state", JSON.stringify({
+		mode: currentDetailMode,
+		libraryId: currentLibraryId,
+		hideComplete: hideCompleteItems,
+		anchorItemId: currentVisibleEntryId(),
+		scrollY: window.scrollY || 0
+	}));
+}
+function saveScanCompletionNavigationState() {
+	sessionStorage.setItem("pixelfin_scroll_y", String(window.scrollY || 0));
+	if (!detailIsVisibleInViewport() || !currentDetailMode) {
 		sessionStorage.removeItem("pixelfin_view_state");
 		return;
 	}
@@ -1529,6 +1746,7 @@ async function restoreNavigationState() {
 		if (state.mode === "allTasks") {
 			const data = await api("/fresh/api/tasks");
 			currentLibraryPayload = { items: data.items };
+			detailSortMode = globalSortMode;
 			renderDetail({ name: "All Tasks", task_count: data.items.length }, data.items, true, false);
 		} else if (state.libraryId) {
 			const tasksOnly = state.mode === "libraryTasks";
@@ -1536,6 +1754,7 @@ async function restoreNavigationState() {
 			currentLibraryPayload = data;
 			currentDetailMode = state.mode;
 			currentLibraryId = state.libraryId;
+			detailSortMode = data.library?.sort_order || globalSortMode;
 			renderDetail(data.library, data.items, tasksOnly, false);
 		}
 		restoreDetailPosition(state.anchorItemId || "", Number(state.scrollY || y || 0));
@@ -1554,6 +1773,7 @@ async function openLibrary(id, tasksOnly, hideComplete = false) {
 	pinnedTaskItemIds = new Set();
 	const data = await api(`/fresh/api/libraries/${id}?tasks=${tasksOnly ? "1" : "0"}`);
 	currentLibraryPayload = data;
+	detailSortMode = data.library?.sort_order || globalSortMode;
 	renderDetail(data.library, data.items, tasksOnly);
 }
 function openLibraryTasksFromBadge(event, id) {
@@ -1572,6 +1792,7 @@ async function openAllTasks() {
 	pinnedTaskItemIds = new Set();
 	const data = await api("/fresh/api/tasks");
 	currentLibraryPayload = { items: data.items };
+	detailSortMode = globalSortMode;
 	renderDetail({ name: "All Tasks", task_count: data.items.length }, data.items, true);
 }
 async function refreshAllTasks() {
@@ -1585,6 +1806,7 @@ async function refreshAllTasks() {
 	pinnedTaskItemIds = new Set();
 	const data = await api("/fresh/api/tasks");
 	currentLibraryPayload = { items: data.items };
+	detailSortMode = globalSortMode;
 	renderDetail({ name: "All Tasks", task_count: data.items.length }, data.items, true, false);
 	restoreDetailPosition(anchorItemId, y);
 	const nextStatus = document.getElementById("detailScanStatus");
@@ -1595,18 +1817,20 @@ function renderDetail(library, items, tasksOnly, scrollIntoView = true) {
 	const visibleItems = filteredDetailItems(items, tasksOnly);
 	const listingItems = visibleListingItems(items, tasksOnly);
 	const displayNames = buildDisplayNames(items);
+	const showHigh = Boolean(activeAdditionalCriteria.high_resolution);
 	const tableImageText = img => {
 		const dims = img.width && img.height ? ` (${img.width}x${img.height})` : "";
 		return `${img.label}${dims}`;
 	};
 	const rows = listingItems.map(item => {
 		const { quantity } = visibleIssueCounts(item);
-		const { missing, low } = listedIssueImages(item);
+		const { missing, low, high } = listedIssueImages(item);
 		const missingHtml = missing.map(img => `<span class="missing-text">${escapeHtml(tableImageText(img))}</span>`).join("");
 		const lowHtml = low.map(img => `<span class="low-text">${escapeHtml(tableImageText(img))}</span>`).join("");
+		const highHtml = high.map(img => `<span class="high-text">${escapeHtml(tableImageText(img))}</span>`).join("");
 		const quantityHtml = quantity ? String(quantity) : `<span class="complete-text">Complete</span>`;
 		const itemTitle = currentDetailMode === "allTasks" && item.library_name ? `${item.library_name} / ${displayNames[item.id]}` : displayNames[item.id];
-		return `<tr><td><a href="#item-${item.id}">${escapeHtml(itemTitle)}</a></td><td class="quantity">${quantityHtml}</td><td>${missingHtml}</td><td>${lowHtml}</td></tr>`;
+		return `<tr><td><a href="#item-${item.id}">${escapeHtml(itemTitle)}</a></td><td class="quantity">${quantityHtml}</td><td>${missingHtml}</td><td>${lowHtml}</td>${showHigh ? `<td>${highHtml}</td>` : ""}</tr>`;
 	}).join("");
 	const entries = listingItems.map(item => renderEntry({ ...item, images: visibleImagesForItem(item) }, displayNames[item.id])).join("");
 	const refreshButton = currentLibraryId
@@ -1618,9 +1842,9 @@ function renderDetail(library, items, tasksOnly, scrollIntoView = true) {
 	detail.innerHTML = `
 		<div class="detail-head">
 			<div><h1>${escapeHtml(library.name)}</h1><div class="subtle">${listingItems.length} ${tasksOnly ? "task" : "media"} items</div></div>
-			<div>${hideCompleteButton}${refreshButton} <button onclick="closeDetail()">Close</button><div id="detailScanStatus" class="subtle"></div></div>
+			<div><button onclick="toggleDetailSort()">${detailSortMode === "date_added" ? "Sort by Title" : "Sort by Date Added"}</button> ${hideCompleteButton}${refreshButton} <button onclick="closeDetail()">Close</button><div id="detailScanStatus" class="subtle"></div></div>
 		</div>
-		<table class="summary"><thead><tr><th>Item</th><th>Quantity</th><th>Missing</th><th>Low Resolution</th></tr></thead><tbody>${rows || `<tr><td colspan="4">No media items to show.</td></tr>`}</tbody></table>
+		<table class="summary"><thead><tr><th>Item</th><th>Quantity</th><th>Missing</th><th>Low Resolution</th>${showHigh ? "<th>High Resolution</th>" : ""}</tr></thead><tbody>${rows || `<tr><td colspan="${4 + (showHigh ? 1 : 0)}">No media items to show.</td></tr>`}</tbody></table>
 		${entries || `<div class="notice">No scanned items yet.</div>`}
 	`;
 	detail.classList.add("open");
@@ -1697,7 +1921,7 @@ function renderImageTile(item, img, index) {
 		const media = img.url && !img.is_missing
 			? `<img src="${img.proxy_url || img.url}" alt="${escapeHtml(img.label)}" loading="lazy" onclick="openLightbox('${item.id}', ${index})">`
 			: `<div class="placeholder" onclick="openLightbox('${item.id}', ${index})">Missing: ${escapeHtml(img.label)}</div>`;
-		const statusClass = img.status === "ok" ? "ok" : (img.status === "low" ? "low" : "missing");
+		const statusClass = img.status === "ok" ? "ok" : (img.status === "low" ? "low" : (img.status === "high" ? "high" : "missing"));
 		const dims = img.width && img.height ? `${img.width}x${img.height}` : "";
 	return `<div class="image-tile" data-code="${escapeHtml(img.code)}">${media}<div class="caption"><span>${escapeHtml(img.label)}</span><span class="${statusClass}">${escapeHtml(img.status)} ${dims}</span></div></div>`;
 }
@@ -1705,7 +1929,7 @@ function renderSeasonPosterTile(item, img, index) {
 	const media = img.url && !img.is_missing
 		? `<img src="${img.proxy_url || img.url}" alt="${escapeHtml(img.label)}" loading="lazy" onclick="openSeasonLightbox('${item.id}', ${index})">`
 		: `<div class="placeholder" onclick="openSeasonLightbox('${item.id}', ${index})">Missing: ${escapeHtml(img.label)}</div>`;
-	const statusClass = img.status === "ok" ? "ok" : (img.status === "low" ? "low" : "missing");
+	const statusClass = img.status === "ok" ? "ok" : (img.status === "low" ? "low" : (img.status === "high" ? "high" : "missing"));
 	const dims = img.width && img.height ? `${img.width}x${img.height}` : "No resolution";
 	return `<div class="season-card">${media}<div class="caption"><span>${escapeHtml(img.label)}</span><span class="${statusClass}">${escapeHtml(img.status)} ${escapeHtml(dims)}</span></div></div>`;
 }
@@ -1783,7 +2007,7 @@ function showLightboxImage() {
 	const item = currentLibraryPayload?.items?.find(i => i.id === lightboxItemId);
 	const displayNames = buildDisplayNames(currentLightboxItems());
 	if (title) title.textContent = displayNames[lightboxItemId] || item?.name || "";
-	const statusClass = img.status === "ok" ? "ok" : (img.status === "low" ? "low" : "missing");
+	const statusClass = img.status === "ok" ? "ok" : (img.status === "low" ? "low" : (img.status === "high" ? "high" : "missing"));
 	const dims = img.width && img.height ? `${img.width}x${img.height}` : "No resolution";
 	if (img.url && !img.is_missing) {
 		image.style.display = "";
@@ -1869,22 +2093,28 @@ document.addEventListener("keydown", event => {
 	}
 	if (!shortcutAllowed) return;
 	const key = event.key.toLowerCase();
+	if (event.key === "\\") {
+		document.getElementById("shortcutModal")?.classList.add("open");
+		return;
+	}
 	if (key === "t") {
 		scrollToTop();
 	}
 	if (key === "9") setLayout(currentLayout === "compact" ? "full" : "compact");
 	if (key === "a") openAllTasks();
 	if (key === "0") toggleTheme();
-	if (key === "o" && canToggleHideCompleteItems()) toggleHideCompleteItems();
+	if (key === "c" && canToggleHideCompleteItems()) toggleHideCompleteItems();
+	if (key === "s" && currentLibraryPayload?.items) toggleDetailSort();
 });
 
 async function openLibraryModal(id, mode) {
 	modalLibraryId = id;
-	const data = await api(`/fresh/api/libraries/${id}`);
-	const library = data.library;
-	const selected = JSON.parse(library.selected_images || "[]");
-	const thresholds = { ...globalThresholds, ...JSON.parse(library.thresholds || "{}") };
-	const zipnames = { ...defaultZipNames, ...globalZipNames, ...JSON.parse(library.zipnames || "{}") };
+const data = await api(`/fresh/api/libraries/${id}`);
+const library = data.library;
+const selected = JSON.parse(library.selected_images || "[]");
+const thresholds = { ...globalThresholds, ...JSON.parse(library.thresholds || "{}") };
+const highThresholds = { ...globalHighThresholds, ...JSON.parse(library.high_thresholds || "{}") };
+const zipnames = { ...defaultZipNames, ...globalZipNames, ...JSON.parse(library.zipnames || "{}") };
 	document.getElementById("libraryModalTitle").textContent = `${library.name} Settings`;
 	let html = "";
 	if (mode === "types") {
@@ -1894,9 +2124,14 @@ async function openLibraryModal(id, mode) {
 	}
 	if (mode === "thresholds") {
 		const normalTypes = Object.entries(imageTypes).filter(([code]) => code !== "sp").sort((a, b) => a[1].localeCompare(b[1]));
-		const row = ([code, label]) => `<tr><td>${escapeHtml(label)}</td><td><input type="number" class="thr-w" data-code="${code}" value="${thresholds[code]?.[0] || ""}"></td><td><input type="number" class="thr-h" data-code="${code}" value="${thresholds[code]?.[1] || ""}"></td></tr>`;
-		const seasonRow = imageTypes.sp ? `<tbody class="special-setting">${row(["sp", imageTypes.sp])}</tbody>` : "";
-		html = `<table class="rules-table"><thead><tr><th>Image Type</th><th>Min Width</th><th>Min Height</th></tr></thead><tbody>${normalTypes.map(row).join("")}</tbody>${seasonRow}</table><p><button class="primary" onclick="saveLibraryThresholds()">Save Thresholds</button></p>`;
+		const lowRow = ([code, label]) => `<tr><td>${escapeHtml(label)}</td><td><input type="number" class="thr-w" data-code="${code}" value="${thresholds[code]?.[0] || ""}"></td><td><input type="number" class="thr-h" data-code="${code}" value="${thresholds[code]?.[1] || ""}"></td></tr>`;
+		const highRow = ([code, label]) => `<tr><td>${escapeHtml(label)}</td><td><input type="number" class="high-thr-w" data-code="${code}" value="${highThresholds[code]?.[0] || ""}"></td><td><input type="number" class="high-thr-h" data-code="${code}" value="${highThresholds[code]?.[1] || ""}"></td></tr>`;
+		const lowSeasonRow = imageTypes.sp ? `<tbody class="special-setting">${lowRow(["sp", imageTypes.sp])}</tbody>` : "";
+		const highSeasonRow = imageTypes.sp ? `<tbody class="special-setting">${highRow(["sp", imageTypes.sp])}</tbody>` : "";
+		html = `<div class="segmented"><button type="button" id="libraryLowMode" class="active" onclick="setLibraryThresholdMode('low')">Low Resolution</button>${activeAdditionalCriteria.high_resolution ? `<button type="button" id="libraryHighMode" onclick="setLibraryThresholdMode('high')">High Resolution</button>` : ""}</div>
+			<table class="rules-table" id="libraryLowThresholdTable"><thead><tr><th>Image Type</th><th>Min Width</th><th>Min Height</th></tr></thead><tbody>${normalTypes.map(lowRow).join("")}</tbody>${lowSeasonRow}</table>
+			<table class="rules-table" id="libraryHighThresholdTable" style="display:none;"><thead><tr><th>Image Type</th><th>Max Width</th><th>Max Height</th></tr></thead><tbody>${normalTypes.map(highRow).join("")}</tbody>${highSeasonRow}</table>
+			<p><button class="primary" onclick="saveLibraryThresholds()">Save Thresholds</button></p>`;
 	}
 	if (mode === "zipnames") {
 		html = `<table class="rules-table"><thead><tr><th>Image Type</th><th>ZIP Filename</th></tr></thead><tbody>${Object.entries(imageTypes).sort((a, b) => a[1].localeCompare(b[1])).map(([code, label]) => `<tr><td>${escapeHtml(label)}</td><td><input type="text" class="zip-name" data-code="${code}" value="${escapeHtml(zipnames[code] || "")}"></td></tr>`).join("")}</tbody></table><p><button class="primary" onclick="saveLibraryZipnames()">Save ZIP Filenames</button></p>`;
@@ -1908,6 +2143,15 @@ async function saveLibraryTypes() {
 	const selected = [...document.querySelectorAll(".edit-type:checked")].map(el => el.value);
 	await saveLibrarySettings({ selected_images: selected });
 }
+function setLibraryThresholdMode(mode) {
+	const high = mode === "high";
+	document.getElementById("libraryLowMode")?.classList.toggle("active", !high);
+	document.getElementById("libraryHighMode")?.classList.toggle("active", high);
+	const lowTable = document.getElementById("libraryLowThresholdTable");
+	const highTable = document.getElementById("libraryHighThresholdTable");
+	if (lowTable) lowTable.style.display = high ? "none" : "";
+	if (highTable) highTable.style.display = high ? "" : "none";
+}
 async function saveLibraryThresholds() {
 	const thresholds = {};
 	document.querySelectorAll(".thr-w").forEach(w => {
@@ -1915,7 +2159,13 @@ async function saveLibraryThresholds() {
 		const h = document.querySelector(`.thr-h[data-code="${code}"]`);
 		if (w.value && h.value) thresholds[code] = [Number(w.value), Number(h.value)];
 	});
-	await saveLibrarySettings({ thresholds });
+	const highThresholds = {};
+	document.querySelectorAll(".high-thr-w").forEach(w => {
+		const code = w.dataset.code;
+		const h = document.querySelector(`.high-thr-h[data-code="${code}"]`);
+		if (w.value && h.value) highThresholds[code] = [Number(w.value), Number(h.value)];
+	});
+	await saveLibrarySettings({ thresholds, high_thresholds: highThresholds });
 }
 async function saveLibraryZipnames() {
 	const zipnames = {};

@@ -3,7 +3,7 @@
 <a href="https://ko-fi.com/yeahnoforsure_" target="_blank" rel="noopener noreferrer"><img src="assets/support_me_on_kofi_blue.png" alt="Support me on Ko-fi" width="240"></a>
 
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-3-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-4-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 # Pixelfin: Jellyfin Artwork Inspector
@@ -85,6 +85,9 @@ Breaking or migration notes:
 ### Season Posters
 ![Season Posters](assets/screenshots/pixelfin-season-posters.png)
 
+### Lightbox
+![Lightbox](assets/screenshots/pixelfin-lightbox.png)
+
 ### Restore
 ![Restore](assets/screenshots/pixelfin-restore.png)
 
@@ -138,7 +141,7 @@ Based on the current code, Pixelfin supports these Jellyfin library types:
 - Music Videos
 - Collections
 
-Live TV, Collections, and Playlists are intentionally hidden because Pixelfin can’t work with those images correctly yet.
+Live TV and Playlists are intentionally hidden because Pixelfin can’t work with those images correctly yet.
 
 ### Scanning and Updates
 
@@ -156,6 +159,23 @@ Because of that, changes made in Jellyfin don’t appear instantly. After changi
 You can choose which image types matter for each library and set minimum resolution thresholds. There are global defaults, and you can override rules per library.
 
 Season Posters are treated as a special image type. Pixelfin checks each season poster, and season posters inherited from the series primary image are counted as missing.
+
+Pixelfin can also opt into extra checks:
+
+- High Resolution, useful if you want to catch oversized images.
+
+### Keyboard Shortcuts
+
+- `\`, show keyboard shortcuts.
+- `t`, scroll to top.
+- `a`, open All Tasks.
+- `9`, toggle Full or Compact layout.
+- `0`, toggle light or dark mode.
+- `c`, hide or show complete items when a library listing is open.
+- `s`, toggle sorting by title or date added when a listing is open.
+- `Esc`, close popups and lightboxes.
+- `Left` / `Right`, move between images in lightbox.
+- `Up` / `Down`, move between media items in lightbox.
 
 ### JellyTag-Plus
 
@@ -277,7 +297,7 @@ ghcr.io/nothing2obvi/pixelfin:latest
 The current release image is:
 
 ```text
-ghcr.io/nothing2obvi/pixelfin:v1.0.1
+ghcr.io/nothing2obvi/pixelfin:v1.0.2
 ```
 
 Open:
@@ -295,7 +315,7 @@ The current Docker release publishes multi-architecture images for:
 
 Tags:
 
-- `ghcr.io/nothing2obvi/pixelfin:v1.0.1`
+- `ghcr.io/nothing2obvi/pixelfin:v1.0.2`
 - `ghcr.io/nothing2obvi/pixelfin:latest`
 
 ## Useful Notes
@@ -335,6 +355,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/LoV432"><img src="https://avatars.githubusercontent.com/u/60856741?v=4?s=100" width="100px;" alt="LoV432"/><br /><sub><b>LoV432</b></sub></a><br /><a href="https://github.com/nothing2obvi/pixelfin/commits?author=LoV432" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/avassor"><img src="https://avatars.githubusercontent.com/u/10287940?v=4?s=100" width="100px;" alt="avassor"/><br /><sub><b>avassor</b></sub></a><br /><a href="#ideas-avassor" title="Ideas, Planning, & Feedback">🤔</a> <a href="https://github.com/nothing2obvi/pixelfin/pulls?q=is%3Apr+reviewed-by%3Aavassor" title="Reviewed Pull Requests">👀</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/KingOfBadgers"><img src="https://avatars.githubusercontent.com/KingOfBadgers?s=100" width="100px;" alt="KingOfBadgers"/><br /><sub><b>KingOfBadgers</b></sub></a><br /><a href="https://github.com/nothing2obvi/pixelfin/commits?author=KingOfBadgers" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/pnthach95"><img src="https://avatars.githubusercontent.com/pnthach95?s=100" width="100px;" alt="pnthach95"/><br /><sub><b>pnthach95</b></sub></a><br /><a href="https://github.com/nothing2obvi/pixelfin/commits?author=pnthach95" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>

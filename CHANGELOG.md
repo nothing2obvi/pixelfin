@@ -5,6 +5,20 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.0.2 - 2026-05-25
+
+#### Added
+- **Admin sync user setting:** Added a server setting to choose which enabled Jellyfin admin user Pixelfin uses when syncing and scanning libraries.
+
+#### Changed
+- **Server settings layout:** Tightened the server settings row so Admin User and API Key no longer overlap, and shortened the automatic admin option to `Auto`.
+- **Restore comparisons:** Restore review comparisons now align current Jellyfin images and ZIP images by image type, with clear missing placeholders when either side is absent.
+
+#### Fixed
+- **Table position:** Toggling complete items now keeps the view at the table instead of jumping to the first listed media item.
+
+---
+
 ## v1.0.1 - 2026-05-23
 
 #### Changed

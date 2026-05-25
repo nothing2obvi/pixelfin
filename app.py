@@ -32,10 +32,13 @@ from generate_html import check_low_res
 import fresh_state
 from fresh_jellyfin import (
 	DEFAULT_SELECTED_IMAGES,
+	DEFAULT_HIGH_THRESHOLDS,
 	DEFAULT_THRESHOLDS,
 	DEFAULT_ZIP_BASENAMES as FRESH_DEFAULT_ZIP_BASENAMES,
 	IMAGE_TYPE_OPTIONS as FRESH_IMAGE_TYPE_OPTIONS,
+	check_high_res,
 	is_supported_library,
+	list_admin_users,
 	list_views,
 	scan_library,
 	scan_media_item,
@@ -720,8 +723,10 @@ def _run_auto_sequence():
 							images=images,
 							zipnames=zipnames,
 							sort_order="alphabetical",
-							jellytag_bypass=_fresh_jellytag_enabled(conn),
-						)
+					jellytag_bypass=_fresh_jellytag_enabled(conn),
+					global_high_thresholds=_fresh_global_high_thresholds(conn),
+					criteria=_fresh_additional_criteria(conn),
+				)
 						_prune_outputs_for_library(library["name"], keep_html=0, keep_zip=keep_zip)
 					except Exception as e:
 						app.logger.exception("FRESH AUTO: ZIP failed for %s: %s", library.get("name"), e)
@@ -828,6 +833,8 @@ def _run_fresh_scan_all(server=None, library_ids=None):
 				library,
 				global_thresholds=_fresh_global_thresholds(conn),
 				jellytag_bypass=_fresh_jellytag_enabled(conn),
+				global_high_thresholds=_fresh_global_high_thresholds(conn),
+				criteria=_fresh_additional_criteria(conn),
 			)
 			results.append({"library": library["name"], "status": "ok", **result})
 		except Exception as e:
@@ -881,6 +888,8 @@ def _fresh_start_scan_job(kind, server, library_id=None, item_id=None, library_i
 						library,
 						global_thresholds=_fresh_global_thresholds(conn),
 						jellytag_bypass=_fresh_jellytag_enabled(conn),
+						global_high_thresholds=_fresh_global_high_thresholds(conn),
+						criteria=_fresh_additional_criteria(conn),
 					)
 				elif kind == "all":
 					result = {"results": _run_fresh_scan_all(server, library_ids=library_ids or [])}
@@ -898,6 +907,8 @@ def _fresh_start_scan_job(kind, server, library_id=None, item_id=None, library_i
 						item_id,
 						global_thresholds=_fresh_global_thresholds(conn),
 						jellytag_bypass=_fresh_jellytag_enabled(conn),
+						global_high_thresholds=_fresh_global_high_thresholds(conn),
+						criteria=_fresh_additional_criteria(conn),
 					)
 				else:
 					raise RuntimeError("Unknown scan job type.")
@@ -1076,19 +1087,110 @@ def _fresh_restore_folder_files(path, folder):
 	return sorted(set(files), key=str.lower)
 
 
-def _fresh_restore_annotate_result(result, path, overrides, selected_codes):
+def _fresh_restore_filename_for_group(group, overrides):
+	override = (overrides or {}).get(group)
+	if override:
+		name = os.path.basename(str(override))
+	else:
+		name = ""
+		for code, label in FRESH_IMAGE_TYPE_OPTIONS.items():
+			if label == group:
+				name = FRESH_DEFAULT_ZIP_BASENAMES.get(code, "")
+				break
+	if not name:
+		return None
+	if os.path.splitext(name)[1].lower() not in (".jpg", ".jpeg", ".png"):
+		name = f"{name}.jpg"
+	return os.path.basename(name)
+
+
+def _fresh_restore_server_image_groups(server, apikey, library):
+	try:
+		from restore import _normalize_title, get_library_items
+		items, _collection_type = get_library_items(server, apikey, library)
+	except Exception as exc:
+		app.logger.warning("Could not load current Jellyfin images for restore comparison: %s", exc)
+		return {}
+	groups_by_name = {}
+	for item in items or []:
+		groups = set()
+		for image_type, tag in (item.get("ImageTags") or {}).items():
+			if tag:
+				groups.add(image_type)
+		if item.get("BackdropImageTags"):
+			groups.add("Backdrop")
+		name = _normalize_title(item.get("Name") or "")
+		if name:
+			groups_by_name[name] = groups
+	return groups_by_name
+
+
+def _fresh_restore_comparison_images(match, path, overrides, selected_codes, server_groups):
+	selected_labels = None
+	if selected_codes is not None:
+		selected_labels = {FRESH_IMAGE_TYPE_OPTIONS.get(code, code) for code in selected_codes}
+	zip_files = match.get("images") or _fresh_restore_folder_files(path, match.get("folder") or "")
+	zip_by_group = {}
+	for filename in zip_files:
+		group = _fresh_restore_group_for_filename(filename, overrides)
+		if not group:
+			continue
+		if group != "Season Posters" and selected_labels is not None and group not in selected_labels:
+			continue
+		zip_by_group.setdefault(group, filename)
+	server_groups = set(server_groups or [])
+	if selected_labels is not None:
+		server_groups = {group for group in server_groups if group in selected_labels or group == "Season Posters"}
+	group_order = {label: index for index, label in enumerate(FRESH_IMAGE_TYPE_OPTIONS.values())}
+	groups = sorted(set(zip_by_group) | server_groups, key=lambda group: (group_order.get(group, 999), group.lower()))
+	images = []
+	for group in groups:
+		filename = zip_by_group.get(group) or _fresh_restore_filename_for_group(group, overrides)
+		if not filename:
+			continue
+		images.append(
+			{
+				"name": filename,
+				"group": group,
+				"after_exists": group in zip_by_group,
+				"before_exists": group in server_groups,
+			}
+		)
+	return images
+
+
+def _fresh_restore_annotate_result(result, path, overrides, selected_codes, server=None, apikey=None, library=None):
 	groups_by_folder = _fresh_restore_image_groups(path, overrides, selected_codes)
+	server_groups_by_name = _fresh_restore_server_image_groups(server, apikey, library) if server and apikey and library else {}
+	selected_labels = None
+	if selected_codes is not None:
+		selected_labels = {FRESH_IMAGE_TYPE_OPTIONS.get(code, code) for code in selected_codes}
+	result["server_comparison_groups"] = {
+		name: sorted(group for group in groups if selected_labels is None or group in selected_labels or group == "Season Posters")
+		for name, groups in server_groups_by_name.items()
+	}
+	result["comparison_default_filenames"] = {
+		label: _fresh_restore_filename_for_group(label, overrides)
+		for label in FRESH_IMAGE_TYPE_OPTIONS.values()
+	}
 	for collection in ("matched", "below_threshold", "unmatched", "unmatched_folders"):
 		for row in result.get(collection) or []:
 			folder = row.get("folder") or ""
 			row["image_groups"] = groups_by_folder.get(folder, [])
 			row["images"] = _fresh_restore_folder_files(path, folder)
+			row["comparison_images"] = _fresh_restore_comparison_images(row, path, overrides, selected_codes, set())
 			row["restore_key"] = re.sub(r"[^A-Za-z0-9_.-]+", "_", folder) or "folder"
 	for match in result.get("matches") or []:
 		folder = match.get("folder") or ""
 		match["image_groups"] = groups_by_folder.get(folder, [])
 		if not match.get("images"):
 			match["images"] = _fresh_restore_folder_files(path, folder)
+		try:
+			from restore import _normalize_title
+			server_groups = server_groups_by_name.get(_normalize_title(match.get("match") or match.get("best_match") or ""))
+		except Exception:
+			server_groups = set()
+		match["comparison_images"] = _fresh_restore_comparison_images(match, path, overrides, selected_codes, server_groups)
 	return result
 
 
@@ -1232,6 +1334,17 @@ def _fresh_global_thresholds(conn):
 	return fresh_state.get_json(conn, "global_thresholds", DEFAULT_THRESHOLDS)
 
 
+def _fresh_global_high_thresholds(conn):
+	return fresh_state.get_json(conn, "global_high_thresholds", DEFAULT_HIGH_THRESHOLDS)
+
+
+def _fresh_additional_criteria(conn):
+	criteria = fresh_state.get_json(conn, "additional_criteria", {})
+	return {
+		"high_resolution": bool(criteria.get("high_resolution")),
+	}
+
+
 def _fresh_global_zipnames(conn):
 	return fresh_state.get_json(conn, "global_zipnames", {})
 
@@ -1247,6 +1360,20 @@ def _fresh_layout(conn):
 
 def _fresh_servers(conn):
 	return fresh_state.rows_to_dicts(conn.execute("SELECT * FROM servers ORDER BY is_active DESC, name COLLATE NOCASE").fetchall())
+
+
+def _fresh_admin_users(server):
+	if not server:
+		return []
+	try:
+		users = list_admin_users(server)
+	except Exception as exc:
+		app.logger.warning("Could not load Jellyfin admin users: %s", exc)
+		return []
+	selected = (server or {}).get("sync_user_id") or ""
+	if selected and selected not in {user.get("id") for user in users}:
+		users.append({"id": selected, "name": "Selected admin user"})
+	return users
 
 
 def _fresh_libraries(conn, server_id, include_hidden=False):
@@ -1288,6 +1415,15 @@ def _fresh_runtime_thresholds(conn, library):
 	return thresholds
 
 
+def _fresh_runtime_high_thresholds(conn, library):
+	thresholds = dict(_fresh_global_high_thresholds(conn) or {})
+	try:
+		thresholds.update(json.loads(library.get("high_thresholds") or "{}"))
+	except Exception:
+		pass
+	return thresholds
+
+
 def _fresh_selected_images(library):
 	try:
 		selected = json.loads(library.get("selected_images") or "[]")
@@ -1299,6 +1435,8 @@ def _fresh_selected_images(library):
 def _fresh_apply_runtime_image_rules(conn, library, item):
 	selected = set(_fresh_selected_images(library))
 	thresholds = _fresh_runtime_thresholds(conn, library)
+	high_thresholds = _fresh_runtime_high_thresholds(conn, library)
+	criteria = _fresh_additional_criteria(conn)
 	images = [
 		image for image in (item.get("images") or [])
 		if not (image.get("code") == "sp" and str(image.get("label") or "").strip().lower() == "season posters")
@@ -1325,16 +1463,20 @@ def _fresh_apply_runtime_image_rules(conn, library, item):
 	for image in images:
 		is_missing = bool(image.get("is_missing") or image.get("status") == "missing")
 		is_low = False
+		is_high = False
 		if not is_missing:
 			code = image.get("code")
 			width = int(image.get("width") or 0)
 			height = int(image.get("height") or 0)
 			if code in thresholds:
 				is_low = bool(check_low_res(code, width, height, {code: tuple(thresholds[code])}))
+			if criteria.get("high_resolution") and code in high_thresholds:
+				is_high = bool(check_high_res(code, width, height, {code: tuple(high_thresholds[code])}))
 		image["is_missing"] = int(is_missing)
 		image["is_low"] = int(is_low)
-		image["status"] = "missing" if is_missing else ("low" if is_low else "ok")
-		if image.get("code") in selected and (is_missing or is_low):
+		image["is_high"] = int(is_high)
+		image["status"] = "missing" if is_missing else ("low" if is_low else ("high" if is_high else "ok"))
+		if image.get("code") in selected and (is_missing or is_low or is_high):
 			needs_attention = True
 	item["images"] = images
 	item["needs_attention"] = int(needs_attention)
@@ -1412,12 +1554,16 @@ def fresh_index():
 		"fresh.html",
 		servers=_fresh_servers(conn),
 		active_server=server,
+		admin_users=_fresh_admin_users(server),
 		libraries=libraries,
 		all_libraries=hidden_libraries,
 		total_tasks=total_tasks,
 		image_types=FRESH_IMAGE_TYPE_OPTIONS,
 		default_selected=DEFAULT_SELECTED_IMAGES,
+		global_sort_order=fresh_state.get_json(conn, "global_sort_order", "title"),
 		global_thresholds=_fresh_global_thresholds(conn),
+		global_high_thresholds=_fresh_global_high_thresholds(conn),
+		additional_criteria=_fresh_additional_criteria(conn),
 		global_zipnames=_fresh_global_zipnames(conn),
 		default_zip_basenames=FRESH_DEFAULT_ZIP_BASENAMES,
 		jellytag_bypass=_fresh_jellytag_enabled(conn),
@@ -1436,19 +1582,20 @@ def fresh_save_server():
 	name = (payload.get("name") or payload.get("url") or "Jellyfin").strip()
 	url = (payload.get("url") or "").strip().rstrip("/")
 	api_key = (payload.get("api_key") or payload.get("apikey") or "").strip()
+	sync_user_id = (payload.get("sync_user_id") or "").strip()
 	if not url or not api_key:
 		return _json_response({"status": "error", "message": "Server URL and API key are required."}, 400)
 	now = fresh_state.utc_now()
 	if server_id:
 		conn.execute(
-			"UPDATE servers SET name = ?, url = ?, api_key = ?, updated_at = ? WHERE id = ?",
-			(name, url, api_key, now, server_id),
+			"UPDATE servers SET name = ?, url = ?, api_key = ?, sync_user_id = ?, updated_at = ? WHERE id = ?",
+			(name, url, api_key, sync_user_id, now, server_id),
 		)
 	else:
 		is_first = conn.execute("SELECT COUNT(*) AS c FROM servers").fetchone()["c"] == 0
 		conn.execute(
-			"INSERT INTO servers(name, url, api_key, is_active, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?)",
-			(name, url, api_key, int(is_first), now, now),
+			"INSERT INTO servers(name, url, api_key, sync_user_id, is_active, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?)",
+			(name, url, api_key, sync_user_id, int(is_first), now, now),
 		)
 	conn.commit()
 	return _json_response({"status": "ok", "servers": _fresh_servers(conn)})
@@ -1512,6 +1659,21 @@ def fresh_save_settings():
 					(json.dumps(payload.get("global_thresholds") or {}), server["id"]),
 				)
 				conn.commit()
+	if "global_high_thresholds" in payload:
+		fresh_state.set_json(conn, "global_high_thresholds", payload.get("global_high_thresholds") or {})
+		if payload.get("apply_to_all"):
+			server = _fresh_active_server(conn)
+			if server:
+				conn.execute(
+					"UPDATE libraries SET high_thresholds = ? WHERE server_id = ?",
+					(json.dumps(payload.get("global_high_thresholds") or {}), server["id"]),
+				)
+				conn.commit()
+	if "additional_criteria" in payload:
+		criteria = payload.get("additional_criteria") or {}
+		fresh_state.set_json(conn, "additional_criteria", {
+			"high_resolution": bool(criteria.get("high_resolution")),
+		})
 	if "global_zipnames" in payload:
 		fresh_state.set_json(conn, "global_zipnames", payload.get("global_zipnames") or {})
 		if payload.get("apply_to_all"):
@@ -1532,6 +1694,16 @@ def fresh_save_settings():
 				(json.dumps(selected), server["id"]),
 			)
 			conn.commit()
+	if "global_sort_order" in payload:
+		sort_order = str(payload.get("global_sort_order") or "title").lower()
+		if sort_order not in ("title", "date_added"):
+			sort_order = "title"
+		fresh_state.set_json(conn, "global_sort_order", sort_order)
+		if payload.get("apply_to_all"):
+			server = _fresh_active_server(conn)
+			if server:
+				conn.execute("UPDATE libraries SET sort_order = ? WHERE server_id = ?", (sort_order, server["id"]))
+				conn.commit()
 	if "fresh_auto" in payload:
 		auto = load_auto()
 		fresh_auto = payload.get("fresh_auto") or {}
@@ -1599,6 +1771,13 @@ def fresh_save_library_settings(library_id):
 	if "thresholds" in payload:
 		fields.append("thresholds = ?")
 		values.append(json.dumps(payload.get("thresholds") or {}))
+	if "high_thresholds" in payload:
+		fields.append("high_thresholds = ?")
+		values.append(json.dumps(payload.get("high_thresholds") or {}))
+	if "sort_order" in payload:
+		sort_order = str(payload.get("sort_order") or "").lower()
+		fields.append("sort_order = ?")
+		values.append(sort_order if sort_order in ("title", "date_added") else "")
 	if "zipnames" in payload:
 		fields.append("zipnames = ?")
 		values.append(json.dumps(payload.get("zipnames") or {}))
@@ -1686,7 +1865,12 @@ def fresh_all_tasks():
 	items = fresh_state.rows_to_dicts(
 		conn.execute(
 			"""
-			SELECT media_items.*, libraries.name AS library_name, libraries.selected_images AS selected_images, libraries.thresholds AS thresholds
+			SELECT media_items.*,
+				libraries.name AS library_name,
+				libraries.selected_images AS selected_images,
+				libraries.thresholds AS thresholds,
+				libraries.high_thresholds AS high_thresholds,
+				libraries.sort_order AS sort_order
 			FROM media_items
 			JOIN libraries ON libraries.server_id = media_items.server_id AND libraries.id = media_items.library_id
 			WHERE media_items.server_id = ? AND libraries.hidden = 0
@@ -1902,7 +2086,7 @@ def fresh_restore_review():
 			apikey=apikey,
 			restore_filename_overrides=overrides,
 		)
-		result = _fresh_restore_annotate_result(result, tmp_path, overrides, selected_restore_types)
+		result = _fresh_restore_annotate_result(result, tmp_path, overrides, selected_restore_types, server, apikey, library)
 		match_options = _fresh_restore_match_options(server, apikey, library)
 
 		_FRESH_RESTORE_CONTEXT.clear()
@@ -1965,6 +2149,9 @@ def fresh_restore_run():
 			_FRESH_RESTORE_CONTEXT["path"],
 			_FRESH_RESTORE_CONTEXT.get("restore_filename_overrides") or {},
 			set(_FRESH_RESTORE_CONTEXT.get("selected_restore_types") or []) if _FRESH_RESTORE_CONTEXT.get("selected_restore_types") is not None else None,
+			_FRESH_RESTORE_CONTEXT["server"],
+			_FRESH_RESTORE_CONTEXT["apikey"],
+			_FRESH_RESTORE_CONTEXT["library"],
 		)
 		_FRESH_RESTORE_CONTEXT["result"] = result
 		return render_template(
