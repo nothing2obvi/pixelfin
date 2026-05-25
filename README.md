@@ -28,6 +28,14 @@ Things like:
 - This thumbnail doesn’t have a logo on it.
 - This poster doesn’t go with this backdrop.
 
+Pixelfin gives you a summary table, and you can click a title to jump directly to that item’s gallery section. From there, you can click the gallery title to open the item in Jellyfin and make your changes.
+
+It can also generate HTML galleries that embed your images, export a library’s artwork to ZIP files, and restore artwork back to Jellyfin from ZIP, complete with dry-run and a side-by-side comparison.
+
+You might be thinking, why not just save images alongside the media files? That’s totally valid, but personally I don’t do that. I like having Jellyfin store images on my NVMe SSD for faster access, and the ZIP backup and restore workflow is also useful if you’re migrating servers or rebuilding things later.
+
+The backup and restore features are nice, but the main reason Pixelfin exists is still the artwork review process. I wanted a clear, visual way to scan through a library and spot what needs attention.
+
 **Disclaimer:** Pixelfin is vibecoded with Codex. I use it, it works well for me, and other people have found it useful too. That said, it’s still a local tool built by someone solving a very specific Jellyfin artwork problem, not a hardened production app.
 
 **Security Note:** Pixelfin is not built with security in mind. Run it locally only, or on a trusted private network. Don’t expose it to the internet.
@@ -68,6 +76,9 @@ Breaking or migration notes:
 ### Select Images: Compact, Low Resolution Image
 ![Select Images: Compact, Low Resolution Image](assets/screenshots/pixelfin-select-images-compact-low.png)
 
+### Select Images: Full, Missing and Low Resolution Images
+![Select Images: Full, Missing and Low Resolution Images](assets/screenshots/pixelfin-select-images-full-missing-low.png)
+
 ### Select Images: Full, Complete
 ![Select Images: Full, Complete](assets/screenshots/pixelfin-select-images-full-complete.png)
 
@@ -77,7 +88,7 @@ Breaking or migration notes:
 ### Restore
 ![Restore](assets/screenshots/pixelfin-restore.png)
 
-### Restore Review
+### Restore Review (Dry-Run)
 ![Restore Review](assets/screenshots/pixelfin-restore-review.png)
 
 ### Comparison (Dry-Run)
@@ -125,6 +136,7 @@ Based on the current code, Pixelfin supports these Jellyfin library types:
 - Movies
 - Music
 - Music Videos
+- Collections
 
 Live TV, Collections, and Playlists are intentionally hidden because Pixelfin can’t work with those images correctly yet.
 

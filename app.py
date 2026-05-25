@@ -23,6 +23,7 @@ import re
 import requests
 import shutil
 import zipfile
+import uuid
 from urllib.parse import quote
 from restore import run_restore, run_restore_streamed
 from io import BytesIO
@@ -54,6 +55,8 @@ app = Flask(__name__, template_folder="templates")
 BASE_OUTPUT_DIR = "output"
 ASSETS_DIR = "assets"
 FRESH_COVER_CACHE_DIR = os.path.join("data", "fresh_cover_cache")
+FRESH_SCAN_JOBS = {}
+FRESH_SCAN_JOBS_LOCK = threading.Lock()
 
 os.makedirs("data", exist_ok=True)
 os.makedirs(BASE_OUTPUT_DIR, exist_ok=True)
@@ -800,15 +803,20 @@ def _run_auto_sequence():
 			pass
 
 
-def _run_fresh_scan_all(server=None):
+def _run_fresh_scan_all(server=None, library_ids=None):
 	conn = _fresh_conn()
 	server = server or _fresh_active_server(conn)
 	if not server:
+		try:
+			conn.close()
+		except Exception:
+			pass
 		return []
 	results = []
-	library_ids = None
-	if has_request_context() and request.is_json:
+	if library_ids is None and has_request_context() and request.is_json:
 		library_ids = set((request.get_json(silent=True) or {}).get("library_ids") or [])
+	elif library_ids is not None:
+		library_ids = set(library_ids)
 	libraries = _fresh_libraries(conn, server["id"])
 	if library_ids:
 		libraries = [library for library in libraries if library["id"] in library_ids]
@@ -825,7 +833,88 @@ def _run_fresh_scan_all(server=None):
 		except Exception as e:
 			app.logger.exception("Fresh scan failed for %s", library["name"])
 			results.append({"library": library["name"], "status": "error", "message": str(e)})
+	try:
+		conn.close()
+	except Exception:
+		pass
 	return results
+
+
+def _fresh_scan_job_update(job_id, **values):
+	with FRESH_SCAN_JOBS_LOCK:
+		job = FRESH_SCAN_JOBS.get(job_id)
+		if not job:
+			return
+		job.update(values)
+		job["updated_at"] = fresh_state.utc_now()
+
+
+def _fresh_start_scan_job(kind, server, library_id=None, item_id=None, library_ids=None):
+	job_id = uuid.uuid4().hex
+	with FRESH_SCAN_JOBS_LOCK:
+		FRESH_SCAN_JOBS[job_id] = {
+			"id": job_id,
+			"kind": kind,
+			"state": "queued",
+			"library_id": library_id,
+			"item_id": item_id,
+			"created_at": fresh_state.utc_now(),
+			"updated_at": fresh_state.utc_now(),
+		}
+
+	def runner():
+		conn = None
+		with app.app_context():
+			try:
+				_fresh_scan_job_update(job_id, state="running")
+				conn = _fresh_conn()
+				if kind == "library":
+					library = conn.execute(
+						"SELECT * FROM libraries WHERE server_id = ? AND id = ?",
+						(server["id"], library_id),
+					).fetchone()
+					if not library:
+						raise RuntimeError("Library not found.")
+					result = scan_library(
+						conn,
+						server,
+						library,
+						global_thresholds=_fresh_global_thresholds(conn),
+						jellytag_bypass=_fresh_jellytag_enabled(conn),
+					)
+				elif kind == "all":
+					result = {"results": _run_fresh_scan_all(server, library_ids=library_ids or [])}
+				elif kind == "item":
+					library = conn.execute(
+						"SELECT * FROM libraries WHERE server_id = ? AND id = ?",
+						(server["id"], library_id),
+					).fetchone()
+					if not library:
+						raise RuntimeError("Library not found.")
+					result = scan_media_item(
+						conn,
+						server,
+						library,
+						item_id,
+						global_thresholds=_fresh_global_thresholds(conn),
+						jellytag_bypass=_fresh_jellytag_enabled(conn),
+					)
+				else:
+					raise RuntimeError("Unknown scan job type.")
+				_fresh_scan_job_update(job_id, state="done", result=result)
+			except Exception as e:
+				app.logger.exception("Fresh background scan failed")
+				_fresh_scan_job_update(job_id, state="error", message=str(e))
+			finally:
+				try:
+					if conn:
+						conn.close()
+				except Exception:
+					pass
+
+	thread = threading.Thread(target=runner, daemon=True)
+	thread.start()
+	return job_id
 
 
 def _auto_scheduler_loop():
@@ -1260,6 +1349,8 @@ def _fresh_cover_cache_key(server_id, library_id):
 
 
 def _fresh_image_proxy_url(item_id, code, label):
+	if not has_request_context():
+		return f"/fresh/item-image/{quote(str(item_id), safe='')}/{quote(str(code), safe='')}/{quote(str(label or ''), safe='')}"
 	return url_for("fresh_item_image", item_id=item_id, code=code, label=label or "")
 
 
@@ -1431,6 +1522,16 @@ def fresh_save_settings():
 					(json.dumps(payload.get("global_zipnames") or {}), server["id"]),
 				)
 				conn.commit()
+	if "global_selected_images" in payload:
+		selected = [c for c in payload.get("global_selected_images") or [] if c in FRESH_IMAGE_TYPE_OPTIONS]
+		fresh_state.set_json(conn, "global_selected_images", selected)
+		server = _fresh_active_server(conn)
+		if server:
+			conn.execute(
+				"UPDATE libraries SET selected_images = ? WHERE server_id = ?",
+				(json.dumps(selected), server["id"]),
+			)
+			conn.commit()
 	if "fresh_auto" in payload:
 		auto = load_auto()
 		fresh_auto = payload.get("fresh_auto") or {}
@@ -1466,8 +1567,20 @@ def fresh_scan_all():
 	server = _fresh_active_server(conn)
 	if not server:
 		return _json_response({"status": "error", "message": "No active server."}, 400)
-	results = _run_fresh_scan_all(server)
-	return _json_response({"status": "ok", "results": results})
+	library_ids = []
+	if request.is_json:
+		library_ids = (request.get_json(silent=True) or {}).get("library_ids") or []
+	job_id = _fresh_start_scan_job("all", server, library_ids=library_ids)
+	return _json_response({"status": "ok", "job_id": job_id, "state": "queued"})
+
+
+@app.route("/fresh/api/scan-jobs/<job_id>")
+def fresh_scan_job_status(job_id):
+	with FRESH_SCAN_JOBS_LOCK:
+		job = dict(FRESH_SCAN_JOBS.get(job_id) or {})
+	if not job:
+		return _json_response({"status": "error", "message": "Scan job not found."}, 404)
+	return _json_response({"status": "ok", "job": job})
 
 
 @app.route("/fresh/api/libraries/<library_id>/settings", methods=["POST"])
@@ -1512,14 +1625,8 @@ def fresh_scan_library(library_id):
 	if library["hidden"]:
 		return _json_response({"status": "error", "message": "Hidden libraries are paused."}, 400)
 	try:
-		result = scan_library(
-			conn,
-			server,
-			library,
-			global_thresholds=_fresh_global_thresholds(conn),
-			jellytag_bypass=_fresh_jellytag_enabled(conn),
-		)
-		return _json_response({"status": "ok", **result})
+		job_id = _fresh_start_scan_job("library", server, library_id=library_id)
+		return _json_response({"status": "ok", "job_id": job_id, "state": "queued"})
 	except Exception as e:
 		app.logger.exception("Fresh scan failed")
 		return _json_response({"status": "error", "message": str(e)}, 502)
@@ -1563,28 +1670,8 @@ def fresh_scan_media_item(library_id, item_id):
 	if not library:
 		return _json_response({"status": "error", "message": "Library not found."}, 404)
 	try:
-		result = scan_media_item(
-			conn,
-			server,
-			library,
-			item_id,
-			global_thresholds=_fresh_global_thresholds(conn),
-			jellytag_bypass=_fresh_jellytag_enabled(conn),
-		)
-		item = fresh_state.row_to_dict(
-			conn.execute(
-				"SELECT media_items.*, libraries.name AS library_name, libraries.selected_images AS selected_images FROM media_items JOIN libraries ON libraries.server_id = media_items.server_id AND libraries.id = media_items.library_id WHERE media_items.server_id = ? AND media_items.id = ?",
-				(server["id"], item_id),
-			).fetchone()
-		)
-		item["images"] = fresh_state.rows_to_dicts(
-			conn.execute(
-				"SELECT * FROM item_images WHERE server_id = ? AND item_id = ? ORDER BY code, label",
-				(server["id"], item_id),
-			).fetchall()
-		)
-		item = _fresh_apply_runtime_image_rules(conn, dict(library), item)
-		return _json_response({"status": "ok", **result, "item": item})
+		job_id = _fresh_start_scan_job("item", server, library_id=library_id, item_id=item_id)
+		return _json_response({"status": "ok", "job_id": job_id, "state": "queued"})
 	except Exception as e:
 		app.logger.exception("Fresh item scan failed")
 		return _json_response({"status": "error", "message": str(e)}, 502)

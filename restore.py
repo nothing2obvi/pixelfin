@@ -190,7 +190,16 @@ def _pick_user(server: str, apikey: str) -> str:
 	)
 	r.raise_for_status()
 	users = r.json() or []
-	user = next((u.get("Id") for u in users if u and not u.get("IsHidden")), None)
+	user = next(
+		(
+			u.get("Id")
+			for u in users
+			if u and (u.get("Policy") or {}).get("IsAdministrator") and not (u.get("Policy") or {}).get("IsDisabled", False)
+		),
+		None,
+	)
+	if not user:
+		user = next((u.get("Id") for u in users if u and not u.get("IsHidden") and not (u.get("Policy") or {}).get("IsDisabled", False)), None)
 	if not user:
 		raise RuntimeError("No visible Jellyfin users found")
 	return user
@@ -514,6 +523,11 @@ def get_library_items(server: str, apikey: str, library: str) -> Tuple[List[Dict
 		global_filtered,
 		global_filtered_no_types,
 	)
+	if collection_type in {"boxsets", "collections", "collection"}:
+		merged_items = [
+			item for item in merged_items
+			if (item.get("Type") or "").lower() == "boxset"
+		]
 
 	log(
 		f"[INFO] Final merged item count for library '{library}': {len(merged_items)} "

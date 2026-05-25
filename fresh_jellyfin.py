@@ -33,13 +33,10 @@ IMAGE_TYPE_OPTIONS = {
 	"sp": "Season Posters",
 }
 
-DEFAULT_SELECTED_IMAGES = ["p", "bd", "l", "t", "sp"]
+DEFAULT_SELECTED_IMAGES = ["p", "t", "l", "bd"]
 DEFAULT_THRESHOLDS = {
-	"p": [1000, 1500],
-	"sp": [1000, 1500],
+	"p": [680, 1000],
 	"bd": [1920, 1080],
-	"t": [1000, 562],
-	"l": [800, 310],
 }
 DEFAULT_ZIP_BASENAMES = {
 	"p": "cover",
@@ -55,8 +52,8 @@ DEFAULT_ZIP_BASENAMES = {
 	"sp": "season-poster",
 }
 
-UNSUPPORTED_LIBRARY_TYPES = {"livetv", "boxsets", "collections", "collection", "playlists", "playlist"}
-UNSUPPORTED_LIBRARY_NAMES = {"live tv", "livetv", "collections", "collection", "playlists", "playlist"}
+UNSUPPORTED_LIBRARY_TYPES = {"livetv", "playlists", "playlist"}
+UNSUPPORTED_LIBRARY_NAMES = {"live tv", "livetv", "playlists", "playlist"}
 
 
 def _norm_library_kind(value):

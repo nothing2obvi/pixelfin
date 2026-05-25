@@ -435,6 +435,7 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 	border-radius: 8px;
 	box-shadow: var(--shadow);
 }
+.modal.small-modal { width: min(480px, 100%); }
 .modal header {
 	position: sticky;
 	top: 0;
@@ -637,7 +638,6 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 				<button data-tab="servers" onclick="selectTab(event)">Servers</button>
 				<button data-tab="libraries" onclick="selectTab(event)">Libraries</button>
 				<button data-tab="rules" onclick="selectTab(event)">Image Rules</button>
-				<button data-tab="zipnames" onclick="selectTab(event)">ZIP Filenames</button>
 				<button data-tab="layout" onclick="selectTab(event)">Layout</button>
 				<button data-tab="auto" onclick="selectTab(event)">Auto</button>
 				<button data-tab="jellytag" onclick="selectTab(event)">JellyTag-Plus</button>
@@ -672,6 +672,23 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 				<p><button class="primary" onclick="saveHiddenLibraries()">Save Libraries</button></p>
 			</section>
 			<section class="tab-panel" id="tab-rules">
+				<h3>Image Types</h3>
+				<div class="type-grid">
+					{% for code, label in image_types|dictsort(false, 'value') %}
+					{% if code != 'sp' %}
+					<label class="check-row"><input type="checkbox" class="global-type" value="{{ code }}" {% if code in default_selected %}checked{% endif %}> {{ label }}</label>
+					{% endif %}
+					{% endfor %}
+				</div>
+				{% if image_types.get('sp') %}
+				<div class="special-setting">
+					<label class="check-row"><input type="checkbox" class="global-type" value="sp" {% if 'sp' in default_selected %}checked{% endif %}> {{ image_types.get('sp') }}</label>
+					<p class="subtle">Season posters that are inherited from the series' primary image are counted as missing.</p>
+				</div>
+				{% endif %}
+				<p class="subtle">These settings apply globally. You can override them per library.</p>
+				<p><button class="primary" onclick="saveGlobalImageTypes()">Apply to All Libraries</button></p>
+				<h3>Image Thresholds</h3>
 				<table class="rules-table">
 					<thead><tr><th>Image Type</th><th>Global Min Width</th><th>Global Min Height</th></tr></thead>
 					<tbody>
@@ -684,9 +701,9 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 						{% endfor %}
 					</tbody>
 				</table>
-				<p><button class="primary" onclick="saveGlobalThresholds()">Save Global Rules</button> <button onclick="markApplyThresholdsToAll()">Apply to All Libraries</button> <span id="thresholdApplyNote" class="pending-note" style="display:none;">Will apply when saved</span></p>
-			</section>
-			<section class="tab-panel" id="tab-zipnames">
+				<p class="subtle">These settings apply globally. You can override them per library.</p>
+				<p><button class="primary" onclick="saveGlobalThresholds()">Apply to All Libraries</button></p>
+				<h3>ZIP Filenames</h3>
 				<table class="rules-table">
 					<thead><tr><th>Image Type</th><th>Global ZIP Filename</th></tr></thead>
 					<tbody>
@@ -698,7 +715,8 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 						{% endfor %}
 					</tbody>
 				</table>
-				<p><button class="primary" onclick="saveGlobalZipnames()">Save ZIP Filenames</button> <button onclick="markApplyZipnamesToAll()">Apply to All Libraries</button> <span id="zipApplyNote" class="pending-note" style="display:none;">Will apply when saved</span></p>
+				<p class="subtle">These settings apply globally. You can override them per library.</p>
+				<p><button class="primary" onclick="saveGlobalZipnames()">Apply to All Libraries</button></p>
 			</section>
 			<section class="tab-panel" id="tab-layout">
 				<label class="check-row"><input type="radio" name="layoutMode" value="full" {% if layout == 'full' %}checked{% endif %}> Full</label>
@@ -724,8 +742,8 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 				</div>
 				<label class="check-row"><input type="checkbox" id="autoZipEnabled" {% if auto.fresh_global_zip %}checked{% endif %}> Export ZIPs for visible libraries on the ZIP export schedule</label>
 				<div class="notice">Auto ZIPs are saved under <code>output/&lt;Library&gt;/</code>. Existing ZIPs are listed here.</div>
-				<p><button class="primary" onclick="saveAutoSettings()">Save Auto Settings</button></p>
-				<div class="outputs-list">
+				<p><button onclick="toggleExistingZips(this)">Show Existing ZIPs</button></p>
+				<div class="outputs-list" id="existingZipsList" style="display:none;">
 					{% for library, files in generated.items() %}
 						{% for f in files %}
 							{% if (f.filename or '').lower().endswith('.zip') %}
@@ -734,6 +752,9 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 						{% endfor %}
 					{% endfor %}
 				</div>
+				<h3>Warnings</h3>
+				<p><button onclick="resetWarningDialogs()">Reset Warning Dialogs</button></p>
+				<p><button class="primary" onclick="saveAutoSettings()">Save Auto Settings</button></p>
 			</section>
 			<section class="tab-panel" id="tab-jellytag">
 				<label class="check-row"><input type="checkbox" id="jellytagToggle" {% if jellytag_bypass %}checked{% endif %}> Request original images with jellytag=off</label>
@@ -746,6 +767,20 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 				<p><button class="primary" onclick="saveJellytag()">Save</button></p>
 			</section>
 			<div class="settings-version">v1.0.1</div>
+		</div>
+	</div>
+</div>
+
+<div class="modal-backdrop" id="scanWarningModal">
+	<div class="modal small-modal">
+		<header>
+			<h2>Scan All Libraries?</h2>
+			<button class="icon-btn" onclick="cancelScanWarning()">×</button>
+		</header>
+		<div class="modal-body">
+			<p>Scanning all libraries requests a lot of images from Jellyfin. This may briefly slow image loading for people using Jellyfin clients.</p>
+			<label class="check-row"><input type="checkbox" id="hideScanWarningToggle"> Don’t show this warning again</label>
+			<p><button class="primary" onclick="confirmScanWarning()">Continue</button> <button onclick="cancelScanWarning()">Cancel</button></p>
 		</div>
 	</div>
 </div>
@@ -832,8 +867,6 @@ const globalZipNames = {{ global_zipnames|tojson }};
 let currentLayout = "{{ layout }}";
 let currentLibraryId = "";
 let currentLibraryPayload = null;
-let applyThresholdsToAll = false;
-let applyZipnamesToAll = false;
 let serverEditingId = document.getElementById("serverSelect")?.value || "";
 let modalLibraryId = "";
 let lightboxImages = [];
@@ -842,6 +875,9 @@ let lightboxItemId = "";
 let currentDetailMode = "";
 let hideCompleteItems = false;
 let pinnedTaskItemIds = new Set();
+const warningKeys = ["pixelfin_hide_scan_warning"];
+let scanWarningResolver = null;
+let scanReloadScheduled = false;
 
 function applyTheme() {
 	document.body.classList.toggle("dark", (localStorage.getItem("pixelfin_theme") || "dark") === "dark");
@@ -865,6 +901,19 @@ function showToast(message) {
 	showToast.timer = setTimeout(() => toast.classList.remove("open"), 3600);
 }
 
+function resetWarningDialogs() {
+	warningKeys.forEach(key => localStorage.removeItem(key));
+	showToast("Warning dialogs reset.");
+}
+
+function toggleExistingZips(button) {
+	const list = document.getElementById("existingZipsList");
+	if (!list) return;
+	const isHidden = list.style.display === "none";
+	list.style.display = isHidden ? "" : "none";
+	if (button) button.textContent = isHidden ? "Hide Existing ZIPs" : "Show Existing ZIPs";
+}
+
 function setBusy(button, busyText = "Working...") {
 	if (!button) return () => {};
 	const original = button.textContent;
@@ -881,14 +930,10 @@ function scrollToTop() {
 }
 
 window.addEventListener("beforeunload", () => {
-	sessionStorage.setItem("pixelfin_scroll_y", String(window.scrollY));
+	saveNavigationState();
 });
 document.addEventListener("DOMContentLoaded", () => {
-	const y = sessionStorage.getItem("pixelfin_scroll_y");
-	if (y) {
-		requestAnimationFrame(() => window.scrollTo(0, Number(y) || 0));
-		sessionStorage.removeItem("pixelfin_scroll_y");
-	}
+	restoreNavigationState();
 });
 
 async function api(url, options = {}) {
@@ -1000,20 +1045,26 @@ function saveIssueFilters() {
 }
 async function refreshIssueFilteredUi() {
 	if (currentLibraryPayload?.items && document.getElementById("detail")?.classList.contains("open")) {
+		const anchorItemId = currentVisibleEntryId();
+		const y = window.scrollY || 0;
 		const library = currentDetailMode === "allTasks"
 			? { name: "All Tasks", task_count: currentLibraryPayload.items.length }
 			: currentLibraryPayload.library;
-		renderDetail(library, currentLibraryPayload.items, currentDetailMode !== "library");
+		renderDetail(library, currentLibraryPayload.items, currentDetailMode !== "library", false);
+		restoreDetailPosition(anchorItemId, y);
 	}
 	await updateIssueCounts();
 }
 function toggleHideCompleteItems() {
 	hideCompleteItems = !hideCompleteItems;
 	if (currentLibraryPayload?.items) {
+		const anchorItemId = currentVisibleEntryId();
+		const y = window.scrollY || 0;
 		const library = currentDetailMode === "allTasks"
 			? { name: "All Tasks", task_count: currentLibraryPayload.items.length }
 			: currentLibraryPayload.library;
-		renderDetail(library, currentLibraryPayload.items, currentDetailMode !== "library");
+		renderDetail(library, currentLibraryPayload.items, currentDetailMode !== "library", false);
+		restoreDetailPosition(anchorItemId, y);
 	}
 }
 function canToggleHideCompleteItems() {
@@ -1041,17 +1092,14 @@ async function updateIssueCounts() {
 }
 document.addEventListener("DOMContentLoaded", () => {
 	syncIssueFilterControls();
-	const restoreY = Number(sessionStorage.getItem("pixelfin_scroll_y") || "");
-	if (!Number.isNaN(restoreY) && restoreY > 0) {
-		sessionStorage.removeItem("pixelfin_scroll_y");
-		requestAnimationFrame(() => window.scrollTo(0, restoreY));
-	}
 	updateIssueCounts();
 });
 document.addEventListener("click", closeAllMenus);
 document.querySelectorAll(".modal-backdrop").forEach(modal => {
 	modal.addEventListener("click", event => {
-		if (event.target === modal) modal.classList.remove("open");
+		if (event.target !== modal) return;
+		if (modal.id === "scanWarningModal") cancelScanWarning();
+		else modal.classList.remove("open");
 	});
 });
 document.querySelectorAll('input[name="restore_mode"]').forEach(input => {
@@ -1085,6 +1133,7 @@ document.getElementById("serverSelect")?.addEventListener("change", async event 
 	if (!event.target.value) return;
 	serverEditingId = event.target.value;
 	await api(`/fresh/api/servers/${event.target.value}/activate`, { method: "POST" });
+	clearNavigationState();
 	location.reload();
 });
 
@@ -1126,6 +1175,7 @@ async function saveServer(button) {
 			})
 		});
 		showToast("Server saved.");
+		saveNavigationState();
 		location.reload();
 	} catch (err) {
 		showToast(err.message);
@@ -1147,6 +1197,7 @@ async function saveNewServer(button) {
 			})
 		});
 		showToast("Server added.");
+		clearNavigationState();
 		location.reload();
 	} catch (err) {
 		showToast(err.message);
@@ -1175,6 +1226,7 @@ async function syncLibraries(button) {
 	try {
 		const data = await api("/fresh/api/sync-libraries", { method: "POST" });
 		showToast(`Synced ${data.count || 0} libraries.`);
+		saveNavigationState();
 		location.reload();
 	} catch (err) {
 		showToast(err.message);
@@ -1189,12 +1241,23 @@ async function saveHiddenLibraries() {
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ hidden_libraries: hidden })
 	});
+	saveNavigationState();
 	location.reload();
 }
-function markApplyThresholdsToAll() {
-	applyThresholdsToAll = true;
-	document.getElementById("thresholdApplyNote").style.display = "";
-	showToast("Image rules will apply to all libraries when you press Save.");
+async function saveGlobalImageTypes() {
+	const selected = [...document.querySelectorAll(".global-type:checked")].map(el => el.value);
+	try {
+		await api("/fresh/api/settings", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ global_selected_images: selected })
+		});
+		await refreshCurrentDetailView();
+		await updateIssueCounts();
+		showToast("Global image types applied to all libraries.");
+	} catch (err) {
+		showToast(err.message);
+	}
 }
 async function saveGlobalThresholds() {
 	const thresholds = {};
@@ -1207,19 +1270,14 @@ async function saveGlobalThresholds() {
 		await api("/fresh/api/settings", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ global_thresholds: thresholds, apply_to_all: applyThresholdsToAll })
+			body: JSON.stringify({ global_thresholds: thresholds, apply_to_all: true })
 		});
-		showToast(applyThresholdsToAll ? "Image rules saved and applied to all libraries." : "Image rules saved.");
-		applyThresholdsToAll = false;
-		document.getElementById("thresholdApplyNote").style.display = "none";
+		showToast("Image thresholds applied to all libraries.");
+		await refreshCurrentDetailView();
+		await updateIssueCounts();
 	} catch (err) {
 		showToast(err.message);
 	}
-}
-function markApplyZipnamesToAll() {
-	applyZipnamesToAll = true;
-	document.getElementById("zipApplyNote").style.display = "";
-	showToast("ZIP filenames will apply to all libraries when you press Save.");
 }
 async function saveGlobalZipnames() {
 	const zipnames = {};
@@ -1230,11 +1288,9 @@ async function saveGlobalZipnames() {
 		await api("/fresh/api/settings", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ global_zipnames: zipnames, apply_to_all: applyZipnamesToAll })
+			body: JSON.stringify({ global_zipnames: zipnames, apply_to_all: true })
 		});
-		showToast(applyZipnamesToAll ? "ZIP filenames saved and applied to all libraries." : "ZIP filenames saved.");
-		applyZipnamesToAll = false;
-		document.getElementById("zipApplyNote").style.display = "none";
+		showToast("ZIP filenames applied to all libraries.");
 	} catch (err) {
 		showToast(err.message);
 	}
@@ -1292,6 +1348,7 @@ async function saveJellytag() {
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ jellytag_bypass: document.getElementById("jellytagToggle").checked })
 	});
+	saveNavigationState();
 	location.reload();
 }
 
@@ -1303,35 +1360,19 @@ async function scanLibrary(id) {
 	const detailStatus = document.getElementById("detailScanStatus");
 	if (detailStatus) detailStatus.textContent = "Scanning";
 	try {
-		await api(`/fresh/api/libraries/${id}/scan`, { method: "POST" });
-		showToast("Library scan complete.");
-		if (currentLibraryId === id) {
-			const data = await api(`/fresh/api/libraries/${id}`);
-			currentLibraryPayload = data;
-			renderDetail(data.library, data.items, false);
-		}
-		if (status) status.textContent = "Scanned";
-		if (detailStatus) detailStatus.textContent = "Scan complete";
-		setTimeout(() => {
-			sessionStorage.setItem("pixelfin_scroll_y", String(window.scrollY));
-			location.reload();
-		}, 650);
+		const data = await api(`/fresh/api/libraries/${id}/scan`, { method: "POST" });
+		showToast("Library scan started.");
+		pollScanJob(data.job_id, { kind: "library", libraryId: id });
 	} catch (err) {
 		showToast(err.message);
 		if (card) card.style.opacity = "";
 		if (status) status.textContent = "";
 		if (detailStatus) detailStatus.textContent = "";
 	}
-	if (card) card.style.opacity = "";
 }
 async function globalScan(button) {
-	if (localStorage.getItem("pixelfin_hide_scan_warning") !== "1") {
-		const ok = window.confirm("Scanning all libraries checks many Jellyfin images and may briefly slow image loading for other clients. Continue?");
-		if (!ok) return;
-		if (window.confirm("Hide this scan warning next time?")) {
-			localStorage.setItem("pixelfin_hide_scan_warning", "1");
-		}
-	}
+	const warned = await confirmScanAllWarning();
+	if (!warned) return;
 	const original = button?.textContent || "Scan All Libraries";
 	if (button) button.textContent = "Scanning...";
 	try {
@@ -1341,14 +1382,97 @@ async function globalScan(button) {
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ library_ids: libraryIds })
 		});
-		showToast(`Scanned ${data.results?.length || 0} libraries.`);
-		sessionStorage.setItem("pixelfin_scroll_y", String(window.scrollY));
-		location.reload();
+		showToast("Scan all started.");
+		pollScanJob(data.job_id, { kind: "all", button, originalText: original });
 	} catch (err) {
 		showToast(err.message);
-	} finally {
 		if (button) button.textContent = original;
 	}
+}
+async function pollScanJob(jobId, context = {}) {
+	if (!jobId) return;
+	try {
+		const data = await api(`/fresh/api/scan-jobs/${jobId}`);
+		const job = data.job || {};
+		if (job.state === "queued" || job.state === "running") {
+			setTimeout(() => pollScanJob(jobId, context), 1800);
+			return;
+		}
+		if (job.state === "error") {
+			showToast(job.message || "Scan failed.");
+			if (context.button) context.button.textContent = context.originalText || "Scan All Libraries";
+			if (context.libraryId) {
+				const card = document.querySelector(`[data-library-id="${context.libraryId}"]`);
+				if (card) card.style.opacity = "";
+				const status = card?.querySelector(".scan-status");
+				if (status) status.textContent = "";
+			}
+			return;
+		}
+		if (context.kind === "all") {
+			const resultCount = job.result?.results?.length || 0;
+			showToast(`Scanned ${resultCount} libraries.`);
+			if (context.button) context.button.textContent = context.originalText || "Scan All Libraries";
+		} else if (context.kind === "item") {
+			showToast("Media item updated.");
+		} else {
+			showToast("Library scan complete.");
+			const card = document.querySelector(`[data-library-id="${context.libraryId}"]`);
+			if (card) card.style.opacity = "";
+			const status = card?.querySelector(".scan-status");
+			if (status) status.textContent = "Scanned";
+		}
+		const detailStatus = document.getElementById("detailScanStatus");
+		if (detailStatus) detailStatus.textContent = "Scan complete";
+		await refreshCurrentDetailView();
+		await updateIssueCounts();
+		scheduleScanCompletionReload();
+	} catch (err) {
+		showToast(err.message);
+		if (context.button) context.button.textContent = context.originalText || "Scan All Libraries";
+	}
+}
+function scheduleScanCompletionReload() {
+	if (scanReloadScheduled) return;
+	scanReloadScheduled = true;
+	setTimeout(() => {
+		saveNavigationState();
+		try {
+			window.stop();
+		} catch (err) {
+			console.warn(err);
+		}
+		setTimeout(() => {
+			window.location.replace(window.location.href);
+		}, 50);
+	}, 650);
+}
+function confirmScanAllWarning() {
+	if (localStorage.getItem("pixelfin_hide_scan_warning") === "1") return Promise.resolve(true);
+	const modal = document.getElementById("scanWarningModal");
+	const toggle = document.getElementById("hideScanWarningToggle");
+	if (!modal || !toggle) {
+		return Promise.resolve(window.confirm("Scanning all libraries requests a lot of images from Jellyfin and may briefly slow image loading for people using Jellyfin clients. Continue?"));
+	}
+	toggle.checked = false;
+	modal.classList.add("open");
+	return new Promise(resolve => {
+		scanWarningResolver = resolve;
+	});
+}
+function resolveScanWarning(value) {
+	const modal = document.getElementById("scanWarningModal");
+	const toggle = document.getElementById("hideScanWarningToggle");
+	if (value && toggle?.checked) localStorage.setItem("pixelfin_hide_scan_warning", "1");
+	if (modal) modal.classList.remove("open");
+	if (scanWarningResolver) scanWarningResolver(Boolean(value));
+	scanWarningResolver = null;
+}
+function confirmScanWarning() {
+	resolveScanWarning(true);
+}
+function cancelScanWarning() {
+	resolveScanWarning(false);
 }
 function applyLibraryCollapse() {
 	const collapsed = localStorage.getItem("pixelfin_libraries_collapsed") === "1";
@@ -1363,6 +1487,66 @@ function toggleLibraries() {
 	applyLibraryCollapse();
 }
 document.addEventListener("DOMContentLoaded", applyLibraryCollapse);
+function detailIsOpen() {
+	return document.getElementById("detail")?.classList.contains("open");
+}
+function closeDetail() {
+	document.getElementById("detail")?.classList.remove("open");
+	clearNavigationState();
+}
+function saveNavigationState() {
+	sessionStorage.setItem("pixelfin_scroll_y", String(window.scrollY || 0));
+	if (!detailIsOpen() || !currentDetailMode) {
+		sessionStorage.removeItem("pixelfin_view_state");
+		return;
+	}
+	sessionStorage.setItem("pixelfin_view_state", JSON.stringify({
+		mode: currentDetailMode,
+		libraryId: currentLibraryId,
+		hideComplete: hideCompleteItems,
+		anchorItemId: currentVisibleEntryId(),
+		scrollY: window.scrollY || 0
+	}));
+}
+function clearNavigationState() {
+	sessionStorage.removeItem("pixelfin_view_state");
+	sessionStorage.removeItem("pixelfin_scroll_y");
+}
+async function restoreNavigationState() {
+	const raw = sessionStorage.getItem("pixelfin_view_state");
+	const y = Number(sessionStorage.getItem("pixelfin_scroll_y") || "0");
+	if (!raw) {
+		if (y > 0) requestAnimationFrame(() => window.scrollTo(0, y));
+		sessionStorage.removeItem("pixelfin_scroll_y");
+		return;
+	}
+	try {
+		const state = JSON.parse(raw);
+		currentDetailMode = state.mode || "";
+		currentLibraryId = state.libraryId || "";
+		hideCompleteItems = Boolean(state.hideComplete);
+		pinnedTaskItemIds = new Set();
+		if (state.mode === "allTasks") {
+			const data = await api("/fresh/api/tasks");
+			currentLibraryPayload = { items: data.items };
+			renderDetail({ name: "All Tasks", task_count: data.items.length }, data.items, true, false);
+		} else if (state.libraryId) {
+			const tasksOnly = state.mode === "libraryTasks";
+			const data = await api(`/fresh/api/libraries/${state.libraryId}?tasks=${tasksOnly ? "1" : "0"}`);
+			currentLibraryPayload = data;
+			currentDetailMode = state.mode;
+			currentLibraryId = state.libraryId;
+			renderDetail(data.library, data.items, tasksOnly, false);
+		}
+		restoreDetailPosition(state.anchorItemId || "", Number(state.scrollY || y || 0));
+	} catch (err) {
+		console.warn(err);
+		sessionStorage.removeItem("pixelfin_view_state");
+		if (y > 0) requestAnimationFrame(() => window.scrollTo(0, y));
+	} finally {
+		sessionStorage.removeItem("pixelfin_scroll_y");
+	}
+}
 async function openLibrary(id, tasksOnly, hideComplete = false) {
 	currentLibraryId = id;
 	currentDetailMode = tasksOnly ? "libraryTasks" : "library";
@@ -1392,8 +1576,17 @@ async function openAllTasks() {
 }
 async function refreshAllTasks() {
 	const detailStatus = document.getElementById("detailScanStatus");
+	const anchorItemId = currentVisibleEntryId();
+	const y = window.scrollY || 0;
 	if (detailStatus) detailStatus.textContent = "Refreshing";
-	await openAllTasks();
+	currentLibraryId = "";
+	currentDetailMode = "allTasks";
+	hideCompleteItems = false;
+	pinnedTaskItemIds = new Set();
+	const data = await api("/fresh/api/tasks");
+	currentLibraryPayload = { items: data.items };
+	renderDetail({ name: "All Tasks", task_count: data.items.length }, data.items, true, false);
+	restoreDetailPosition(anchorItemId, y);
 	const nextStatus = document.getElementById("detailScanStatus");
 	if (nextStatus) nextStatus.textContent = "Refreshed";
 }
@@ -1425,7 +1618,7 @@ function renderDetail(library, items, tasksOnly, scrollIntoView = true) {
 	detail.innerHTML = `
 		<div class="detail-head">
 			<div><h1>${escapeHtml(library.name)}</h1><div class="subtle">${listingItems.length} ${tasksOnly ? "task" : "media"} items</div></div>
-			<div>${hideCompleteButton}${refreshButton} <button onclick="document.getElementById('detail').classList.remove('open')">Close</button><div id="detailScanStatus" class="subtle"></div></div>
+			<div>${hideCompleteButton}${refreshButton} <button onclick="closeDetail()">Close</button><div id="detailScanStatus" class="subtle"></div></div>
 		</div>
 		<table class="summary"><thead><tr><th>Item</th><th>Quantity</th><th>Missing</th><th>Low Resolution</th></tr></thead><tbody>${rows || `<tr><td colspan="4">No media items to show.</td></tr>`}</tbody></table>
 		${entries || `<div class="notice">No scanned items yet.</div>`}
@@ -1436,7 +1629,7 @@ function renderDetail(library, items, tasksOnly, scrollIntoView = true) {
 function currentVisibleEntryId() {
 	const entries = [...document.querySelectorAll(".entry[id]")];
 	if (!entries.length) return "";
-	let best = entries[0];
+	let best = null;
 	let bestDistance = Infinity;
 	entries.forEach(entry => {
 		const rect = entry.getBoundingClientRect();
@@ -1446,7 +1639,7 @@ function currentVisibleEntryId() {
 			bestDistance = distance;
 		}
 	});
-	return best?.id?.replace(/^item-/, "") || "";
+	return best ? best.id.replace(/^item-/, "") : "";
 }
 function restoreDetailPosition(itemId, fallbackY) {
 	requestAnimationFrame(() => {
@@ -1548,7 +1741,6 @@ function openSeasonLightbox(itemId, imageIndex) {
 async function updateMediaItem(libraryId, itemId, button) {
 	if (!libraryId || !itemId) return;
 	const original = button?.textContent || "Update";
-	const y = window.scrollY || 0;
 	if (button) {
 		button.disabled = true;
 		button.textContent = "Updating...";
@@ -1556,17 +1748,8 @@ async function updateMediaItem(libraryId, itemId, button) {
 	try {
 		const data = await api(`/fresh/api/libraries/${libraryId}/items/${itemId}/scan`, { method: "POST" });
 		if (currentDetailMode !== "library" || hideCompleteItems) pinnedTaskItemIds.add(itemId);
-		if (currentLibraryPayload?.items) {
-			const index = currentLibraryPayload.items.findIndex(item => item.id === itemId);
-			if (index >= 0) currentLibraryPayload.items[index] = data.item;
-		}
-		const library = currentDetailMode === "allTasks"
-			? { name: "All Tasks", task_count: currentLibraryPayload.items.length }
-			: currentLibraryPayload.library;
-		renderDetail(library, currentLibraryPayload.items, currentDetailMode !== "library", false);
-		restoreDetailPosition(itemId, y);
-		await updateIssueCounts();
-		showToast("Media item updated.");
+		showToast("Media item update started.");
+		pollScanJob(data.job_id, { kind: "item", libraryId, itemId, button, originalText: original });
 	} catch (err) {
 		showToast(err.message);
 		if (button) {
@@ -1669,6 +1852,7 @@ document.addEventListener("keydown", event => {
 	const shortcutAllowed = !["INPUT", "TEXTAREA", "SELECT"].includes(tag) && !document.querySelector(".modal-backdrop.open");
 	if (event.key === "Escape") {
 		closeLightbox();
+		if (document.getElementById("scanWarningModal")?.classList.contains("open")) cancelScanWarning();
 		document.querySelectorAll(".modal-backdrop.open").forEach(modal => modal.classList.remove("open"));
 	}
 	if (document.getElementById("seasonPosterModal").classList.contains("open")) {
@@ -1742,10 +1926,6 @@ async function saveLibraryZipnames() {
 }
 async function saveLibrarySettings(payload) {
 	const targetLibraryId = modalLibraryId || currentLibraryId;
-	const detailOpen = document.getElementById("detail")?.classList.contains("open");
-	const viewMode = currentDetailMode;
-	const wasHideComplete = hideCompleteItems;
-	const y = window.scrollY;
 	await api(`/fresh/api/libraries/${targetLibraryId}/settings`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
@@ -1753,23 +1933,31 @@ async function saveLibrarySettings(payload) {
 	});
 	closeModal("libraryModal");
 	modalLibraryId = "";
-	if (detailOpen && viewMode === "allTasks") {
+	await refreshCurrentDetailView();
+	await updateIssueCounts();
+	showToast("Library settings saved.");
+}
+async function refreshCurrentDetailView() {
+	const detailOpen = document.getElementById("detail")?.classList.contains("open");
+	if (!detailOpen) return;
+	const viewMode = currentDetailMode;
+	const wasHideComplete = hideCompleteItems;
+	const anchorItemId = currentVisibleEntryId();
+	const y = window.scrollY;
+	if (viewMode === "allTasks") {
 		const data = await api("/fresh/api/tasks");
 		currentLibraryPayload = { items: data.items };
 		currentDetailMode = "allTasks";
 		renderDetail({ name: "All Tasks", task_count: data.items.length }, data.items, true, false);
-		requestAnimationFrame(() => window.scrollTo(0, y));
-	} else if (detailOpen && currentLibraryId) {
+		restoreDetailPosition(anchorItemId, y);
+	} else if (currentLibraryId) {
 		const data = await api(`/fresh/api/libraries/${currentLibraryId}?tasks=${viewMode === "libraryTasks" ? "1" : "0"}`);
 		currentLibraryPayload = data;
 		currentDetailMode = viewMode;
 		hideCompleteItems = wasHideComplete;
 		renderDetail(data.library, data.items, viewMode !== "library", false);
-		requestAnimationFrame(() => window.scrollTo(0, y));
-	} else {
-		await updateIssueCounts();
+		restoreDetailPosition(anchorItemId, y);
 	}
-	showToast("Library settings saved.");
 }
 function openRestore(libraryName) {
 	document.getElementById("restoreLibrary").value = libraryName;
@@ -1804,7 +1992,7 @@ function filterRestoreZips(libraryName) {
 }
 async function downloadLibraryFile(event, libraryId) {
 	event.preventDefault();
-	sessionStorage.setItem("pixelfin_scroll_y", String(window.scrollY || 0));
+	saveNavigationState();
 	const card = document.querySelector(`[data-library-id="${libraryId}"]`);
 	const status = card?.querySelector(".scan-status");
 	if (status) status.textContent = "Downloading";
@@ -1831,7 +2019,10 @@ async function downloadLibraryFile(event, libraryId) {
 		link.click();
 		link.remove();
 		if (status) status.textContent = "Downloaded";
-		setTimeout(() => location.reload(), 900);
+		setTimeout(() => {
+			saveNavigationState();
+			location.reload();
+		}, 900);
 	} catch (err) {
 		showToast(err.message);
 		if (status) status.textContent = "";

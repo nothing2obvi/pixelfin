@@ -281,8 +281,14 @@ def get_first_user_id(base_url, api_key):
 	headers = {"X-Emby-Token": api_key}
 	resp = _get_session().get(url, headers=headers, timeout=_DEFAULT_TIMEOUT)
 	resp.raise_for_status()
-	for user in resp.json():
-		if not user.get("IsHidden", False):
+	users = resp.json() or []
+	for user in users:
+		policy = user.get("Policy") or {}
+		if policy.get("IsAdministrator") and not policy.get("IsDisabled", False):
+			return user["Id"]
+	for user in users:
+		policy = user.get("Policy") or {}
+		if not user.get("IsHidden", False) and not policy.get("IsDisabled", False):
 			return user["Id"]
 	raise Exception("No enabled user found")
 
@@ -315,6 +321,8 @@ def _item_type_passes_filter(item_type: str, library_type: str) -> bool:
 		return type_lower == "series"
 	elif lib_type_lower in ("movie", "movies"):
 		return type_lower == "movie"
+	elif lib_type_lower in ("boxsets", "collections", "collection"):
+		return type_lower == "boxset"
 	elif lib_type_lower == "music":
 		# Old logic: allow all items for Music libraries
 		return True
@@ -362,6 +370,12 @@ def get_library_items_iter(
 
 			if lib_type_lower in ("movie", "movies"):
 				if type_lower != "movie":
+					continue
+				yield item
+				continue
+
+			if lib_type_lower in ("boxsets", "collections", "collection"):
+				if type_lower != "boxset":
 					continue
 				yield item
 				continue
