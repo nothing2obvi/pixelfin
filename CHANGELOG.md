@@ -5,6 +5,14 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.0.4 - 2026-05-25
+
+#### Fixed
+- **Scanned image refresh:** Update, Scan, and Scan All now refresh image URLs with a scan timestamp so the browser does not keep showing stale Jellyfin artwork from cache.
+- **Image proxy cache:** Pixelfin's image proxy now tells browsers not to store proxied artwork, which makes newly uploaded Jellyfin images appear after scans without requiring a hard refresh.
+
+---
+
 ## v1.0.3 - 2026-05-25
 
 #### Changed
