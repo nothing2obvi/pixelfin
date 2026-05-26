@@ -1558,16 +1558,20 @@ def _fresh_cover_cache_key(server_id, library_id):
 	return re.sub(r"[^A-Za-z0-9_.-]+", "_", raw)
 
 
-def _fresh_image_proxy_url(item_id, code, label):
+def _fresh_image_proxy_url(item_id, code, label, version=""):
 	if not has_request_context():
-		return f"/fresh/item-image/{quote(str(item_id), safe='')}/{quote(str(code), safe='')}/{quote(str(label or ''), safe='')}"
+		url = f"/fresh/item-image/{quote(str(item_id), safe='')}/{quote(str(code), safe='')}/{quote(str(label or ''), safe='')}"
+		return f"{url}?v={quote(str(version), safe='')}" if version else url
+	if version:
+		return url_for("fresh_item_image", item_id=item_id, code=code, label=label or "", v=version)
 	return url_for("fresh_item_image", item_id=item_id, code=code, label=label or "")
 
 
 def _fresh_attach_image_urls(item):
 	for image in item.get("images") or []:
 		if image.get("url") and not image.get("is_missing"):
-			image["proxy_url"] = _fresh_image_proxy_url(item["id"], image["code"], image["label"])
+			version = image.get("last_checked") or item.get("last_scanned") or ""
+			image["proxy_url"] = _fresh_image_proxy_url(item["id"], image["code"], image["label"], version)
 	return item
 
 
@@ -2016,7 +2020,11 @@ def fresh_item_image(item_id, code, label):
 	if not image or not image["url"]:
 		return Response(status=404)
 	try:
-		resp = requests.get(image["url"], timeout=(5, 30))
+		resp = requests.get(
+			image["url"],
+			headers={"Cache-Control": "no-cache", "Pragma": "no-cache"},
+			timeout=(5, 30),
+		)
 		resp.raise_for_status()
 		content_type = resp.headers.get("Content-Type") or "image/jpeg"
 		return Response(
@@ -2024,7 +2032,8 @@ def fresh_item_image(item_id, code, label):
 			mimetype=content_type,
 			headers={
 				"Content-Disposition": "inline",
-				"Cache-Control": "private, max-age=300",
+				"Cache-Control": "no-store, max-age=0",
+				"Pragma": "no-cache",
 			},
 		)
 	except Exception:
