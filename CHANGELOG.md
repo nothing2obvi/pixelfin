@@ -5,6 +5,20 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.0.3 - 2026-05-25
+
+#### Changed
+- **Readable output folders:** Generated HTML and ZIP files now save under readable library folders like `output/4K Asian Series/` instead of legacy folders like `output/4K_Asian_Series/`.
+- **Automatic legacy output migration:** Pixelfin now silently moves files from legacy underscore-style output folders into readable library folders on startup, then deletes the old empty folders.
+
+#### Fixed
+- **Restore comparison links:** Clicking a media item in restore results now scrolls to the correct comparison gallery section.
+- **Lightbox keyboard navigation:** Pressing up or down in the lightbox now keeps the background page anchored to the media item you moved to.
+- **Jellyfin links in lightbox:** The media item title in the lightbox now links to that item in Jellyfin.
+- **Screenshot metadata:** Cleaned metadata from the comparison screenshot.
+
+---
+
 ## v1.0.2 - 2026-05-25
 
 #### Added

@@ -368,6 +368,7 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 .lightbox.open { display: flex; }
 .lightbox-inner { max-width: min(1100px, 96vw); max-height: 92vh; display: grid; gap: 10px; justify-items: center; }
 .lightbox-title { color: #fff; font-size: 20px; font-weight: 800; text-align: center; }
+.lightbox-title a { color: #fff; text-decoration: underline; text-underline-offset: 4px; }
 .lightbox-stage {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);
@@ -822,7 +823,7 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 				</a>
 				<p><button class="primary" onclick="saveJellytag()">Save</button></p>
 			</section>
-			<div class="settings-version">v1.0.2</div>
+			<div class="settings-version">v1.0.3</div>
 		</div>
 	</div>
 </div>
@@ -2006,7 +2007,12 @@ function showLightboxImage() {
 	const info = document.getElementById("lightboxInfo");
 	const item = currentLibraryPayload?.items?.find(i => i.id === lightboxItemId);
 	const displayNames = buildDisplayNames(currentLightboxItems());
-	if (title) title.textContent = displayNames[lightboxItemId] || item?.name || "";
+	const displayTitle = displayNames[lightboxItemId] || item?.name || "";
+	if (title) {
+		title.innerHTML = item?.details_url
+			? `<a href="${escapeHtml(item.details_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(displayTitle)}</a>`
+			: escapeHtml(displayTitle);
+	}
 	const statusClass = img.status === "ok" ? "ok" : (img.status === "low" ? "low" : (img.status === "high" ? "high" : "missing"));
 	const dims = img.width && img.height ? `${img.width}x${img.height}` : "No resolution";
 	if (img.url && !img.is_missing) {
@@ -2085,6 +2091,7 @@ document.addEventListener("keydown", event => {
 		return;
 	}
 	if (document.getElementById("lightbox").classList.contains("open")) {
+		if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) event.preventDefault();
 		if (event.key === "ArrowLeft") moveLightbox(-1);
 		if (event.key === "ArrowRight") moveLightbox(1);
 		if (event.key === "ArrowUp") moveLightboxItem(-1);
@@ -2215,7 +2222,7 @@ function openRestore(libraryName) {
 	document.getElementById("restoreModal").classList.add("open");
 }
 function safeLibraryFolder(name) {
-	return String(name || "").replace(/[^A-Za-z0-9_-]/g, "_");
+	return String(name || "").replace(/[\\/:*?"<>|\r\n]+/g, "_").trim().replace(/^\.+|\.+$/g, "") || "Unknown";
 }
 function filterRestoreZips(libraryName) {
 	const select = document.querySelector('select[name="pixelfin_zip"]');

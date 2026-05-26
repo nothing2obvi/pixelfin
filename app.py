@@ -332,7 +332,7 @@ def list_generated_htmls():
 
 		if files:
 			display_name = next(
-				(lib for lib in history.get("libraries", []) if lib.replace(" ", "") == folder),
+				(lib for lib in history.get("libraries", []) if _safe_library_folder(lib) == folder or lib.replace(" ", "") == folder),
 				folder,
 			)
 			result[display_name] = files
@@ -539,7 +539,74 @@ def cron_matches(dt: datetime, expr: str) -> bool:
 
 
 def _safe_library_folder(library: str) -> str:
+	name = re.sub(r'[\\/:*?"<>|\r\n]+', "_", library or "")
+	name = name.strip().strip(".")
+	return name or "Unknown"
+
+
+def _legacy_library_folder(library: str) -> str:
 	return re.sub(r"[^A-Za-z0-9_\-]", "_", library or "")
+
+
+def _known_library_names_for_output_migration():
+	names = set()
+	try:
+		names.update(str(name) for name in load_history().get("libraries", []) if name)
+	except Exception:
+		pass
+	try:
+		conn = fresh_state.connect()
+		rows = conn.execute("SELECT DISTINCT name FROM libraries ORDER BY name COLLATE NOCASE").fetchall()
+		names.update(str(row["name"]) for row in rows if row["name"])
+		conn.close()
+	except Exception as exc:
+		app.logger.debug("Skipping fresh output migration DB lookup: %s", exc)
+	return sorted(names, key=str.lower)
+
+
+def _move_output_file_unique(source, destination_folder):
+	os.makedirs(destination_folder, exist_ok=True)
+	target = os.path.join(destination_folder, os.path.basename(source))
+	if os.path.exists(target):
+		base, ext = os.path.splitext(os.path.basename(source))
+		index = 2
+		while os.path.exists(target):
+			target = os.path.join(destination_folder, f"{base} legacy-{index}{ext}")
+			index += 1
+	shutil.move(source, target)
+	return target
+
+
+def _migrate_legacy_output_folders():
+	if not os.path.isdir(BASE_OUTPUT_DIR):
+		return 0
+	keep = load_keep()
+	kept = keep.setdefault("kept", {})
+	moved = 0
+	for library in _known_library_names_for_output_migration():
+		legacy = _legacy_library_folder(library)
+		readable = _safe_library_folder(library)
+		if not legacy or legacy == readable:
+			continue
+		legacy_path = os.path.join(BASE_OUTPUT_DIR, legacy)
+		readable_path = os.path.join(BASE_OUTPUT_DIR, readable)
+		if not os.path.isdir(legacy_path):
+			continue
+		for filename in sorted(os.listdir(legacy_path), key=str.lower):
+			source = os.path.join(legacy_path, filename)
+			_move_output_file_unique(source, readable_path)
+			moved += 1
+		if legacy in kept:
+			kept.setdefault(readable, {}).update(kept.get(legacy) or {})
+			del kept[legacy]
+		try:
+			os.rmdir(legacy_path)
+		except OSError:
+			pass
+	if moved:
+		save_keep(keep)
+		app.logger.info("Migrated %s files from legacy Pixelfin output folders.", moved)
+	return moved
 
 
 def _newest_file_in_folder(lib_folder: str, exts=(".html",), exclude_prefixes=()):
@@ -1182,6 +1249,7 @@ def _fresh_restore_annotate_result(result, path, overrides, selected_codes, serv
 			row["restore_key"] = re.sub(r"[^A-Za-z0-9_.-]+", "_", folder) or "folder"
 	for match in result.get("matches") or []:
 		folder = match.get("folder") or ""
+		match["restore_key"] = re.sub(r"[^A-Za-z0-9_.-]+", "_", folder) or "folder"
 		match["image_groups"] = groups_by_folder.get(folder, [])
 		if not match.get("images"):
 			match["images"] = _fresh_restore_folder_files(path, folder)
@@ -2892,11 +2960,26 @@ def serve_assets(filename):
 
 # start scheduler thread once
 _SCHED_STARTED = False
+_OUTPUT_MIGRATION_DONE = False
+
+
+def _run_output_migration_once():
+	global _OUTPUT_MIGRATION_DONE
+	if not _OUTPUT_MIGRATION_DONE:
+		_migrate_legacy_output_folders()
+		_OUTPUT_MIGRATION_DONE = True
+
+
+try:
+	_run_output_migration_once()
+except Exception as exc:
+	app.logger.warning("Could not migrate legacy output folders on startup: %s", exc)
 
 
 @app.before_request
 def _ensure_scheduler_started():
 	global _SCHED_STARTED
+	_run_output_migration_once()
 	if not _SCHED_STARTED:
 		t = threading.Thread(target=_auto_scheduler_loop, daemon=True)
 		t.start()

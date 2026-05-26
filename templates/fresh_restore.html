@@ -34,7 +34,7 @@ button.primary { background:var(--accent); border-color:var(--accent); color:#ff
 .small { color:var(--muted); font-size:13px; }
 .comparisons { display:none; margin-top:14px; }
 .comparisons.open { display:grid; gap:16px; }
-.comparison-item { border:1px solid var(--line); border-radius:8px; background:var(--panel2); padding:14px; }
+.comparison-item { border:1px solid var(--line); border-radius:8px; background:var(--panel2); padding:14px; scroll-margin-top:16px; }
 .comparison-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; align-items:start; }
 .comparison-image { display:grid; gap:8px; justify-items:center; min-width:0; }
 .comparison-image img { width:100%; max-height:520px; object-fit:contain; border-radius:8px; background:#05080c; cursor:pointer; }
@@ -106,7 +106,7 @@ document.body.classList.toggle("dark", (localStorage.getItem("pixelfin_theme") |
 			<tbody>
 				{% for row in matched %}
 				<tr>
-					<td><a href="#comparison-{{ loop.index0 }}" onclick="showComparison(event, 'comparison-{{ loop.index0 }}')">{{ row.folder }}</a><input type="hidden" name="folder_{{ row.restore_key }}" value="{{ row.folder }}"></td>
+					<td><a href="#comparison-match-{{ row.restore_key }}" onclick="showComparison(event, 'comparison-match-{{ row.restore_key }}')">{{ row.folder }}</a><input type="hidden" name="folder_{{ row.restore_key }}" value="{{ row.folder }}"></td>
 					<td class="score">{{ "%.2f"|format(row.similarity) }}%</td>
 					<td>{{ row.best_match }}</td>
 					<td class="include-cell">
@@ -187,7 +187,7 @@ document.body.classList.toggle("dark", (localStorage.getItem("pixelfin_theme") |
 			<div class="comparisons" id="comparisons">
 				{% for item in result.matches or [] %}
 				{% set item_index = loop.index0 %}
-				<div class="comparison-item" id="comparison-{{ item_index }}">
+				<div class="comparison-item" id="comparison-match-{{ item.restore_key }}">
 					<h3>{{ item.match }}</h3>
 					{% for image in item.comparison_images or [] %}
 					{% set image_name = image.name %}
@@ -319,7 +319,9 @@ function showComparison(event, id) {
 	const button = document.querySelector('button[onclick="toggleComparisons(this)"]');
 	panel.classList.add("open");
 	if (button) button.textContent = "Hide Comparisons";
-	document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+	requestAnimationFrame(() => {
+		document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+	});
 }
 function showDynamicComparison(event, key) {
 	event.preventDefault();
@@ -328,7 +330,9 @@ function showDynamicComparison(event, key) {
 	const button = document.querySelector('button[onclick="toggleComparisons(this)"]');
 	panel.classList.add("open");
 	if (button) button.textContent = "Hide Comparisons";
-	document.getElementById(`comparison-dynamic-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+	requestAnimationFrame(() => {
+		document.getElementById(`comparison-dynamic-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+	});
 }
 function scrollToTop() {
 	window.scrollTo({ top: 0, behavior: "smooth" });

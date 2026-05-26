@@ -86,7 +86,7 @@ _SAFE_NAME_RE = re.compile(r'[\\/:*?"<>|\r\n]+')
 # GENERAL HELPERS
 # ----------------------------------------------------------------------
 def safe_library_name(name: str) -> str:
-	return re.sub(r"[^A-Za-z0-9_\-]", "_", name or "Unknown")
+	return sanitize_folder_name(name or "Unknown")
 
 
 def sanitize_folder_name(name: str) -> str:

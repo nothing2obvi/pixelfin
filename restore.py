@@ -109,7 +109,7 @@ def ensure_dir(path: str) -> None:
 
 
 def safe_basename(name: str) -> str:
-	return (name or "").replace("/", "_").replace("\\", "_").strip()
+	return re.sub(r'[\\/:*?"<>|\r\n]+', "_", name or "").strip().strip(".") or "Untitled"
 
 
 def log(msg: str) -> None:
@@ -1186,7 +1186,7 @@ def run_restore(
 		html_path = None
 		if comparison_html:
 			base_output = os.environ.get("PIXELFIN_BASE_OUTPUT", "/app/output")
-			safe_library = re.sub(r"[^A-Za-z0-9_\-]", "_", library or "RestoreReports")
+			safe_library = safe_basename(library or "RestoreReports")
 			out_dir = os.path.join(base_output, safe_library)
 			ensure_dir(out_dir)
 
