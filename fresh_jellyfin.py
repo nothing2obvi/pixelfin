@@ -1,5 +1,6 @@
 import json
 import os
+import logging
 from datetime import datetime
 from urllib.parse import urlencode, urlsplit, urlunsplit, parse_qsl
 
@@ -334,10 +335,22 @@ def scan_library(conn, server, library_row, global_thresholds=None, global_high_
 			),
 		)
 		for code, label, url, width, height, status, is_low, is_missing, is_high in image_rows:
+			logging.info(
+                f"Attempting to insert image -> Item Name: {item.get('Name')}, Item ID: {item_id}, Code: {code}, Label: {label}"
+            )
 			conn.execute(
 				"""
 				INSERT INTO item_images(server_id, item_id, code, label, url, width, height, status, is_low, is_missing, is_high, last_checked)
 				VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				ON CONFLICT(server_id, item_id, code, label) DO UPDATE SET
+					url=excluded.url,
+                    width=excluded.width,
+                    height=excluded.height,
+                    status=excluded.status,
+                    is_low=excluded.is_low,
+                    is_missing=excluded.is_missing,
+                    is_high=excluded.is_high,
+                    last_checked=excluded.last_checked
 				""",
 				(server["id"], item_id, code, label, url, width, height, status, is_low, is_missing, is_high, now),
 			)
