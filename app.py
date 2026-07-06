@@ -1006,6 +1006,15 @@ def _fresh_has_active_scan_job(kind=None):
 	return False
 
 
+def _fresh_active_scan_jobs():
+	with FRESH_SCAN_JOBS_LOCK:
+		return [
+			dict(job)
+			for job in FRESH_SCAN_JOBS.values()
+			if job.get("state") in {"queued", "running"}
+		]
+
+
 def _queue_fresh_auto_scan():
 	if _fresh_has_active_scan_job("all"):
 		app.logger.info("FRESH AUTO scan skipped because an all-library scan is already running.")
@@ -1863,6 +1872,19 @@ def fresh_scan_job_status(job_id):
 	if not job:
 		return _json_response({"status": "error", "message": "Scan job not found."}, 404)
 	return _json_response({"status": "ok", "job": job})
+
+
+@app.route("/fresh/api/scan-jobs")
+def fresh_scan_jobs_status():
+	jobs = _fresh_active_scan_jobs()
+	return _json_response(
+		{
+			"status": "ok",
+			"jobs": jobs,
+			"active": bool(jobs),
+			"scanning_libraries": any(job.get("kind") in {"all", "library"} for job in jobs),
+		}
+	)
 
 
 @app.route("/fresh/api/libraries/<library_id>/settings", methods=["POST"])

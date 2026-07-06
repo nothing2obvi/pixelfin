@@ -522,6 +522,8 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 }
 .toast.open { display: block; }
 .pending-note { color: var(--accent-2); font-weight: 800; }
+.global-scan-status { margin-top: 4px; color: var(--accent-2); font-weight: 800; }
+.global-scan-status[hidden] { display: none; }
 .outputs-list { margin-top: 12px; display: grid; gap: 8px; }
 .output-row { display: flex; justify-content: space-between; gap: 10px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
 @media (max-width: 760px) {
@@ -576,7 +578,10 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 		</div>
 		{% else %}
 		<div class="library-toolbar">
-			<div class="subtle">{{ libraries|length }} visible libraries</div>
+			<div>
+				<div class="subtle">{{ libraries|length }} visible libraries</div>
+				<div class="global-scan-status" id="globalScanStatus" hidden>Scanning libraries...</div>
+			</div>
 			<div class="library-actions">
 				<div class="toolbar-menu-wrap">
 					<button class="icon-btn toolbar-menu-button" onclick="toggleIssueMenu(event)" title="Attention filters">⋯</button>
@@ -962,6 +967,7 @@ let pinnedTaskItemIds = new Set();
 const warningKeys = ["pixelfin_hide_scan_warning"];
 let scanWarningResolver = null;
 let scanReloadScheduled = false;
+let globalScanStatusTimer = null;
 
 function applyTheme() {
 	document.body.classList.toggle("dark", (localStorage.getItem("pixelfin_theme") || "dark") === "dark");
@@ -1018,6 +1024,7 @@ window.addEventListener("beforeunload", () => {
 });
 document.addEventListener("DOMContentLoaded", () => {
 	restoreNavigationState();
+	startGlobalScanStatusPolling();
 });
 
 async function api(url, options = {}) {
@@ -1590,6 +1597,7 @@ async function globalScan(button) {
 async function pollScanJob(jobId, context = {}) {
 	if (!jobId) return;
 	try {
+		await updateGlobalScanStatus();
 		const data = await api(`/fresh/api/scan-jobs/${jobId}`);
 		const job = data.job || {};
 		if (job.state === "queued" || job.state === "running") {
@@ -1624,11 +1632,38 @@ async function pollScanJob(jobId, context = {}) {
 		if (detailStatus) detailStatus.textContent = "Scan complete";
 		await refreshCurrentDetailView();
 		await updateIssueCounts();
+		await updateGlobalScanStatus();
 		scheduleScanCompletionReload();
 	} catch (err) {
 		showToast(err.message);
 		if (context.button) context.button.textContent = context.originalText || "Scan All Libraries";
 	}
+}
+
+function setGlobalScanStatus(active) {
+	const status = document.getElementById("globalScanStatus");
+	if (!status) return;
+	status.hidden = !active;
+}
+
+async function updateGlobalScanStatus() {
+	const status = document.getElementById("globalScanStatus");
+	if (!status) return false;
+	try {
+		const data = await api("/fresh/api/scan-jobs");
+		const active = Boolean(data.scanning_libraries);
+		setGlobalScanStatus(active);
+		return active;
+	} catch (err) {
+		console.warn(err);
+		return false;
+	}
+}
+
+function startGlobalScanStatusPolling() {
+	if (globalScanStatusTimer) return;
+	updateGlobalScanStatus();
+	globalScanStatusTimer = setInterval(updateGlobalScanStatus, 5000);
 }
 function scheduleScanCompletionReload() {
 	if (scanReloadScheduled) return;
