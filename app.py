@@ -60,6 +60,7 @@ ASSETS_DIR = "assets"
 FRESH_COVER_CACHE_DIR = os.path.join("data", "fresh_cover_cache")
 FRESH_SCAN_JOBS = {}
 FRESH_SCAN_JOBS_LOCK = threading.Lock()
+SCHEDULER_LOCK = threading.Lock()
 
 os.makedirs("data", exist_ok=True)
 os.makedirs(BASE_OUTPUT_DIR, exist_ok=True)
@@ -995,31 +996,68 @@ def _fresh_start_scan_job(kind, server, library_id=None, item_id=None, library_i
 	return job_id
 
 
+def _fresh_has_active_scan_job(kind=None):
+	with FRESH_SCAN_JOBS_LOCK:
+		for job in FRESH_SCAN_JOBS.values():
+			if kind and job.get("kind") != kind:
+				continue
+			if job.get("state") in {"queued", "running"}:
+				return True
+	return False
+
+
+def _queue_fresh_auto_scan():
+	if _fresh_has_active_scan_job("all"):
+		app.logger.info("FRESH AUTO scan skipped because an all-library scan is already running.")
+		return None
+	conn = None
+	try:
+		conn = _fresh_conn()
+		server = _fresh_active_server(conn)
+		if not server:
+			app.logger.warning("FRESH AUTO scan skipped because no active server is configured.")
+			return None
+		job_id = _fresh_start_scan_job("all", server)
+		app.logger.info("FRESH AUTO scan queued as job %s.", job_id)
+		return job_id
+	finally:
+		try:
+			if conn:
+				conn.close()
+		except Exception:
+			pass
+
+
 def _auto_scheduler_loop():
 	app.logger.info("AUTO scheduler thread started")
+	try:
+		threading.Event().wait(30)
+	except Exception:
+		pass
 	while True:
-		try:
-			auto = load_auto()
-			expr = (auto.get("cron") or "").strip()
-			if expr:
+		with app.app_context():
+			try:
+				auto = load_auto()
 				now = now_in_tz()
 				minute_key = now.strftime("%Y-%m-%d %H:%M")
-				if cron_matches(now, expr) and auto.get("last_run_minute") != minute_key:
+				changed = False
+				expr = (auto.get("cron") or "").strip()
+				if expr and cron_matches(now, expr) and auto.get("last_run_minute") != minute_key:
 					app.logger.info("AUTO cron matched (%s); running jobs...", expr)
-					_run_auto_sequence()
 					auto["last_run_minute"] = minute_key
 					save_auto(auto)
-			scan_expr = (auto.get("fresh_scan_cron") or "").strip()
-			if scan_expr:
-				now = now_in_tz()
-				minute_key = now.strftime("%Y-%m-%d %H:%M")
-				if cron_matches(now, scan_expr) and auto.get("fresh_scan_last_run_minute") != minute_key:
-					app.logger.info("FRESH AUTO scan cron matched (%s); scanning libraries...", scan_expr)
-					_run_fresh_scan_all()
+					changed = False
+					_run_auto_sequence()
+				scan_expr = (auto.get("fresh_scan_cron") or "").strip()
+				if scan_expr and cron_matches(now, scan_expr) and auto.get("fresh_scan_last_run_minute") != minute_key:
+					app.logger.info("FRESH AUTO scan cron matched (%s); queueing scan...", scan_expr)
 					auto["fresh_scan_last_run_minute"] = minute_key
+					changed = True
+					_queue_fresh_auto_scan()
+				if changed:
 					save_auto(auto)
-		except Exception as e:
-			app.logger.exception("AUTO scheduler error: %s", e)
+			except Exception as e:
+				app.logger.exception("AUTO scheduler error: %s", e)
 
 		try:
 			threading.Event().wait(30)
@@ -2985,18 +3023,28 @@ except Exception as exc:
 	app.logger.warning("Could not migrate legacy output folders on startup: %s", exc)
 
 
-@app.before_request
 def _ensure_scheduler_started():
 	global _SCHED_STARTED
 	_run_output_migration_once()
-	if not _SCHED_STARTED:
+	with SCHEDULER_LOCK:
+		if _SCHED_STARTED:
+			return
 		t = threading.Thread(target=_auto_scheduler_loop, daemon=True)
 		t.start()
 		_SCHED_STARTED = True
 
 
+try:
+	_ensure_scheduler_started()
+except Exception as exc:
+	app.logger.warning("Could not start auto scheduler on startup: %s", exc)
+
+
+@app.before_request
+def _ensure_background_tasks_started():
+	_ensure_scheduler_started()
+
+
 if __name__ == "__main__":
-	# if running directly, start scheduler too
-	t = threading.Thread(target=_auto_scheduler_loop, daemon=True)
-	t.start()
+	_ensure_scheduler_started()
 	app.run(host="0.0.0.0", port=1280)
