@@ -85,7 +85,12 @@ def add_jellytag_bypass(url, enabled):
 
 
 def jellyfin_headers(api_key):
-	return {"X-Emby-Token": api_key, "User-Agent": "Pixelfin-Fresh"}
+	return {
+		"Authorization": f'MediaBrowser Token="{api_key}"',
+		"X-Emby-Token": api_key,
+		"X-MediaBrowser-Token": api_key,
+		"User-Agent": "Pixelfin-Fresh",
+	}
 
 
 def test_server(server):
@@ -235,7 +240,7 @@ def _season_poster_rows(item, server, user_id, minres, maxres=None, high_enabled
 		if not url:
 			rows.append(_image_row("sp", label, "", 0, 0, minres, maxres or {}, high_enabled))
 			continue
-		width, height = get_image_resolution(url)
+		width, height = get_image_resolution(url, server["api_key"])
 		rows.append(_image_row("sp", label, url, width, height, minres, maxres or {}, high_enabled))
 	return rows
 

@@ -78,6 +78,15 @@ DEFAULT_ZIP_BASENAMES = {
 }
 
 _DEFAULT_TIMEOUT = (10, 120)
+
+
+def jellyfin_headers(api_key):
+	return {
+		"Authorization": f'MediaBrowser Token="{api_key}"',
+		"X-Emby-Token": api_key,
+		"X-MediaBrowser-Token": api_key,
+		"User-Agent": "Pixelfin",
+	}
 _session: Optional[requests.Session] = None
 _SAFE_NAME_RE = re.compile(r'[\\/:*?"<>|\r\n]+')
 
@@ -247,8 +256,9 @@ def pick_extension(url: str, content_type: Optional[str]) -> str:
 	return ".jpg"
 
 
-def stream_to_bytes(url: str) -> tuple[bytes, str]:
-	resp = _get_session().get(url, stream=True, timeout=_DEFAULT_TIMEOUT)
+def stream_to_bytes(url: str, api_key: str = "") -> tuple[bytes, str]:
+	headers = jellyfin_headers(api_key) if api_key else None
+	resp = _get_session().get(url, headers=headers, stream=True, timeout=_DEFAULT_TIMEOUT)
 	resp.raise_for_status()
 	content_type = resp.headers.get("Content-Type", "")
 	chunks = []
@@ -278,7 +288,7 @@ def _parse_timestamp_arg(timestamp_str: Optional[str]) -> datetime:
 # ----------------------------------------------------------------------
 def get_first_user_id(base_url, api_key):
 	url = urljoin(base_url.rstrip("/") + "/", "Users")
-	headers = {"X-Emby-Token": api_key}
+	headers = jellyfin_headers(api_key)
 	resp = _get_session().get(url, headers=headers, timeout=_DEFAULT_TIMEOUT)
 	resp.raise_for_status()
 	users = resp.json() or []
@@ -295,7 +305,7 @@ def get_first_user_id(base_url, api_key):
 
 def get_library_id(base_url, api_key, user_id, library_name):
 	url = urljoin(base_url.rstrip("/") + "/", f"Users/{user_id}/Views")
-	headers = {"X-Emby-Token": api_key}
+	headers = jellyfin_headers(api_key)
 	resp = _get_session().get(url, headers=headers, timeout=_DEFAULT_TIMEOUT)
 	resp.raise_for_status()
 	for item in resp.json()["Items"]:
@@ -341,7 +351,7 @@ def get_library_items_iter(
 	recursive: bool = False,
 	page_size: int = 100,
 ) -> Generator[dict, None, None]:
-	headers = {"X-Emby-Token": api_key}
+	headers = jellyfin_headers(api_key)
 	start_index = 0
 	lib_type_lower = (library_type or "").lower()
 
@@ -431,7 +441,7 @@ def _parse_season_number(season: dict) -> Optional[int]:
 
 
 def get_series_seasons(base_url: str, api_key: str, user_id: str, series_id: str) -> List[dict]:
-	headers = {"X-Emby-Token": api_key}
+	headers = jellyfin_headers(api_key)
 	url = urljoin(
 		base_url.rstrip("/") + "/",
 		f"Users/{user_id}/Items"
@@ -477,7 +487,7 @@ def get_season_primary_image_url(season: dict, base_url: str, api_key: str, jell
 		jellytag_bypass,
 	)
 	try:
-		width, _ = get_image_resolution(url)
+		width, _ = get_image_resolution(url, api_key)
 		if width:
 			return url
 	except Exception:
@@ -511,9 +521,10 @@ def _probe_image_size_stream(resp_raw) -> Tuple[int, int]:
 	return (0, 0)
 
 
-def get_image_resolution(url):
+def get_image_resolution(url, api_key: str = ""):
 	try:
-		with _get_session().get(url, stream=True, timeout=_DEFAULT_TIMEOUT) as resp:
+		headers = jellyfin_headers(api_key) if api_key else None
+		with _get_session().get(url, headers=headers, stream=True, timeout=_DEFAULT_TIMEOUT) as resp:
 			resp.raise_for_status()
 			if hasattr(resp, "raw") and resp.raw:
 				return _probe_image_size_stream(resp.raw)
@@ -545,7 +556,7 @@ def find_image_tags(item, image_type, base_url, api_key, first_only=False, jelly
 		for idx, tag in enumerate(backdrop_tags):
 			url = f"{base_url.rstrip('/')}/Items/{item['Id']}/Images/Backdrop/{idx}?tag={tag}&api_key={api_key}"
 			url = add_jellytag_bypass(url, jellytag_bypass)
-			width, height = get_image_resolution(url)
+			width, height = get_image_resolution(url, api_key)
 			label = "Backdrop" if len(backdrop_tags) == 1 else f"Backdrop ({idx})"
 			tags.append((label, url, width, height))
 			if first_only:
@@ -556,7 +567,7 @@ def find_image_tags(item, image_type, base_url, api_key, first_only=False, jelly
 		if key_lower.startswith(image_type_lower):
 			url = f"{base_url.rstrip('/')}/Items/{item['Id']}/Images/{image_type}?tag={tag}&api_key={api_key}"
 			url = add_jellytag_bypass(url, jellytag_bypass)
-			width, height = get_image_resolution(url)
+			width, height = get_image_resolution(url, api_key)
 			tags.append((image_type, url, width, height))
 			if first_only:
 				return tags
@@ -564,7 +575,7 @@ def find_image_tags(item, image_type, base_url, api_key, first_only=False, jelly
 	if not tags:
 		url = f"{base_url.rstrip('/')}/Items/{item['Id']}/Images/{image_type}?api_key={api_key}"
 		url = add_jellytag_bypass(url, jellytag_bypass)
-		width, height = get_image_resolution(url)
+		width, height = get_image_resolution(url, api_key)
 		if width != 0:
 			tags.append((image_type, url, width, height))
 
@@ -1052,7 +1063,7 @@ def create_zip(
 
 				for idx, (_, url, _, _) in enumerate(tags, start=1):
 					try:
-						data, ext = stream_to_bytes(url)
+						data, ext = stream_to_bytes(url, api_key)
 						filename = f"{base_name}{idx:02d}{ext}" if multi else f"{base_name}{ext}"
 						arcname = f"{folder}/{filename}"
 						zf.writestr(arcname, data)
@@ -1074,7 +1085,7 @@ def create_zip(
 						if not season_url:
 							continue
 
-						data, ext = stream_to_bytes(season_url)
+						data, ext = stream_to_bytes(season_url, api_key)
 
 						if season_num == 0:
 							filename = f"specials-poster{ext}"
@@ -1144,7 +1155,7 @@ if __name__ == "__main__":
 
 			try:
 				url_sys = f"{args.server.rstrip('/')}/Items/{item_id}?api_key={args.apikey}"
-				r = session.get(url_sys, timeout=10)
+				r = session.get(url_sys, headers=jellyfin_headers(args.apikey), timeout=10)
 				r.raise_for_status()
 				data = r.json()
 			except Exception:
@@ -1153,7 +1164,7 @@ if __name__ == "__main__":
 			if not data:
 				try:
 					url_usr = f"{args.server.rstrip('/')}/Users/{user_id}/Items/{item_id}?api_key={args.apikey}"
-					r = session.get(url_usr, timeout=10)
+					r = session.get(url_usr, headers=jellyfin_headers(args.apikey), timeout=10)
 					r.raise_for_status()
 					data = r.json()
 				except Exception:
@@ -1164,7 +1175,7 @@ if __name__ == "__main__":
 
 		if args.sort == "recent":
 			print("Building Date Added cache for top-level items...")
-			session.headers.update({"X-Emby-Token": args.apikey})
+			session.headers.update(jellyfin_headers(args.apikey))
 			date_cache = {}
 
 			def parse_item_datetime(date_str):

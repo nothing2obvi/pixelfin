@@ -44,6 +44,18 @@ SESSION = requests.Session()
 _DEFAULT_UNMATCHED_FLOOR = 0.45
 
 
+def jellyfin_headers(apikey: str, extra: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+	headers = {
+		"Authorization": f'MediaBrowser Token="{apikey}"',
+		"X-Emby-Token": apikey,
+		"X-MediaBrowser-Token": apikey,
+		"User-Agent": USER_AGENT,
+	}
+	if extra:
+		headers.update(extra)
+	return headers
+
+
 # =============================================================================
 # Utility helpers
 # =============================================================================
@@ -174,8 +186,7 @@ def _path_under_locations(item_path: str, library_locations: List[str]) -> bool:
 # =============================================================================
 def _req(method: str, url: str, apikey: str, **kwargs) -> requests.Response:
 	headers = kwargs.pop("headers", {})
-	headers["X-Emby-Token"] = apikey
-	headers["User-Agent"] = USER_AGENT
+	headers = jellyfin_headers(apikey, headers)
 	r = SESSION.request(method, url, headers=headers, timeout=_DEFAULT_TIMEOUT, **kwargs)
 	if not r.ok:
 		raise RuntimeError(f"{method} {url} failed {r.status_code}: {r.text[:300]}")
@@ -185,7 +196,7 @@ def _req(method: str, url: str, apikey: str, **kwargs) -> requests.Response:
 def _pick_user(server: str, apikey: str) -> str:
 	r = SESSION.get(
 		f"{server.rstrip('/')}/Users",
-		headers={"X-Emby-Token": apikey, "User-Agent": USER_AGENT},
+		headers=jellyfin_headers(apikey),
 		timeout=_DEFAULT_TIMEOUT,
 	)
 	r.raise_for_status()
@@ -208,7 +219,7 @@ def _pick_user(server: str, apikey: str) -> str:
 def _get_views(server: str, apikey: str, user_id: str) -> List[Dict]:
 	r = SESSION.get(
 		f"{server.rstrip('/')}/Users/{user_id}/Views",
-		headers={"X-Emby-Token": apikey, "User-Agent": USER_AGENT},
+		headers=jellyfin_headers(apikey),
 		timeout=_DEFAULT_TIMEOUT,
 	)
 	r.raise_for_status()
@@ -542,7 +553,7 @@ def delete_images(server: str, apikey: str, item_id: str, image_type: str) -> No
 	try:
 		r = SESSION.delete(
 			url,
-			headers={"X-Emby-Token": apikey, "User-Agent": USER_AGENT},
+			headers=jellyfin_headers(apikey),
 			timeout=_DEFAULT_TIMEOUT,
 		)
 		if r.status_code not in (200, 204):
@@ -575,7 +586,7 @@ def upload_image(server: str, apikey: str, item_id: str, image_type: str, image_
 	with open(image_path, "rb") as f:
 		img_b64 = base64.b64encode(f.read()).decode("ascii")
 
-	headers = {"X-Emby-Token": apikey, "Content-Type": mime, "User-Agent": USER_AGENT}
+	headers = jellyfin_headers(apikey, {"Content-Type": mime})
 	delay = 1.5
 	max_retries = 10
 
@@ -1118,7 +1129,7 @@ def run_restore(
 				try:
 					r = SESSION.get(
 						before_url,
-						headers={"X-Emby-Token": apikey, "User-Agent": USER_AGENT},
+						headers=jellyfin_headers(apikey),
 						timeout=_DEFAULT_TIMEOUT,
 					)
 					if r.ok and r.content:

@@ -38,6 +38,7 @@ from fresh_jellyfin import (
 	IMAGE_TYPE_OPTIONS as FRESH_IMAGE_TYPE_OPTIONS,
 	check_high_res,
 	is_supported_library,
+	jellyfin_headers,
 	list_admin_users,
 	list_views,
 	scan_library,
@@ -2058,7 +2059,7 @@ def fresh_library_cover(library_id):
 		with open(image_path, "rb") as fh:
 			return Response(fh.read(), mimetype=content_type, headers={"Cache-Control": "public, max-age=3600"})
 	try:
-		resp = requests.get(library["thumbnail_url"], timeout=(5, 20))
+		resp = requests.get(library["thumbnail_url"], headers=jellyfin_headers(server["api_key"]), timeout=(5, 20))
 		resp.raise_for_status()
 		content_type = resp.headers.get("Content-Type") or content_type
 		with open(image_path, "wb") as fh:
@@ -2089,7 +2090,7 @@ def fresh_item_image(item_id, code, label):
 	try:
 		resp = requests.get(
 			image["url"],
-			headers={"Cache-Control": "no-cache", "Pragma": "no-cache"},
+			headers={**jellyfin_headers(server["api_key"]), "Cache-Control": "no-cache", "Pragma": "no-cache"},
 			timeout=(5, 30),
 		)
 		resp.raise_for_status()
@@ -2356,13 +2357,13 @@ def fresh_restore_preview_current(token, match, filename):
 	try:
 		from restore import (
 			SESSION,
-			USER_AGENT,
 			_DEFAULT_TIMEOUT,
 			_get_season_items,
 			_infer_type,
 			_normalize_title,
 			_season_number_from_name,
 			get_library_items,
+			jellyfin_headers as restore_jellyfin_headers,
 		)
 		server = _FRESH_RESTORE_CONTEXT["server"]
 		apikey = _FRESH_RESTORE_CONTEXT["apikey"]
@@ -2390,7 +2391,7 @@ def fresh_restore_preview_current(token, match, filename):
 			url = generate_add_jellytag_bypass(url, True)
 		response = SESSION.get(
 			url,
-			headers={"X-Emby-Token": apikey, "User-Agent": USER_AGENT},
+			headers=restore_jellyfin_headers(apikey),
 			timeout=_DEFAULT_TIMEOUT,
 		)
 		if not response.ok or not response.content:
