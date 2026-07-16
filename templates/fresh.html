@@ -21,7 +21,7 @@
 	--ok: #287d46;
 	--shadow: 0 16px 42px rgba(28, 39, 54, .12);
 }
-body.dark {
+body[data-theme="dark"] {
 	--bg: #101419;
 	--panel: #171d24;
 	--panel-2: #202832;
@@ -35,6 +35,201 @@ body.dark {
 	--high: #6ea8ff;
 	--ok: #72d18a;
 	--shadow: 0 18px 46px rgba(0, 0, 0, .28);
+}
+body[data-theme="dracula"] {
+	--bg: #282a36;
+	--panel: #343746;
+	--panel-2: #44475a;
+	--text: #f8f8f2;
+	--muted: #bd93f9;
+	--line: #565a6e;
+	--accent: #50fa7b;
+	--accent-2: #ff79c6;
+	--danger: #ff5555;
+	--warn: #f1fa8c;
+	--high: #8be9fd;
+	--ok: #50fa7b;
+	--shadow: 0 18px 46px rgba(0, 0, 0, .30);
+}
+body[data-theme="nord"] {
+	--bg: #2e3440;
+	--panel: #3b4252;
+	--panel-2: #434c5e;
+	--text: #eceff4;
+	--muted: #d8dee9;
+	--line: #4c566a;
+	--accent: #88c0d0;
+	--accent-2: #b48ead;
+	--danger: #bf616a;
+	--warn: #ebcb8b;
+	--high: #81a1c1;
+	--ok: #a3be8c;
+	--shadow: 0 18px 46px rgba(0, 0, 0, .30);
+}
+body[data-theme="solarized-light"] {
+	--bg: #fdf6e3;
+	--panel: #fffaf0;
+	--panel-2: #eee8d5;
+	--text: #073642;
+	--muted: #657b83;
+	--line: #d9cfb8;
+	--accent: #268bd2;
+	--accent-2: #2aa198;
+	--danger: #dc322f;
+	--warn: #b58900;
+	--high: #6c71c4;
+	--ok: #859900;
+	--shadow: 0 16px 42px rgba(101, 123, 131, .18);
+}
+body[data-theme="solarized-dark"] {
+	--bg: #002b36;
+	--panel: #073642;
+	--panel-2: #0b4452;
+	--text: #eee8d5;
+	--muted: #93a1a1;
+	--line: #586e75;
+	--accent: #2aa198;
+	--accent-2: #b58900;
+	--danger: #dc322f;
+	--warn: #cb4b16;
+	--high: #268bd2;
+	--ok: #859900;
+	--shadow: 0 18px 46px rgba(0, 0, 0, .32);
+}
+body[data-theme="gruvbox-light"] {
+	--bg: #fbf1c7;
+	--panel: #f9f5d7;
+	--panel-2: #ebdbb2;
+	--text: #3c3836;
+	--muted: #7c6f64;
+	--line: #d5c4a1;
+	--accent: #458588;
+	--accent-2: #b57614;
+	--danger: #cc241d;
+	--warn: #d79921;
+	--high: #076678;
+	--ok: #98971a;
+	--shadow: 0 16px 42px rgba(60, 56, 54, .16);
+}
+body[data-theme="gruvbox-dark"] {
+	--bg: #282828;
+	--panel: #3c3836;
+	--panel-2: #504945;
+	--text: #fbf1c7;
+	--muted: #d5c4a1;
+	--line: #665c54;
+	--accent: #8ec07c;
+	--accent-2: #fabd2f;
+	--danger: #fb4934;
+	--warn: #fe8019;
+	--high: #83a598;
+	--ok: #b8bb26;
+	--shadow: 0 18px 46px rgba(0, 0, 0, .32);
+}
+body[data-theme="monokai"] {
+	--bg: #272822;
+	--panel: #34352f;
+	--panel-2: #414339;
+	--text: #f8f8f2;
+	--muted: #cfcfc2;
+	--line: #57584d;
+	--accent: #a6e22e;
+	--accent-2: #fd971f;
+	--danger: #f92672;
+	--warn: #e6db74;
+	--high: #66d9ef;
+	--ok: #a6e22e;
+	--shadow: 0 18px 46px rgba(0, 0, 0, .32);
+}
+body[data-theme="tokyo-night"] {
+	--bg: #1a1b26;
+	--panel: #24283b;
+	--panel-2: #2f334d;
+	--text: #c0caf5;
+	--muted: #9aa5ce;
+	--line: #414868;
+	--accent: #7aa2f7;
+	--accent-2: #bb9af7;
+	--danger: #f7768e;
+	--warn: #e0af68;
+	--high: #7dcfff;
+	--ok: #9ece6a;
+	--shadow: 0 18px 46px rgba(0, 0, 0, .34);
+}
+body[data-theme="catppuccin-mocha"] {
+	--bg: #1e1e2e;
+	--panel: #313244;
+	--panel-2: #45475a;
+	--text: #cdd6f4;
+	--muted: #a6adc8;
+	--line: #585b70;
+	--accent: #89b4fa;
+	--accent-2: #f5c2e7;
+	--danger: #f38ba8;
+	--warn: #f9e2af;
+	--high: #74c7ec;
+	--ok: #a6e3a1;
+	--shadow: 0 18px 46px rgba(0, 0, 0, .34);
+}
+body[data-theme="catppuccin-latte"] {
+	--bg: #eff1f5;
+	--panel: #ffffff;
+	--panel-2: #e6e9ef;
+	--text: #4c4f69;
+	--muted: #6c6f85;
+	--line: #ccd0da;
+	--accent: #1e66f5;
+	--accent-2: #ea76cb;
+	--danger: #d20f39;
+	--warn: #df8e1d;
+	--high: #209fb5;
+	--ok: #40a02b;
+	--shadow: 0 16px 42px rgba(76, 79, 105, .14);
+}
+body[data-theme="one-dark"] {
+	--bg: #21252b;
+	--panel: #282c34;
+	--panel-2: #353b45;
+	--text: #abb2bf;
+	--muted: #8f98a8;
+	--line: #4b5263;
+	--accent: #61afef;
+	--accent-2: #c678dd;
+	--danger: #e06c75;
+	--warn: #e5c07b;
+	--high: #56b6c2;
+	--ok: #98c379;
+	--shadow: 0 18px 46px rgba(0, 0, 0, .32);
+}
+body[data-theme="github-dark"] {
+	--bg: #0d1117;
+	--panel: #161b22;
+	--panel-2: #21262d;
+	--text: #e6edf3;
+	--muted: #8b949e;
+	--line: #30363d;
+	--accent: #2f81f7;
+	--accent-2: #a371f7;
+	--danger: #f85149;
+	--warn: #d29922;
+	--high: #58a6ff;
+	--ok: #3fb950;
+	--shadow: 0 18px 46px rgba(0, 0, 0, .34);
+}
+body[data-theme="high-contrast"] {
+	--bg: #000000;
+	--panel: #101010;
+	--panel-2: #1d1d1d;
+	--text: #ffffff;
+	--muted: #d0d0d0;
+	--line: #767676;
+	--accent: #00e5ff;
+	--accent-2: #ffcc00;
+	--danger: #ff4f6d;
+	--warn: #ffcc00;
+	--high: #45a3ff;
+	--ok: #7dff77;
+	--shadow: 0 18px 46px rgba(255, 255, 255, .08);
 }
 * { box-sizing: border-box; }
 body {
@@ -206,6 +401,37 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 	background: var(--panel) !important;
 	border: 1px solid var(--line);
 	box-shadow: var(--shadow);
+}
+.theme-menu-wrap { position: relative; }
+.theme-menu {
+	top: calc(100% + 8px);
+	right: 0;
+	bottom: auto;
+	left: auto;
+	min-width: 250px;
+	max-height: min(480px, calc(100vh - 92px));
+	overflow: auto;
+}
+.theme-menu button {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	width: 100%;
+	text-align: left;
+}
+.theme-menu button.active {
+	border-color: var(--accent);
+	color: var(--accent);
+	font-weight: 800;
+}
+.theme-swatch {
+	width: 18px;
+	height: 18px;
+	border: 1px solid var(--line);
+	border-radius: 999px;
+	background: linear-gradient(135deg, var(--swatch-a), var(--swatch-a) 48%, var(--swatch-b) 50%, var(--swatch-b));
+	flex: 0 0 auto;
 }
 #issueFilterMenu {
 	position: absolute;
@@ -553,7 +779,15 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 				{% if not servers %}<option value="">No server</option>{% endif %}
 			</select>
 			<button class="icon-btn" onclick="openSettings('servers')" title="Settings">⚙</button>
-			<button class="icon-btn" onclick="toggleTheme()" title="Light or dark mode">◐</button>
+			<div class="theme-menu-wrap">
+				<button class="icon-btn" onclick="toggleThemeMenu(event)" title="Themes" aria-label="Themes">
+					<svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
+						<path d="M4 21a3 3 0 0 0 3-3v-5.2l9.9-9.9a1.9 1.9 0 0 1 2.7 2.7L9.7 15.5H7v2.5A5 5 0 0 1 2 23a1 1 0 0 1 0-2h2Z" fill="currentColor"></path>
+						<path d="M14.8 5 19 9.2l-1.4 1.4-4.2-4.2L14.8 5Z" fill="currentColor" opacity=".72"></path>
+					</svg>
+				</button>
+				<div class="menu theme-menu" id="themeMenu"></div>
+			</div>
 		</div>
 	</div>
 
@@ -879,7 +1113,7 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 			<div><kbd>t</kbd><span>Scroll to top</span></div>
 			<div><kbd>a</kbd><span>Open All Tasks</span></div>
 			<div><kbd>9</kbd><span>Toggle Full or Compact layout</span></div>
-			<div><kbd>0</kbd><span>Toggle light or dark mode</span></div>
+			<div><kbd>0</kbd><span>Cycle themes</span></div>
 			<div><kbd>c</kbd><span>Hide or show complete items</span></div>
 			<div><kbd>s</kbd><span>Toggle title or date added sort</span></div>
 			<div><kbd>Esc</kbd><span>Close popups and lightbox</span></div>
@@ -969,18 +1203,70 @@ const warningKeys = ["pixelfin_hide_scan_warning"];
 let scanWarningResolver = null;
 let scanReloadScheduled = false;
 let globalScanStatusTimer = null;
+const themes = [
+	{ id: "light", name: "Light", swatch: ["#f5f7fb", "#0f8b8d"] },
+	{ id: "dark", name: "Dark", swatch: ["#101419", "#35b9b4"] },
+	{ id: "dracula", name: "Dracula", swatch: ["#282a36", "#bd93f9"] },
+	{ id: "nord", name: "Nord", swatch: ["#2e3440", "#88c0d0"] },
+	{ id: "solarized-light", name: "Solarized Light", swatch: ["#fdf6e3", "#268bd2"] },
+	{ id: "solarized-dark", name: "Solarized Dark", swatch: ["#002b36", "#2aa198"] },
+	{ id: "gruvbox-light", name: "Gruvbox Light", swatch: ["#fbf1c7", "#458588"] },
+	{ id: "gruvbox-dark", name: "Gruvbox Dark", swatch: ["#282828", "#8ec07c"] },
+	{ id: "monokai", name: "Monokai", swatch: ["#272822", "#a6e22e"] },
+	{ id: "tokyo-night", name: "Tokyo Night", swatch: ["#1a1b26", "#7aa2f7"] },
+	{ id: "catppuccin-mocha", name: "Catppuccin Mocha", swatch: ["#1e1e2e", "#89b4fa"] },
+	{ id: "catppuccin-latte", name: "Catppuccin Latte", swatch: ["#eff1f5", "#1e66f5"] },
+	{ id: "one-dark", name: "One Dark", swatch: ["#21252b", "#61afef"] },
+	{ id: "github-dark", name: "GitHub Dark", swatch: ["#0d1117", "#2f81f7"] },
+	{ id: "high-contrast", name: "High Contrast", swatch: ["#000000", "#00e5ff"] }
+];
 
 function applyTheme() {
-	document.body.classList.toggle("dark", (localStorage.getItem("pixelfin_theme") || "dark") === "dark");
+	const saved = localStorage.getItem("pixelfin_theme") || "dark";
+	const theme = themes.some(item => item.id === saved) ? saved : "dark";
+	document.body.dataset.theme = theme === "light" ? "" : theme;
+	document.body.classList.toggle("dark", theme !== "light");
+	renderThemeMenu();
 }
 function setTheme(mode) {
-	localStorage.setItem("pixelfin_theme", mode);
+	const theme = themes.some(item => item.id === mode) ? mode : "dark";
+	localStorage.setItem("pixelfin_theme", theme);
 	applyTheme();
-	showToast(`${mode === "dark" ? "Dark" : "Light"} mode enabled.`);
+	showToast(`${themeName(theme)} theme enabled.`);
 }
 function toggleTheme() {
-	localStorage.setItem("pixelfin_theme", document.body.classList.contains("dark") ? "light" : "dark");
-	applyTheme();
+	cycleTheme();
+}
+function themeName(id) {
+	return themes.find(theme => theme.id === id)?.name || "Dark";
+}
+function currentThemeId() {
+	const saved = localStorage.getItem("pixelfin_theme") || "dark";
+	return themes.some(theme => theme.id === saved) ? saved : "dark";
+}
+function cycleTheme() {
+	const current = currentThemeId();
+	const index = themes.findIndex(theme => theme.id === current);
+	const next = themes[(index + 1) % themes.length];
+	setTheme(next.id);
+}
+function toggleThemeMenu(event) {
+	event.stopPropagation();
+	const menu = document.getElementById("themeMenu");
+	const open = menu.classList.contains("open");
+	closeAllMenus();
+	if (!open) menu.classList.add("open");
+}
+function renderThemeMenu() {
+	const menu = document.getElementById("themeMenu");
+	if (!menu) return;
+	const current = currentThemeId();
+	menu.innerHTML = themes.map(theme => `
+		<button type="button" class="${theme.id === current ? "active" : ""}" onclick="setTheme('${theme.id}'); closeAllMenus();">
+			<span>${theme.name}</span>
+			<span class="theme-swatch" style="--swatch-a:${theme.swatch[0]};--swatch-b:${theme.swatch[1]};"></span>
+		</button>
+	`).join("");
 }
 applyTheme();
 

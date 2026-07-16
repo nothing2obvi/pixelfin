@@ -109,7 +109,7 @@ Breaking or migration notes:
 - Click a library to review every scanned media item.
 - Click a count to view only media items with missing or low-resolution artwork.
 - Click a media item title to open that item in Jellyfin and take action.
-- Use light or dark mode.
+- Use one of the built-in themes, including Light, Dark, Dracula, Nord, Solarized, Gruvbox, Monokai, Tokyo Night, Catppuccin, One Dark, GitHub Dark, and High Contrast.
 
 ### Artwork Review
 
@@ -170,7 +170,7 @@ Pixelfin can also opt into extra checks:
 - `t`, scroll to top.
 - `a`, open All Tasks.
 - `9`, toggle Full or Compact layout.
-- `0`, toggle light or dark mode.
+- `0`, cycle themes.
 - `c`, hide or show complete items when a library listing is open.
 - `s`, toggle sorting by title or date added when a listing is open.
 - `Esc`, close popups and lightboxes.
