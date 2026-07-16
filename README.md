@@ -109,7 +109,7 @@ Breaking or migration notes:
 - Click a library to review every scanned media item.
 - Click a count to view only media items with missing or low-resolution artwork.
 - Click a media item title to open that item in Jellyfin and take action.
-- Use one of the built-in themes, including Light, Dark, Dracula, Nord, Solarized, Gruvbox, Monokai, Tokyo Night, Catppuccin, One Dark, GitHub Dark, and High Contrast.
+- Use one of the built-in themes, including Light, Dark, Dracula, Nord, Solarized, Gruvbox, Monokai, Tokyo Night, Catppuccin, pastel themes, neon themes, and more.
 
 ### Artwork Review
 
