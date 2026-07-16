@@ -1578,8 +1578,6 @@ async function scanLibrary(id) {
 async function globalScan(button) {
 	const warned = await confirmScanAllWarning();
 	if (!warned) return;
-	const original = button?.textContent || "Scan All Libraries";
-	if (button) button.textContent = "Scanning...";
 	try {
 		const libraryIds = Array.from(document.querySelectorAll("#libraryGrid [data-library-id]")).map(card => card.dataset.libraryId);
 		const data = await api("/fresh/api/scan-all", {
@@ -1588,10 +1586,10 @@ async function globalScan(button) {
 			body: JSON.stringify({ library_ids: libraryIds })
 		});
 		showToast("Scan all started.");
-		pollScanJob(data.job_id, { kind: "all", button, originalText: original });
+		setGlobalScanStatus(true);
+		pollScanJob(data.job_id, { kind: "all" });
 	} catch (err) {
 		showToast(err.message);
-		if (button) button.textContent = original;
 	}
 }
 async function pollScanJob(jobId, context = {}) {
