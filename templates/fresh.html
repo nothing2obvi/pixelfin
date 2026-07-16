@@ -1297,7 +1297,7 @@ function hideNewServerForm() {
 async function saveServer(button) {
 	const done = setBusy(button, "Saving...");
 	try {
-		await api("/fresh/api/servers", {
+		const saved = await api("/fresh/api/servers", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({
@@ -1308,13 +1308,30 @@ async function saveServer(button) {
 				api_key: document.getElementById("serverKey").value
 			})
 		});
-		showToast("Server saved.");
-		saveNavigationState();
-		location.reload();
+		serverEditingId = String(saved.server_id || serverEditingId || "");
+		updateServerSelect(saved.servers || [], serverEditingId);
+		if (button) button.textContent = "Testing...";
+		const data = await api(`/fresh/api/servers/${serverEditingId}/test`, { method: "POST" });
+		if (Array.isArray(data.admin_users)) renderAdminUsers(data.admin_users);
+		showToast(data.message || "Connection successful");
 	} catch (err) {
 		showToast(err.message);
 	} finally {
 		done();
+	}
+}
+
+function updateServerSelect(servers, selectedId) {
+	const select = document.getElementById("serverSelect");
+	if (!select || !Array.isArray(servers)) return;
+	select.innerHTML = "";
+	for (const server of servers) {
+		if (!server?.id) continue;
+		const option = document.createElement("option");
+		option.value = String(server.id);
+		option.textContent = server.name || server.url || "Jellyfin";
+		option.selected = String(server.id) === String(selectedId);
+		select.appendChild(option);
 	}
 }
 async function saveNewServer(button) {

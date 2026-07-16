@@ -10,6 +10,7 @@ This project follows [Semantic Versioning](https://semver.org/).
 #### Changed
 - **Server testing:** Server Test now validates authenticated Jellyfin API access and reports `Connection successful` instead of returning the Jellyfin server name.
 - **Admin user selection:** Server Test refreshes the Admin User dropdown after a successful authenticated connection.
+- **Server saving:** Save Server now stays in Settings and immediately tests the saved credentials instead of closing the modal with a page reload.
 
 #### Notes
 - **Jellyfin v12:** If scans or server tests fail after upgrading to Jellyfin v12, generate a new Jellyfin API key and save the server again in Pixelfin.

@@ -1710,14 +1710,16 @@ def fresh_save_server():
 			"UPDATE servers SET name = ?, url = ?, api_key = ?, sync_user_id = ?, updated_at = ? WHERE id = ?",
 			(name, url, api_key, sync_user_id, now, server_id),
 		)
+		saved_id = int(server_id)
 	else:
 		is_first = conn.execute("SELECT COUNT(*) AS c FROM servers").fetchone()["c"] == 0
-		conn.execute(
+		cur = conn.execute(
 			"INSERT INTO servers(name, url, api_key, sync_user_id, is_active, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?)",
 			(name, url, api_key, sync_user_id, int(is_first), now, now),
 		)
+		saved_id = int(cur.lastrowid)
 	conn.commit()
-	return _json_response({"status": "ok", "servers": _fresh_servers(conn)})
+	return _json_response({"status": "ok", "server_id": saved_id, "servers": _fresh_servers(conn)})
 
 
 @app.route("/fresh/api/servers/<int:server_id>/activate", methods=["POST"])
@@ -1737,6 +1739,10 @@ def fresh_test_server(server_id):
 	try:
 		test_server(server)
 		admin_users = list_admin_users(server)
+		valid_admin_ids = {user.get("id") for user in admin_users}
+		sync_user_id = (server.get("sync_user_id") or "").strip()
+		if sync_user_id and sync_user_id not in valid_admin_ids:
+			conn.execute("UPDATE servers SET sync_user_id = ? WHERE id = ?", ("", server_id))
 		conn.execute(
 			"UPDATE servers SET last_checked = ?, last_status = ? WHERE id = ?",
 			(fresh_state.utc_now(), "ok", server_id),
