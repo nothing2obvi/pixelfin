@@ -234,7 +234,7 @@ Requirements:
 - A Jellyfin server.
 - A Jellyfin API key.
 
-If you upgrade to Jellyfin v12 and Pixelfin starts failing scans or server tests with authentication errors, generate a new Jellyfin API key and save the server again in Pixelfin. The old key may no longer be accepted after some Jellyfin upgrades or rebuilds.
+Pixelfin supports Jellyfin v12 authentication. If server tests or scans still fail with authentication errors, generate a new Jellyfin API key and save the server again in Pixelfin.
 
 Install dependencies:
 
