@@ -1347,7 +1347,7 @@ async function testActiveServer(button) {
 	const done = setBusy(button, "Testing...");
 	try {
 		const data = await api(`/fresh/api/servers/${id}/test`, { method: "POST" });
-		showToast(data.server_name || "Connected.");
+		showToast(data.message || "Connection successful");
 	} catch (err) {
 		showToast(err.message);
 	} finally {

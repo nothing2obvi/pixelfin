@@ -1735,13 +1735,14 @@ def fresh_test_server(server_id):
 	if not server:
 		return _json_response({"status": "error", "message": "Server not found."}, 404)
 	try:
-		info = test_server(server)
+		test_server(server)
+		list_admin_users(server)
 		conn.execute(
 			"UPDATE servers SET last_checked = ?, last_status = ? WHERE id = ?",
 			(fresh_state.utc_now(), "ok", server_id),
 		)
 		conn.commit()
-		return _json_response({"status": "ok", "server_name": info.get("ServerName") or info.get("LocalAddress") or "Connected"})
+		return _json_response({"status": "ok", "message": "Connection successful"})
 	except Exception as e:
 		conn.execute(
 			"UPDATE servers SET last_checked = ?, last_status = ? WHERE id = ?",
