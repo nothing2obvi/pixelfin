@@ -683,6 +683,7 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 						<label>API Key<input type="password" id="serverKey" value="{{ active_server.api_key if active_server else '' }}"></label>
 						<button onclick="syncLibraries(this)">Sync Libraries</button>
 					</div>
+					<p class="subtle">Save the server before testing or choosing an admin user. Jellyfin v12 upgrades may require a newly generated API key.</p>
 					<p><button onclick="showNewServerForm()">Add Server</button> <button onclick="testActiveServer(this)">Test</button> <button class="primary" onclick="saveServer(this)">Save Server</button></p>
 				</div>
 				<div class="settings-block" id="newServerBlock" style="display:none;">
@@ -1347,11 +1348,33 @@ async function testActiveServer(button) {
 	const done = setBusy(button, "Testing...");
 	try {
 		const data = await api(`/fresh/api/servers/${id}/test`, { method: "POST" });
+		if (Array.isArray(data.admin_users)) renderAdminUsers(data.admin_users);
 		showToast(data.message || "Connection successful");
 	} catch (err) {
 		showToast(err.message);
 	} finally {
 		done();
+	}
+}
+
+function renderAdminUsers(users) {
+	const select = document.getElementById("serverSyncUser");
+	if (!select) return;
+	const current = select.value;
+	select.innerHTML = "";
+	const auto = document.createElement("option");
+	auto.value = "";
+	auto.textContent = "Auto";
+	select.appendChild(auto);
+	for (const user of users || []) {
+		if (!user?.id) continue;
+		const option = document.createElement("option");
+		option.value = user.id;
+		option.textContent = user.name || user.id;
+		select.appendChild(option);
+	}
+	if ([...select.options].some(option => option.value === current)) {
+		select.value = current;
 	}
 }
 async function syncLibraries(button) {
