@@ -13,4 +13,4 @@ RUN mkdir -p /app/data /app/output
 
 EXPOSE 1280
 
-CMD ["gunicorn", "--bind", "0.0.0.0:1280", "--timeout", "300", "app:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:1280", "--timeout", "300", "--threads", "4", "app:app"]

@@ -15,8 +15,10 @@ def utc_now():
 
 def connect():
 	os.makedirs(DATA_DIR, exist_ok=True)
-	conn = sqlite3.connect(DB_PATH)
+	conn = sqlite3.connect(DB_PATH, timeout=30)
 	conn.row_factory = sqlite3.Row
+	conn.execute("PRAGMA busy_timeout = 30000")
+	conn.execute("PRAGMA journal_mode = WAL")
 	conn.execute("PRAGMA foreign_keys = ON")
 	init_db(conn)
 	return conn

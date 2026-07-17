@@ -348,6 +348,29 @@ def _record_fresh_auto_scan_event(status, message="", job=None, result=None):
 		app.logger.exception("Failed to record FRESH AUTO scan event.")
 
 
+def _mark_interrupted_fresh_auto_scan():
+	try:
+		auto = load_auto()
+		if auto.get("fresh_scan_last_status") not in {"queued", "running"}:
+			return
+		job_id = auto.get("fresh_scan_last_job_id") or ""
+		message = "Auto scan was interrupted by an app restart."
+		auto["fresh_scan_last_status"] = "interrupted"
+		auto["fresh_scan_last_message"] = message
+		event = {
+			"at": fresh_state.utc_now(),
+			"status": "interrupted",
+			"message": message,
+			"job_id": job_id,
+			"state": "interrupted",
+		}
+		history = [event] + [row for row in auto.get("fresh_scan_history", []) if isinstance(row, dict)]
+		auto["fresh_scan_history"] = history[:20]
+		save_auto(auto)
+	except Exception:
+		app.logger.exception("Failed to mark interrupted FRESH AUTO scan.")
+
+
 # ----------------- Output listing helpers -----------------
 def list_generated_htmls():
 	"""
@@ -3137,6 +3160,7 @@ def _ensure_scheduler_started():
 
 
 try:
+	_mark_interrupted_fresh_auto_scan()
 	_ensure_scheduler_started()
 except Exception as exc:
 	app.logger.warning("Could not start auto scheduler on startup: %s", exc)
