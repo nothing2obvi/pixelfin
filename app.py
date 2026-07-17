@@ -272,6 +272,13 @@ def load_auto():
 	data.setdefault("fresh_keep_zip", 2)
 	data.setdefault("fresh_scan_cron", "")
 	data.setdefault("fresh_scan_last_run_minute", "")
+	data.setdefault("fresh_scan_last_attempt_minute", "")
+	data.setdefault("fresh_scan_last_status", "")
+	data.setdefault("fresh_scan_last_message", "")
+	data.setdefault("fresh_scan_last_job_id", "")
+	data.setdefault("fresh_scan_history", [])
+	if not isinstance(data.get("fresh_scan_history"), list):
+		data["fresh_scan_history"] = []
 
 	norm = []
 	for j in data["jobs"]:
@@ -300,6 +307,45 @@ def save_auto(payload: dict):
 	_ensure_auto_file()
 	with open(AUTO_FILE, "w", encoding="utf-8") as f:
 		json.dump(payload, f, indent=2)
+
+
+def _fresh_auto_scan_result_summary(result):
+	results = []
+	if isinstance(result, dict):
+		results = result.get("results") or []
+	if not isinstance(results, list):
+		results = []
+	errors = [row for row in results if isinstance(row, dict) and row.get("status") == "error"]
+	return {
+		"libraries": len(results),
+		"errors": len(errors),
+		"error_libraries": [row.get("library") for row in errors if row.get("library")][:8],
+	}
+
+
+def _record_fresh_auto_scan_event(status, message="", job=None, result=None):
+	try:
+		auto = load_auto()
+		event = {
+			"at": fresh_state.utc_now(),
+			"status": status,
+			"message": message,
+		}
+		if job:
+			event["job_id"] = job.get("id", "")
+			event["state"] = job.get("state", "")
+			event["created_at"] = job.get("created_at", "")
+			event["updated_at"] = job.get("updated_at", "")
+			auto["fresh_scan_last_job_id"] = job.get("id", "")
+		if result is not None:
+			event["result"] = _fresh_auto_scan_result_summary(result)
+		auto["fresh_scan_last_status"] = status
+		auto["fresh_scan_last_message"] = message
+		history = [event] + [row for row in auto.get("fresh_scan_history", []) if isinstance(row, dict)]
+		auto["fresh_scan_history"] = history[:20]
+		save_auto(auto)
+	except Exception:
+		app.logger.exception("Failed to record FRESH AUTO scan event.")
 
 
 # ----------------- Output listing helpers -----------------
@@ -925,12 +971,13 @@ def _fresh_scan_job_update(job_id, **values):
 		job["updated_at"] = fresh_state.utc_now()
 
 
-def _fresh_start_scan_job(kind, server, library_id=None, item_id=None, library_ids=None):
+def _fresh_start_scan_job(kind, server, library_id=None, item_id=None, library_ids=None, source="manual"):
 	job_id = uuid.uuid4().hex
 	with FRESH_SCAN_JOBS_LOCK:
 		FRESH_SCAN_JOBS[job_id] = {
 			"id": job_id,
 			"kind": kind,
+			"source": source,
 			"state": "queued",
 			"library_id": library_id,
 			"item_id": item_id,
@@ -982,9 +1029,17 @@ def _fresh_start_scan_job(kind, server, library_id=None, item_id=None, library_i
 				else:
 					raise RuntimeError("Unknown scan job type.")
 				_fresh_scan_job_update(job_id, state="done", result=result)
+				if source == "auto" and kind == "all":
+					with FRESH_SCAN_JOBS_LOCK:
+						job = dict(FRESH_SCAN_JOBS.get(job_id) or {})
+					_record_fresh_auto_scan_event("done", "Auto scan completed.", job=job, result=result)
 			except Exception as e:
 				app.logger.exception("Fresh background scan failed")
 				_fresh_scan_job_update(job_id, state="error", message=str(e))
+				if source == "auto" and kind == "all":
+					with FRESH_SCAN_JOBS_LOCK:
+						job = dict(FRESH_SCAN_JOBS.get(job_id) or {})
+					_record_fresh_auto_scan_event("error", str(e), job=job)
 			finally:
 				try:
 					if conn:
@@ -1018,18 +1073,20 @@ def _fresh_active_scan_jobs():
 
 def _queue_fresh_auto_scan():
 	if _fresh_has_active_scan_job("all"):
-		app.logger.info("FRESH AUTO scan skipped because an all-library scan is already running.")
-		return None
+		message = "An all-library scan is already running."
+		app.logger.info("FRESH AUTO scan skipped because %s", message)
+		return None, message
 	conn = None
 	try:
 		conn = _fresh_conn()
 		server = _fresh_active_server(conn)
 		if not server:
-			app.logger.warning("FRESH AUTO scan skipped because no active server is configured.")
-			return None
-		job_id = _fresh_start_scan_job("all", server)
+			message = "No active server is configured."
+			app.logger.warning("FRESH AUTO scan skipped because %s", message)
+			return None, message
+		job_id = _fresh_start_scan_job("all", server, source="auto")
 		app.logger.info("FRESH AUTO scan queued as job %s.", job_id)
-		return job_id
+		return job_id, ""
 	finally:
 		try:
 			if conn:
@@ -1061,9 +1118,24 @@ def _auto_scheduler_loop():
 				scan_expr = (auto.get("fresh_scan_cron") or "").strip()
 				if scan_expr and cron_matches(now, scan_expr) and auto.get("fresh_scan_last_run_minute") != minute_key:
 					app.logger.info("FRESH AUTO scan cron matched (%s); queueing scan...", scan_expr)
-					auto["fresh_scan_last_run_minute"] = minute_key
-					changed = True
-					_queue_fresh_auto_scan()
+					job_id, message = _queue_fresh_auto_scan()
+					auto = load_auto()
+					if job_id:
+						auto["fresh_scan_last_run_minute"] = minute_key
+						auto["fresh_scan_last_attempt_minute"] = minute_key
+						auto["fresh_scan_last_status"] = "queued"
+						auto["fresh_scan_last_message"] = f"Queued auto scan job {job_id}."
+						auto["fresh_scan_last_job_id"] = job_id
+						save_auto(auto)
+						_record_fresh_auto_scan_event("queued", auto["fresh_scan_last_message"], job={"id": job_id, "state": "queued"})
+						changed = False
+					elif auto.get("fresh_scan_last_attempt_minute") != minute_key:
+						auto["fresh_scan_last_attempt_minute"] = minute_key
+						auto["fresh_scan_last_status"] = "skipped"
+						auto["fresh_scan_last_message"] = message or "Auto scan was not queued."
+						save_auto(auto)
+						_record_fresh_auto_scan_event("skipped", auto["fresh_scan_last_message"])
+						changed = False
 				if changed:
 					save_auto(auto)
 			except Exception as e:
