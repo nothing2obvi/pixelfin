@@ -1225,8 +1225,8 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 							<div class="output-row">
 								<span>{{ library }} / {{ f.filename }}</span>
 								<span class="output-actions">
-									<button type="button" onclick="deleteExistingZip(this, {{ f.folder|tojson }}, {{ f.filename|tojson }})">Delete</button>
-									<a href="{{ f.path }}">Download</a>
+									<button type="button" data-folder="{{ f.folder }}" data-filename="{{ f.filename }}" onclick="deleteExistingZip(this)">Delete</button>
+									<a href="{{ f.path }}" onclick="showToast('ZIP download started.');">Download</a>
 								</span>
 							</div>
 							{% endif %}
@@ -1486,7 +1486,9 @@ function toggleExistingZips(button) {
 	list.style.display = isHidden ? "" : "none";
 	if (button) button.textContent = isHidden ? "Hide Existing ZIPs" : "Show Existing ZIPs";
 }
-async function deleteExistingZip(button, folder, filename) {
+async function deleteExistingZip(button) {
+	const folder = button?.dataset?.folder || "";
+	const filename = button?.dataset?.filename || "";
 	if (!folder || !filename) return;
 	const ok = window.confirm(`Delete ${filename}?`);
 	if (!ok) return;
@@ -2873,6 +2875,7 @@ async function downloadLibraryFile(event, libraryId) {
 		document.body.appendChild(link);
 		link.click();
 		link.remove();
+		showToast(isZip ? "ZIP download started." : "Download started.");
 		if (status) status.textContent = "Downloaded";
 		setTimeout(() => {
 			saveNavigationState();
