@@ -3092,6 +3092,36 @@ def serve_output(library, filename):
 	return send_from_directory(os.path.join(BASE_OUTPUT_DIR, library), filename)
 
 
+@app.route("/fresh/output/<library>/<filename>/delete", methods=["POST"])
+def fresh_delete_output_zip(library, filename):
+	if not filename.lower().endswith(".zip"):
+		return _json_response({"status": "error", "message": "Only ZIP files can be deleted here."}, 400)
+	output_root = os.path.realpath(BASE_OUTPUT_DIR)
+	file_path = os.path.realpath(os.path.join(BASE_OUTPUT_DIR, library, filename))
+	if not file_path.startswith(output_root + os.sep):
+		return _json_response({"status": "error", "message": "Invalid ZIP path."}, 400)
+	if not os.path.exists(file_path):
+		return _json_response({"status": "error", "message": "ZIP file not found."}, 404)
+	try:
+		os.remove(file_path)
+		data = load_keep()
+		try:
+			if library in data.get("kept", {}) and filename in data["kept"][library]:
+				del data["kept"][library][filename]
+				if not data["kept"][library]:
+					del data["kept"][library]
+				save_keep(data)
+		except Exception:
+			pass
+		lib_folder = os.path.realpath(os.path.join(BASE_OUTPUT_DIR, library))
+		if lib_folder.startswith(output_root + os.sep) and os.path.isdir(lib_folder) and not os.listdir(lib_folder):
+			os.rmdir(lib_folder)
+		return _json_response({"status": "ok"})
+	except Exception as exc:
+		app.logger.exception("Failed to delete ZIP %s/%s", library, filename)
+		return _json_response({"status": "error", "message": str(exc)}, 500)
+
+
 @app.route("/delete/<library>/<filename>")
 def delete_file(library, filename):
 	tab = request.args.get("tab", "generate-tab")
