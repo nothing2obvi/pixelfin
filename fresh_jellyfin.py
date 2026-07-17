@@ -223,6 +223,26 @@ def _row_needs_attention(row):
 	return bool(row[6] or row[7] or row[8])
 
 
+def _upsert_item_image(conn, server_id, item_id, image_row, checked_at):
+	code, label, url, width, height, status, is_low, is_missing, is_high = image_row
+	conn.execute(
+		"""
+		INSERT INTO item_images(server_id, item_id, code, label, url, width, height, status, is_low, is_missing, is_high, last_checked)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(server_id, item_id, code, label) DO UPDATE SET
+			url = excluded.url,
+			width = excluded.width,
+			height = excluded.height,
+			status = excluded.status,
+			is_low = excluded.is_low,
+			is_missing = excluded.is_missing,
+			is_high = excluded.is_high,
+			last_checked = excluded.last_checked
+		""",
+		(server_id, item_id, code, label, url, width, height, status, is_low, is_missing, is_high, checked_at),
+	)
+
+
 def _season_poster_rows(item, server, user_id, minres, maxres=None, high_enabled=False, jellytag_bypass=False):
 	if (item.get("Type") or "").lower() != "series":
 		return []
@@ -338,14 +358,8 @@ def scan_library(conn, server, library_row, global_thresholds=None, global_high_
 				now,
 			),
 		)
-		for code, label, url, width, height, status, is_low, is_missing, is_high in image_rows:
-			conn.execute(
-				"""
-				INSERT INTO item_images(server_id, item_id, code, label, url, width, height, status, is_low, is_missing, is_high, last_checked)
-				VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-				""",
-				(server["id"], item_id, code, label, url, width, height, status, is_low, is_missing, is_high, now),
-			)
+		for image_row in image_rows:
+			_upsert_item_image(conn, server["id"], item_id, image_row, now)
 
 	conn.execute(
 		"UPDATE libraries SET collection_type = ?, item_count = ?, task_count = ?, last_scanned = ? WHERE server_id = ? AND id = ?",
@@ -432,14 +446,8 @@ def scan_media_item(conn, server, library_row, item_id, global_thresholds=None, 
 			now,
 		),
 	)
-	for code, label, url, width, height, status, is_low, is_missing, is_high in image_rows:
-		conn.execute(
-			"""
-			INSERT INTO item_images(server_id, item_id, code, label, url, width, height, status, is_low, is_missing, is_high, last_checked)
-			VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-			""",
-			(server["id"], item_id, code, label, url, width, height, status, is_low, is_missing, is_high, now),
-		)
+	for image_row in image_rows:
+		_upsert_item_image(conn, server["id"], item_id, image_row, now)
 	task_count = conn.execute(
 		"SELECT COUNT(*) FROM media_items WHERE server_id = ? AND library_id = ? AND needs_attention = 1",
 		(server["id"], library_row["id"]),
