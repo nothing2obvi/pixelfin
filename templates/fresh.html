@@ -1202,7 +1202,7 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 						<input type="text" id="autoScanCron" value="{{ auto.fresh_scan_cron }}" placeholder="*/30 * * * *">
 					</label>
 				</div>
-				<div class="notice">This scans visible libraries and updates cached missing/low-resolution status.</div>
+				<div class="notice">This scans visible libraries and updates cached missing/low-resolution{% if additional_criteria.high_resolution %}/high-resolution{% endif %} status.</div>
 				<h3>Export ZIPs</h3>
 				<div class="form-grid">
 					<label>ZIP export schedule

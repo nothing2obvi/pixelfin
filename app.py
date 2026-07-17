@@ -851,23 +851,27 @@ def _run_auto_sequence():
 			server = _fresh_active_server(conn)
 			if server:
 				keep_zip = int(fresh_auto.get("fresh_keep_zip") or 0)
+				ok_count = 0
+				fail_count = 0
 				for library in _fresh_libraries(conn, server["id"]):
 					try:
 						_lib, images, _thresholds, zipnames = _fresh_library_export_settings(conn, server, library["id"])
-						_run_generate_zip_once(
+						ok = _run_generate_zip_once(
 							server=server["url"],
 							apikey=server["api_key"],
 							library=library["name"],
 							images=images,
 							zipnames=zipnames,
 							sort_order="alphabetical",
-					jellytag_bypass=_fresh_jellytag_enabled(conn),
-					global_high_thresholds=_fresh_global_high_thresholds(conn),
-					criteria=_fresh_additional_criteria(conn),
-				)
+							jellytag_bypass=_fresh_jellytag_enabled(conn),
+						)
+						ok_count += 1 if ok else 0
+						fail_count += 0 if ok else 1
 						_prune_outputs_for_library(library["name"], keep_html=0, keep_zip=keep_zip)
 					except Exception as e:
+						fail_count += 1
 						app.logger.exception("FRESH AUTO: ZIP failed for %s: %s", library.get("name"), e)
+				app.logger.info("FRESH AUTO: ZIP run finished. ok=%s failed=%s", ok_count, fail_count)
 			return
 	except Exception:
 		app.logger.exception("FRESH AUTO: failed before legacy auto fallback")
