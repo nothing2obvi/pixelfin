@@ -870,6 +870,7 @@ def _run_auto_sequence():
 				try:
 					for library in _fresh_libraries(conn, server["id"]):
 						try:
+							_set_fresh_zip_status(True, f"Zipping library: {library['name']}")
 							_lib, images, _thresholds, zipnames = _fresh_library_export_settings(conn, server, library["id"])
 							ok = _run_generate_zip_once(
 								server=server["url"],
@@ -967,7 +968,7 @@ def _run_auto_sequence():
 			pass
 
 
-def _run_fresh_scan_all(server=None, library_ids=None):
+def _run_fresh_scan_all(server=None, library_ids=None, job_id=None):
 	conn = _fresh_conn()
 	server = server or _fresh_active_server(conn)
 	if not server:
@@ -986,6 +987,8 @@ def _run_fresh_scan_all(server=None, library_ids=None):
 		libraries = [library for library in libraries if library["id"] in library_ids]
 	for library in libraries:
 		try:
+			if job_id:
+				_fresh_scan_job_update(job_id, message=f"Scanning library: {library['name']}")
 			result = scan_library(
 				conn,
 				server,
@@ -1015,8 +1018,9 @@ def _fresh_scan_job_update(job_id, **values):
 		job["updated_at"] = fresh_state.utc_now()
 
 
-def _fresh_start_scan_job(kind, server, library_id=None, item_id=None, library_ids=None, source="manual"):
+def _fresh_start_scan_job(kind, server, library_id=None, item_id=None, library_ids=None, source="manual", library_name=""):
 	job_id = uuid.uuid4().hex
+	message = "Scanning libraries..." if kind == "all" else (f"Scanning library: {library_name}" if library_name else "Scanning library...")
 	with FRESH_SCAN_JOBS_LOCK:
 		FRESH_SCAN_JOBS[job_id] = {
 			"id": job_id,
@@ -1024,6 +1028,8 @@ def _fresh_start_scan_job(kind, server, library_id=None, item_id=None, library_i
 			"source": source,
 			"state": "queued",
 			"library_id": library_id,
+			"library_name": library_name or "",
+			"message": message,
 			"item_id": item_id,
 			"created_at": fresh_state.utc_now(),
 			"updated_at": fresh_state.utc_now(),
@@ -1042,6 +1048,7 @@ def _fresh_start_scan_job(kind, server, library_id=None, item_id=None, library_i
 					).fetchone()
 					if not library:
 						raise RuntimeError("Library not found.")
+					_fresh_scan_job_update(job_id, library_name=library["name"], message=f"Scanning library: {library['name']}")
 					result = scan_library(
 						conn,
 						server,
@@ -1052,7 +1059,7 @@ def _fresh_start_scan_job(kind, server, library_id=None, item_id=None, library_i
 						criteria=_fresh_additional_criteria(conn),
 					)
 				elif kind == "all":
-					result = {"results": _run_fresh_scan_all(server, library_ids=library_ids or [])}
+					result = {"results": _run_fresh_scan_all(server, library_ids=library_ids or [], job_id=job_id)}
 				elif kind == "item":
 					library = conn.execute(
 						"SELECT * FROM libraries WHERE server_id = ? AND id = ?",
@@ -2044,12 +2051,18 @@ def fresh_scan_job_status(job_id):
 def fresh_scan_jobs_status():
 	jobs = _fresh_active_scan_jobs()
 	zip_status = _fresh_zip_status()
+	scan_message = ""
+	for job in jobs:
+		if job.get("kind") in {"all", "library"}:
+			scan_message = job.get("message") or ("Scanning libraries..." if job.get("kind") == "all" else "Scanning library...")
+			break
 	return _json_response(
 		{
 			"status": "ok",
 			"jobs": jobs,
 			"active": bool(jobs),
 			"scanning_libraries": any(job.get("kind") in {"all", "library"} for job in jobs),
+			"scan_message": scan_message,
 			"zipping_libraries": bool(zip_status.get("active")),
 			"zip_message": zip_status.get("message") or "",
 		}
@@ -2105,7 +2118,7 @@ def fresh_scan_library(library_id):
 	if library["hidden"]:
 		return _json_response({"status": "error", "message": "Hidden libraries are paused."}, 400)
 	try:
-		job_id = _fresh_start_scan_job("library", server, library_id=library_id)
+		job_id = _fresh_start_scan_job("library", server, library_id=library_id, library_name=library["name"])
 		return _json_response({"status": "ok", "job_id": job_id, "state": "queued"})
 	except Exception as e:
 		app.logger.exception("Fresh scan failed")
@@ -2325,7 +2338,7 @@ def fresh_download_zip(library_id):
 		library, images, _thresholds, zipnames = _fresh_library_export_settings(conn, server, library_id)
 		jellytag_bypass = _fresh_jellytag_enabled(conn)
 		app.logger.info("FRESH: ZIP export library=%s jellytag_bypass=%s", library["name"], jellytag_bypass)
-		_set_fresh_zip_status(True, "Zipping library...")
+		_set_fresh_zip_status(True, f"Zipping library: {library['name']}")
 		try:
 			ok = _run_generate_zip_once(
 				server=server["url"],

@@ -2073,14 +2073,16 @@ async function saveJellytag() {
 async function scanLibrary(id) {
 	const card = document.querySelector(`[data-library-id="${id}"]`);
 	if (card) card.style.opacity = ".62";
+	const libraryName = card?.dataset.libraryName || "";
 	const status = card?.querySelector(".scan-status");
 	if (status) status.textContent = "Scanning";
+	if (libraryName) setGlobalScanStatus(true, `Scanning library: ${libraryName}`);
 	const detailStatus = document.getElementById("detailScanStatus");
 	if (detailStatus) detailStatus.textContent = "Scanning";
 	try {
 		const data = await api(`/fresh/api/libraries/${id}/scan`, { method: "POST" });
 		showToast("Library scan started.");
-		pollScanJob(data.job_id, { kind: "library", libraryId: id });
+		pollScanJob(data.job_id, { kind: "library", libraryId: id, libraryName });
 	} catch (err) {
 		showToast(err.message);
 		if (card) card.style.opacity = "";
@@ -2141,7 +2143,7 @@ async function pollScanJob(jobId, context = {}) {
 		}
 		const detailStatus = document.getElementById("detailScanStatus");
 		if (detailStatus) detailStatus.textContent = "Scan complete";
-		await refreshCurrentDetailView();
+		await refreshCurrentDetailView({ preserveDetailAnchor: detailIsScrollTarget() });
 		await updateIssueCounts();
 		await updateGlobalScanStatus();
 		scheduleScanCompletionReload();
@@ -2170,7 +2172,7 @@ async function updateGlobalScanStatus() {
 		const wasZipping = globalZipWasActive;
 		globalScanWasActive = scanning;
 		globalZipWasActive = zipping;
-		const message = zipping ? (data.zip_message || "Zipping all libraries...") : "Scanning libraries...";
+		const message = zipping ? (data.zip_message || "Zipping all libraries...") : (data.scan_message || "Scanning libraries...");
 		setGlobalScanStatus(active, message);
 		if ((wasActive && !scanning) || (wasZipping && !zipping)) {
 			scheduleScanCompletionReload();
@@ -2251,6 +2253,13 @@ function detailIsVisibleInViewport() {
 	const rect = detail.getBoundingClientRect();
 	return rect.bottom > 80 && rect.top < window.innerHeight - 80;
 }
+function detailIsScrollTarget() {
+	const detail = document.getElementById("detail");
+	if (!detail?.classList.contains("open")) return false;
+	const rect = detail.getBoundingClientRect();
+	const detailTop = window.scrollY + rect.top;
+	return window.scrollY >= Math.max(0, detailTop - 140);
+}
 function closeDetail() {
 	document.getElementById("detail")?.classList.remove("open");
 	clearNavigationState();
@@ -2271,7 +2280,7 @@ function saveNavigationState() {
 }
 function saveScanCompletionNavigationState() {
 	sessionStorage.setItem("pixelfin_scroll_y", String(window.scrollY || 0));
-	if (!detailIsVisibleInViewport() || !currentDetailMode) {
+	if (!detailIsScrollTarget() || !currentDetailMode) {
 		sessionStorage.removeItem("pixelfin_view_state");
 		return;
 	}
@@ -2751,12 +2760,13 @@ async function saveLibrarySettings(payload) {
 	await updateIssueCounts();
 	showToast("Library settings saved.");
 }
-async function refreshCurrentDetailView() {
+async function refreshCurrentDetailView(options = {}) {
 	const detailOpen = document.getElementById("detail")?.classList.contains("open");
 	if (!detailOpen) return;
+	const preserveDetailAnchor = options.preserveDetailAnchor !== false;
 	const viewMode = currentDetailMode;
 	const wasHideComplete = hideCompleteItems;
-	const anchorItemId = currentVisibleEntryId();
+	const anchorItemId = preserveDetailAnchor ? currentVisibleEntryId() : "";
 	const y = window.scrollY;
 	if (viewMode === "allTasks") {
 		const data = await api("/fresh/api/tasks");
@@ -2812,7 +2822,8 @@ async function downloadLibraryFile(event, libraryId) {
 	if (status) status.textContent = "Downloading";
 	const form = event.currentTarget;
 	const isZip = form?.action?.includes("/download-zip");
-	if (isZip) setGlobalScanStatus(true, "Zipping library...");
+	const libraryName = card?.dataset.libraryName || "";
+	if (isZip) setGlobalScanStatus(true, libraryName ? `Zipping library: ${libraryName}` : "Zipping library...");
 	const button = form?.querySelector("button");
 	const original = button?.textContent || "Download";
 	if (button) {
