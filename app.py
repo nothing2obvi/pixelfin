@@ -61,6 +61,8 @@ ASSETS_DIR = "assets"
 FRESH_COVER_CACHE_DIR = os.path.join("data", "fresh_cover_cache")
 FRESH_SCAN_JOBS = {}
 FRESH_SCAN_JOBS_LOCK = threading.Lock()
+FRESH_ZIP_STATUS = {"active": False, "message": ""}
+FRESH_ZIP_STATUS_LOCK = threading.Lock()
 SCHEDULER_LOCK = threading.Lock()
 
 os.makedirs("data", exist_ok=True)
@@ -843,6 +845,17 @@ def _run_generate_zip_once(server, apikey, library, images, zipnames, sort_order
 	return proc.returncode == 0
 
 
+def _set_fresh_zip_status(active, message=""):
+	with FRESH_ZIP_STATUS_LOCK:
+		FRESH_ZIP_STATUS["active"] = bool(active)
+		FRESH_ZIP_STATUS["message"] = message if active else ""
+
+
+def _fresh_zip_status():
+	with FRESH_ZIP_STATUS_LOCK:
+		return dict(FRESH_ZIP_STATUS)
+
+
 def _run_auto_sequence():
 	try:
 		conn = _fresh_conn()
@@ -850,28 +863,32 @@ def _run_auto_sequence():
 		if fresh_auto.get("fresh_global_zip"):
 			server = _fresh_active_server(conn)
 			if server:
+				_set_fresh_zip_status(True, "Zipping all libraries...")
 				keep_zip = int(fresh_auto.get("fresh_keep_zip") or 0)
 				ok_count = 0
 				fail_count = 0
-				for library in _fresh_libraries(conn, server["id"]):
-					try:
-						_lib, images, _thresholds, zipnames = _fresh_library_export_settings(conn, server, library["id"])
-						ok = _run_generate_zip_once(
-							server=server["url"],
-							apikey=server["api_key"],
-							library=library["name"],
-							images=images,
-							zipnames=zipnames,
-							sort_order="alphabetical",
-							jellytag_bypass=_fresh_jellytag_enabled(conn),
-						)
-						ok_count += 1 if ok else 0
-						fail_count += 0 if ok else 1
-						_prune_outputs_for_library(library["name"], keep_html=0, keep_zip=keep_zip)
-					except Exception as e:
-						fail_count += 1
-						app.logger.exception("FRESH AUTO: ZIP failed for %s: %s", library.get("name"), e)
-				app.logger.info("FRESH AUTO: ZIP run finished. ok=%s failed=%s", ok_count, fail_count)
+				try:
+					for library in _fresh_libraries(conn, server["id"]):
+						try:
+							_lib, images, _thresholds, zipnames = _fresh_library_export_settings(conn, server, library["id"])
+							ok = _run_generate_zip_once(
+								server=server["url"],
+								apikey=server["api_key"],
+								library=library["name"],
+								images=images,
+								zipnames=zipnames,
+								sort_order="alphabetical",
+								jellytag_bypass=_fresh_jellytag_enabled(conn),
+							)
+							ok_count += 1 if ok else 0
+							fail_count += 0 if ok else 1
+							_prune_outputs_for_library(library["name"], keep_html=0, keep_zip=keep_zip)
+						except Exception as e:
+							fail_count += 1
+							app.logger.exception("FRESH AUTO: ZIP failed for %s: %s", library.get("name"), e)
+					app.logger.info("FRESH AUTO: ZIP run finished. ok=%s failed=%s", ok_count, fail_count)
+				finally:
+					_set_fresh_zip_status(False)
 			return
 	except Exception:
 		app.logger.exception("FRESH AUTO: failed before legacy auto fallback")
@@ -1984,12 +2001,15 @@ def fresh_scan_job_status(job_id):
 @app.route("/fresh/api/scan-jobs")
 def fresh_scan_jobs_status():
 	jobs = _fresh_active_scan_jobs()
+	zip_status = _fresh_zip_status()
 	return _json_response(
 		{
 			"status": "ok",
 			"jobs": jobs,
 			"active": bool(jobs),
 			"scanning_libraries": any(job.get("kind") in {"all", "library"} for job in jobs),
+			"zipping_libraries": bool(zip_status.get("active")),
+			"zip_message": zip_status.get("message") or "",
 		}
 	)
 
@@ -2263,15 +2283,19 @@ def fresh_download_zip(library_id):
 		library, images, _thresholds, zipnames = _fresh_library_export_settings(conn, server, library_id)
 		jellytag_bypass = _fresh_jellytag_enabled(conn)
 		app.logger.info("FRESH: ZIP export library=%s jellytag_bypass=%s", library["name"], jellytag_bypass)
-		ok = _run_generate_zip_once(
-			server=server["url"],
-			apikey=server["api_key"],
-			library=library["name"],
-			images=images,
-			zipnames=zipnames,
-			sort_order="alphabetical",
-			jellytag_bypass=jellytag_bypass,
-		)
+		_set_fresh_zip_status(True, "Zipping library...")
+		try:
+			ok = _run_generate_zip_once(
+				server=server["url"],
+				apikey=server["api_key"],
+				library=library["name"],
+				images=images,
+				zipnames=zipnames,
+				sort_order="alphabetical",
+				jellytag_bypass=jellytag_bypass,
+			)
+		finally:
+			_set_fresh_zip_status(False)
 		if not ok:
 			return Response("ZIP export failed", status=500)
 		safe_library = _safe_library_folder(library["name"])

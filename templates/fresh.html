@@ -1379,6 +1379,7 @@ let scanWarningResolver = null;
 let scanReloadScheduled = false;
 let globalScanStatusTimer = null;
 let globalScanWasActive = false;
+let globalZipWasActive = false;
 const themes = [
 	{ id: "light", name: "Light", swatch: ["#f5f7fb", "#0f8b8d"] },
 	{ id: "dark", name: "Dark", swatch: ["#101419", "#35b9b4"] },
@@ -2150,9 +2151,10 @@ async function pollScanJob(jobId, context = {}) {
 	}
 }
 
-function setGlobalScanStatus(active) {
+function setGlobalScanStatus(active, message = "Scanning libraries...") {
 	const status = document.getElementById("globalScanStatus");
 	if (!status) return;
+	status.textContent = message;
 	status.hidden = !active;
 }
 
@@ -2161,11 +2163,16 @@ async function updateGlobalScanStatus() {
 	if (!status) return false;
 	try {
 		const data = await api("/fresh/api/scan-jobs");
-		const active = Boolean(data.scanning_libraries);
+		const scanning = Boolean(data.scanning_libraries);
+		const zipping = Boolean(data.zipping_libraries);
+		const active = scanning || zipping;
 		const wasActive = globalScanWasActive;
-		globalScanWasActive = active;
-		setGlobalScanStatus(active);
-		if (wasActive && !active) {
+		const wasZipping = globalZipWasActive;
+		globalScanWasActive = scanning;
+		globalZipWasActive = zipping;
+		const message = zipping ? (data.zip_message || "Zipping all libraries...") : "Scanning libraries...";
+		setGlobalScanStatus(active, message);
+		if ((wasActive && !scanning) || (wasZipping && !zipping)) {
 			scheduleScanCompletionReload();
 		}
 		return active;
@@ -2804,6 +2811,8 @@ async function downloadLibraryFile(event, libraryId) {
 	const status = card?.querySelector(".scan-status");
 	if (status) status.textContent = "Downloading";
 	const form = event.currentTarget;
+	const isZip = form?.action?.includes("/download-zip");
+	if (isZip) setGlobalScanStatus(true, "Zipping library...");
 	const button = form?.querySelector("button");
 	const original = button?.textContent || "Download";
 	if (button) {
@@ -2832,6 +2841,7 @@ async function downloadLibraryFile(event, libraryId) {
 		}, 900);
 	} catch (err) {
 		showToast(err.message);
+		if (isZip) setGlobalScanStatus(false);
 		if (status) status.textContent = "";
 		if (button) {
 			button.disabled = false;
