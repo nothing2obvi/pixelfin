@@ -1386,6 +1386,7 @@ let pinnedTaskItemIds = new Set();
 const warningKeys = ["pixelfin_hide_scan_warning"];
 let scanWarningResolver = null;
 let scanReloadScheduled = false;
+let completionReloadInProgress = false;
 let globalScanStatusTimer = null;
 let globalScanWasActive = false;
 let globalZipWasActive = false;
@@ -1524,6 +1525,7 @@ function scrollToTop() {
 }
 
 window.addEventListener("beforeunload", () => {
+	if (completionReloadInProgress) return;
 	saveNavigationState();
 });
 document.addEventListener("DOMContentLoaded", () => {
@@ -2223,6 +2225,7 @@ function scheduleScanCompletionReload() {
 	if (scanReloadScheduled) return;
 	scanReloadScheduled = true;
 	setTimeout(() => {
+		completionReloadInProgress = true;
 		saveScanCompletionNavigationState();
 		try {
 			window.stop();
@@ -2878,7 +2881,12 @@ async function downloadLibraryFile(event, libraryId) {
 		showToast(isZip ? "ZIP download started." : "Download started.");
 		if (status) status.textContent = "Downloaded";
 		setTimeout(() => {
-			saveNavigationState();
+			if (isZip) {
+				completionReloadInProgress = true;
+				saveScanCompletionNavigationState();
+			} else {
+				saveNavigationState();
+			}
 			location.reload();
 		}, 900);
 	} catch (err) {
