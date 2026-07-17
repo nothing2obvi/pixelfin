@@ -863,7 +863,7 @@ def _run_auto_sequence():
 		if fresh_auto.get("fresh_global_zip"):
 			server = _fresh_active_server(conn)
 			if server:
-				_set_fresh_zip_status(True, "Zipping all libraries...")
+				_set_fresh_zip_status(True, "Zipping libraries...")
 				keep_zip = int(fresh_auto.get("fresh_keep_zip") or 0)
 				ok_count = 0
 				fail_count = 0

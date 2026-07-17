@@ -2172,7 +2172,7 @@ async function updateGlobalScanStatus() {
 		const wasZipping = globalZipWasActive;
 		globalScanWasActive = scanning;
 		globalZipWasActive = zipping;
-		const message = zipping ? (data.zip_message || "Zipping all libraries...") : (data.scan_message || "Scanning libraries...");
+		const message = zipping ? (data.zip_message || "Zipping libraries...") : (data.scan_message || "Scanning libraries...");
 		setGlobalScanStatus(active, message);
 		if ((wasActive && !scanning) || (wasZipping && !zipping)) {
 			scheduleScanCompletionReload();
