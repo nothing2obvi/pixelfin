@@ -7,11 +7,33 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+- Nothing yet.
+
+---
+
+## v1.0.5 - 2026-07-17
+
+#### Added
+- **Jellyfin v12 compatibility:** Pixelfin now sends Jellyfin v12-compatible authentication headers while keeping older token headers for Jellyfin 10.11 compatibility.
+- **Theme picker:** Added a theme picker with more built-in themes and a keyboard shortcut to cycle themes.
+- **Existing ZIP controls:** Existing Auto ZIPs can now be deleted from Settings, with matching button styling and toast feedback.
+- **Multiple backdrop support:** Pixelfin now treats multiple Jellyfin backdrops as distinct images in scans, listings, ZIP restore comparisons, and restore previews.
+
 #### Changed
 - **Server testing:** Server Test now validates authenticated Jellyfin API access and reports `Connection successful` instead of returning the Jellyfin server name.
 - **Admin user selection:** Server Test refreshes the Admin User dropdown after a successful authenticated connection.
 - **Server saving:** Save Server now stays in Settings and immediately tests the saved credentials instead of closing the modal with a page reload.
-- **Jellyfin v12 auth:** Pixelfin now sends Jellyfin v12-compatible authentication headers while keeping older token headers for Jellyfin 10.11 compatibility.
+- **ZIP and scan status:** Scan and ZIP status messages now show active work in the page header, including specific library names for single-library work.
+- **ZIP status wording:** Multi-library ZIP work now displays `Zipping libraries...`.
+
+#### Fixed
+- **Scheduled ZIP exports:** Fixed scheduled ZIP export jobs so they actually create ZIPs and respect ZIP retention.
+- **Auto scan scheduling:** Improved scheduled auto-scan reliability and audit logging.
+- **Background scans:** Scan completion now refreshes the page while preserving where you were looking.
+- **ZIP completion position:** Single-library ZIP downloads and scheduled ZIP runs now refresh without dragging the page back to an old gallery position.
+- **Duplicate image rows:** Scans now upsert duplicate image rows instead of failing on repeated media item/image type/label combinations.
+- **Image refresh:** Scans refresh image cache state so changed Jellyfin artwork appears without a hard browser refresh.
+- **Attention badge colors:** Attention counts now use theme-appropriate badge colors.
 
 #### Notes
 - **Jellyfin API keys:** If server tests or scans still fail with authentication errors, generate a new Jellyfin API key and save the server again in Pixelfin.
