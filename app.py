@@ -1335,56 +1335,104 @@ def _fresh_restore_filename_for_group(group, overrides):
 	return os.path.basename(name)
 
 
-def _fresh_restore_server_image_groups(server, apikey, library):
+def _fresh_restore_backdrop_filename(index, overrides):
+	base = (overrides or {}).get("Backdrop") or FRESH_DEFAULT_ZIP_BASENAMES.get("bd", "backdrop")
+	base = os.path.splitext(os.path.basename(str(base)))[0] or "backdrop"
+	return f"{base}{int(index) + 1:02d}.jpg"
+
+
+def _fresh_restore_zip_image_entries(path, folder, overrides, selected_codes):
+	selected_labels = None
+	if selected_codes is not None:
+		selected_labels = {FRESH_IMAGE_TYPE_OPTIONS.get(code, code) for code in selected_codes}
+	entries = []
+	try:
+		from restore import _backdrop_index_from_name
+	except Exception:
+		_backdrop_index_from_name = lambda filename, overrides=None: None
+	for filename in _fresh_restore_folder_files(path, folder):
+		group = _fresh_restore_group_for_filename(filename, overrides)
+		if not group:
+			continue
+		if group != "Season Posters" and selected_labels is not None and group not in selected_labels:
+			continue
+		backdrop_index = _backdrop_index_from_name(filename, overrides) if group == "Backdrop" else None
+		key = f"Backdrop:{backdrop_index if backdrop_index is not None else 0}" if group == "Backdrop" else group
+		entries.append({
+			"key": key,
+			"name": filename,
+			"group": group,
+			"backdrop_index": backdrop_index,
+		})
+	return entries
+
+
+def _fresh_restore_server_image_entries_for_item(item, selected_codes, overrides):
+	selected_labels = None
+	if selected_codes is not None:
+		selected_labels = {FRESH_IMAGE_TYPE_OPTIONS.get(code, code) for code in selected_codes}
+	entries = []
+	for image_type, tag in (item.get("ImageTags") or {}).items():
+		if not tag:
+			continue
+		if selected_labels is not None and image_type not in selected_labels:
+			continue
+		filename = _fresh_restore_filename_for_group(image_type, overrides)
+		if not filename:
+			continue
+		entries.append({
+			"key": image_type,
+			"name": filename,
+			"group": image_type,
+			"backdrop_index": None,
+		})
+	if selected_labels is None or "Backdrop" in selected_labels:
+		for index, _tag in enumerate(item.get("BackdropImageTags") or []):
+			entries.append({
+				"key": f"Backdrop:{index}",
+				"name": _fresh_restore_backdrop_filename(index, overrides),
+				"group": "Backdrop",
+				"backdrop_index": index,
+			})
+	return entries
+
+
+def _fresh_restore_server_image_entries(server, apikey, library, selected_codes=None, overrides=None):
 	try:
 		from restore import _normalize_title, get_library_items
 		items, _collection_type = get_library_items(server, apikey, library)
 	except Exception as exc:
 		app.logger.warning("Could not load current Jellyfin images for restore comparison: %s", exc)
 		return {}
-	groups_by_name = {}
+	entries_by_name = {}
 	for item in items or []:
-		groups = set()
-		for image_type, tag in (item.get("ImageTags") or {}).items():
-			if tag:
-				groups.add(image_type)
-		if item.get("BackdropImageTags"):
-			groups.add("Backdrop")
 		name = _normalize_title(item.get("Name") or "")
 		if name:
-			groups_by_name[name] = groups
-	return groups_by_name
+			entries_by_name[name] = _fresh_restore_server_image_entries_for_item(item, selected_codes, overrides or {})
+	return entries_by_name
 
 
-def _fresh_restore_comparison_images(match, path, overrides, selected_codes, server_groups):
-	selected_labels = None
-	if selected_codes is not None:
-		selected_labels = {FRESH_IMAGE_TYPE_OPTIONS.get(code, code) for code in selected_codes}
-	zip_files = match.get("images") or _fresh_restore_folder_files(path, match.get("folder") or "")
-	zip_by_group = {}
-	for filename in zip_files:
-		group = _fresh_restore_group_for_filename(filename, overrides)
-		if not group:
-			continue
-		if group != "Season Posters" and selected_labels is not None and group not in selected_labels:
-			continue
-		zip_by_group.setdefault(group, filename)
-	server_groups = set(server_groups or [])
-	if selected_labels is not None:
-		server_groups = {group for group in server_groups if group in selected_labels or group == "Season Posters"}
+def _fresh_restore_comparison_images(match, path, overrides, selected_codes, server_entries):
+	zip_entries = _fresh_restore_zip_image_entries(path, match.get("folder") or "", overrides, selected_codes)
+	zip_by_key = {entry["key"]: entry for entry in zip_entries}
+	server_by_key = {entry["key"]: entry for entry in (server_entries or [])}
 	group_order = {label: index for index, label in enumerate(FRESH_IMAGE_TYPE_OPTIONS.values())}
-	groups = sorted(set(zip_by_group) | server_groups, key=lambda group: (group_order.get(group, 999), group.lower()))
+	keys = sorted(set(zip_by_key) | set(server_by_key), key=lambda key: (
+		group_order.get((zip_by_key.get(key) or server_by_key.get(key) or {}).get("group"), 999),
+		str(key),
+	))
 	images = []
-	for group in groups:
-		filename = zip_by_group.get(group) or _fresh_restore_filename_for_group(group, overrides)
-		if not filename:
+	for key in keys:
+		entry = zip_by_key.get(key) or server_by_key.get(key)
+		if not entry:
 			continue
 		images.append(
 			{
-				"name": filename,
-				"group": group,
-				"after_exists": group in zip_by_group,
-				"before_exists": group in server_groups,
+				"name": entry["name"],
+				"group": entry["group"],
+				"key": key,
+				"after_exists": key in zip_by_key,
+				"before_exists": key in server_by_key,
 			}
 		)
 	return images
@@ -1392,14 +1440,8 @@ def _fresh_restore_comparison_images(match, path, overrides, selected_codes, ser
 
 def _fresh_restore_annotate_result(result, path, overrides, selected_codes, server=None, apikey=None, library=None):
 	groups_by_folder = _fresh_restore_image_groups(path, overrides, selected_codes)
-	server_groups_by_name = _fresh_restore_server_image_groups(server, apikey, library) if server and apikey and library else {}
-	selected_labels = None
-	if selected_codes is not None:
-		selected_labels = {FRESH_IMAGE_TYPE_OPTIONS.get(code, code) for code in selected_codes}
-	result["server_comparison_groups"] = {
-		name: sorted(group for group in groups if selected_labels is None or group in selected_labels or group == "Season Posters")
-		for name, groups in server_groups_by_name.items()
-	}
+	server_entries_by_name = _fresh_restore_server_image_entries(server, apikey, library, selected_codes, overrides) if server and apikey and library else {}
+	result["server_comparison_images"] = server_entries_by_name
 	result["comparison_default_filenames"] = {
 		label: _fresh_restore_filename_for_group(label, overrides)
 		for label in FRESH_IMAGE_TYPE_OPTIONS.values()
@@ -1409,7 +1451,7 @@ def _fresh_restore_annotate_result(result, path, overrides, selected_codes, serv
 			folder = row.get("folder") or ""
 			row["image_groups"] = groups_by_folder.get(folder, [])
 			row["images"] = _fresh_restore_folder_files(path, folder)
-			row["comparison_images"] = _fresh_restore_comparison_images(row, path, overrides, selected_codes, set())
+			row["comparison_images"] = _fresh_restore_comparison_images(row, path, overrides, selected_codes, [])
 			row["restore_key"] = re.sub(r"[^A-Za-z0-9_.-]+", "_", folder) or "folder"
 	for match in result.get("matches") or []:
 		folder = match.get("folder") or ""
@@ -1419,10 +1461,10 @@ def _fresh_restore_annotate_result(result, path, overrides, selected_codes, serv
 			match["images"] = _fresh_restore_folder_files(path, folder)
 		try:
 			from restore import _normalize_title
-			server_groups = server_groups_by_name.get(_normalize_title(match.get("match") or match.get("best_match") or ""))
+			server_entries = server_entries_by_name.get(_normalize_title(match.get("match") or match.get("best_match") or ""))
 		except Exception:
-			server_groups = set()
-		match["comparison_images"] = _fresh_restore_comparison_images(match, path, overrides, selected_codes, server_groups)
+			server_entries = []
+		match["comparison_images"] = _fresh_restore_comparison_images(match, path, overrides, selected_codes, server_entries)
 	return result
 
 
@@ -2481,6 +2523,7 @@ def fresh_restore_preview_current(token, match, filename):
 		from restore import (
 			SESSION,
 			_DEFAULT_TIMEOUT,
+			_backdrop_index_from_name,
 			_get_season_items,
 			_infer_type,
 			_normalize_title,
@@ -2506,10 +2549,15 @@ def fresh_restore_preview_current(token, match, filename):
 				return Response("Preview not found", status=404)
 			url = f"{server.rstrip('/')}/Items/{season_item['Id']}/Images/Primary"
 		else:
-			image_type = _infer_type(filename, _FRESH_RESTORE_CONTEXT.get("restore_filename_overrides") or {})
+			overrides = _FRESH_RESTORE_CONTEXT.get("restore_filename_overrides") or {}
+			image_type = _infer_type(filename, overrides)
 			if not image_type:
 				return Response("Preview not found", status=404)
-			url = f"{server.rstrip('/')}/Items/{target['Id']}/Images/{image_type}"
+			backdrop_index = _backdrop_index_from_name(filename, overrides) if image_type == "Backdrop" else None
+			if backdrop_index is not None:
+				url = f"{server.rstrip('/')}/Items/{target['Id']}/Images/Backdrop/{backdrop_index}"
+			else:
+				url = f"{server.rstrip('/')}/Items/{target['Id']}/Images/{image_type}"
 		if (_FRESH_RESTORE_CONTEXT.get("restore_filename_overrides") or {}).get("__jellytag_bypass"):
 			url = generate_add_jellytag_bypass(url, True)
 		response = SESSION.get(

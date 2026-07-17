@@ -284,7 +284,7 @@ const restoreComparisons = [
 	},
 	{% endfor %}
 ];
-const serverComparisonGroups = {{ (result.server_comparison_groups or {})|tojson }};
+const serverComparisonImages = {{ (result.server_comparison_images or {})|tojson }};
 const comparisonDefaultFilenames = {{ (result.comparison_default_filenames or {})|tojson }};
 const dynamicComparisons = {
 	{% for row in below + unmatched %}
@@ -294,6 +294,7 @@ const dynamicComparisons = {
 		images: [
 			{% for image in row.comparison_images or [] %}
 			{
+				key: {{ image.key|tojson }},
 				name: {{ image.name|tojson }},
 				group: {{ image.group|tojson }},
 				after: {% if image.after_exists %}{{ url_for('fresh_restore_preview_file', token=comparison_token, folder=row.folder, filename=image.name)|tojson }}{% else %}null{% endif %},
@@ -388,14 +389,14 @@ function orderedComparisonImages(images) {
 }
 function dynamicImagesForMatch(row, match) {
 	const byGroup = new Map();
-	row.images.forEach(image => byGroup.set(image.group || image.name, image));
-	(serverComparisonGroups[normalizeRestoreTitle(match)] || []).forEach(group => {
-		if (byGroup.has(group)) return;
-		const filename = comparisonDefaultFilenames[group];
-		if (!filename) return;
-		byGroup.set(group, {
-			name: filename,
-			group,
+	row.images.forEach(image => byGroup.set(image.key || image.group || image.name, image));
+	(serverComparisonImages[normalizeRestoreTitle(match)] || []).forEach(serverImage => {
+		const key = serverImage.key || serverImage.group || serverImage.name;
+		if (byGroup.has(key)) return;
+		byGroup.set(key, {
+			key,
+			name: serverImage.name || comparisonDefaultFilenames[serverImage.group],
+			group: serverImage.group,
 			after: null,
 			afterMissingLabel: "Missing from ZIP, will keep server image.",
 			afterMissingClass: "keep-server"

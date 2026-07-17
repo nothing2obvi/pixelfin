@@ -557,7 +557,7 @@ def find_image_tags(item, image_type, base_url, api_key, first_only=False, jelly
 			url = f"{base_url.rstrip('/')}/Items/{item['Id']}/Images/Backdrop/{idx}?tag={tag}&api_key={api_key}"
 			url = add_jellytag_bypass(url, jellytag_bypass)
 			width, height = get_image_resolution(url, api_key)
-			label = "Backdrop" if len(backdrop_tags) == 1 else f"Backdrop ({idx})"
+			label = "Backdrop" if len(backdrop_tags) == 1 else f"Backdrop {idx + 1}"
 			tags.append((label, url, width, height))
 			if first_only:
 				return tags

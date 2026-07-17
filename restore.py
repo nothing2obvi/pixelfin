@@ -680,13 +680,34 @@ def _normalize_restore_basename(value: str) -> str:
 	return re.sub(r"[^a-z0-9]+", "", os.path.splitext(os.path.basename(value or ""))[0].strip().lower())
 
 
+def _numbered_basename_index(filename: str, basename: str) -> Optional[int]:
+	name = _normalize_restore_basename(filename)
+	base = _normalize_restore_basename(basename)
+	if not name or not base or not name.startswith(base):
+		return None
+	suffix = name[len(base):]
+	if suffix.isdigit():
+		return max(0, int(suffix) - 1)
+	return None
+
+
+def _backdrop_index_from_name(filename: str, filename_overrides: Optional[Dict[str, str]] = None) -> Optional[int]:
+	override = (filename_overrides or {}).get("Backdrop")
+	candidates = [override, "backdrop", "bd"]
+	for candidate in candidates:
+		index = _numbered_basename_index(filename, candidate or "")
+		if index is not None:
+			return index
+	return None
+
+
 def _infer_type(filename: str, filename_overrides: Optional[Dict[str, str]] = None) -> Optional[str]:
 	base = os.path.splitext(os.path.basename(filename))[0].strip().lower()
 	norm_base = _normalize_restore_basename(filename)
 	for image_type, override in (filename_overrides or {}).items():
 		if str(image_type).startswith("__"):
 			continue
-		if override and norm_base == _normalize_restore_basename(override):
+		if override and (norm_base == _normalize_restore_basename(override) or _numbered_basename_index(filename, override) is not None):
 			return image_type
 	if _season_number_from_name(filename) is not None:
 		return None
@@ -1123,9 +1144,14 @@ def run_restore(
 					img_type = _infer_type(img, restore_filename_overrides)
 					if not img_type:
 						continue
-					before_url = f"{server.rstrip('/')}/Items/{item_id}/Images/{img_type}"
+					backdrop_index = _backdrop_index_from_name(img, restore_filename_overrides) if img_type == "Backdrop" else None
+					if backdrop_index is not None:
+						before_url = f"{server.rstrip('/')}/Items/{item_id}/Images/Backdrop/{backdrop_index}"
+					else:
+						before_url = f"{server.rstrip('/')}/Items/{item_id}/Images/{img_type}"
 					before_url = add_jellytag_bypass(before_url, bool(restore_filename_overrides.get("__jellytag_bypass")))
-					before_path = os.path.join(before_dir, f"{safe_basename(item_name)}_{img_type}_before.jpg")
+					before_suffix = f"{img_type}{backdrop_index + 1:02d}" if backdrop_index is not None else img_type
+					before_path = os.path.join(before_dir, f"{safe_basename(item_name)}_{before_suffix}_before.jpg")
 				try:
 					r = SESSION.get(
 						before_url,
@@ -1150,10 +1176,11 @@ def run_restore(
 				})
 				continue
 
-			backdrops = [f for f in image_files if "backdrop" in f.lower()]
+			backdrops = [f for f in image_files if _infer_type(f, restore_filename_overrides) == "Backdrop"]
 			others = [f for f in image_files if f not in backdrops]
 			ordered = others + backdrops
 
+			deleted_image_types = set()
 			for img in ordered:
 				image_path = os.path.join(folder_path, img)
 				season_number = _season_number_from_name(img)
@@ -1162,14 +1189,19 @@ def run_restore(
 					if not season_item:
 						log(f"[WARN] No matching season found for {item_name}: {img}")
 						continue
-					delete_images(server, apikey, season_item["Id"], "Primary")
+					season_delete_key = f"season:{season_item['Id']}:Primary"
+					if season_delete_key not in deleted_image_types:
+						delete_images(server, apikey, season_item["Id"], "Primary")
+						deleted_image_types.add(season_delete_key)
 					upload_image(server, apikey, season_item["Id"], "Primary", image_path)
 					continue
 				img_type = _infer_type(img, restore_filename_overrides)
 				if not img_type:
 					log(f"[INFO] Skipping unrecognized image name for {item_name}: {img}")
 					continue
-				delete_images(server, apikey, item_id, img_type)
+				if img_type not in deleted_image_types:
+					delete_images(server, apikey, item_id, img_type)
+					deleted_image_types.add(img_type)
 				upload_image(server, apikey, item_id, img_type, image_path)
 
 			results.append({
