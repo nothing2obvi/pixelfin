@@ -3092,8 +3092,13 @@ def serve_output(library, filename):
 	return send_from_directory(os.path.join(BASE_OUTPUT_DIR, library), filename)
 
 
-@app.route("/fresh/output/<library>/<filename>/delete", methods=["POST"])
-def fresh_delete_output_zip(library, filename):
+@app.route("/fresh/output/delete-zip", methods=["POST"])
+def fresh_delete_output_zip():
+	payload = request.get_json(silent=True) or {}
+	library = str(payload.get("folder") or "").strip()
+	filename = str(payload.get("filename") or "").strip()
+	if not library or not filename:
+		return _json_response({"status": "error", "message": "Choose a ZIP file to delete."}, 400)
 	if not filename.lower().endswith(".zip"):
 		return _json_response({"status": "error", "message": "Only ZIP files can be deleted here."}, 400)
 	output_root = os.path.realpath(BASE_OUTPUT_DIR)

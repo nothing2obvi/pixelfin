@@ -928,7 +928,8 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 .outputs-list { margin-top: 12px; display: grid; gap: 8px; }
 .output-row { display: flex; justify-content: space-between; align-items:center; gap: 10px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
 .output-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
-.output-actions button { padding:6px 10px; }
+.output-actions button, .output-actions a { padding:6px 10px; border:1px solid var(--line); border-radius:8px; background:var(--panel); color:var(--text); font:inherit; text-decoration:none; line-height:1.2; }
+.output-actions button:hover, .output-actions a:hover { border-color:var(--accent); color:var(--accent); }
 @media (max-width: 760px) {
 	.topbar { height: auto; padding: 12px; flex-wrap: wrap; }
 	.server-switch { margin-left: 0; width: 100%; }
@@ -1491,7 +1492,11 @@ async function deleteExistingZip(button, folder, filename) {
 	if (!ok) return;
 	const done = setBusy(button, "Deleting...");
 	try {
-		await api(`/fresh/output/${encodeURIComponent(folder)}/${encodeURIComponent(filename)}/delete`, { method: "POST" });
+		await api("/fresh/output/delete-zip", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ folder, filename })
+		});
 		button.closest(".output-row")?.remove();
 		showToast("ZIP deleted.");
 	} catch (err) {
