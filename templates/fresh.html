@@ -1378,6 +1378,7 @@ const warningKeys = ["pixelfin_hide_scan_warning"];
 let scanWarningResolver = null;
 let scanReloadScheduled = false;
 let globalScanStatusTimer = null;
+let globalScanWasActive = false;
 const themes = [
 	{ id: "light", name: "Light", swatch: ["#f5f7fb", "#0f8b8d"] },
 	{ id: "dark", name: "Dark", swatch: ["#101419", "#35b9b4"] },
@@ -2161,7 +2162,12 @@ async function updateGlobalScanStatus() {
 	try {
 		const data = await api("/fresh/api/scan-jobs");
 		const active = Boolean(data.scanning_libraries);
+		const wasActive = globalScanWasActive;
+		globalScanWasActive = active;
 		setGlobalScanStatus(active);
+		if (wasActive && !active) {
+			scheduleScanCompletionReload();
+		}
 		return active;
 	} catch (err) {
 		console.warn(err);
