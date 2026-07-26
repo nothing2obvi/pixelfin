@@ -7,7 +7,8 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
-- Nothing yet.
+#### Fixed
+- **Jellyfin v12-rc3 image URLs:** Generated and direct Jellyfin image URLs now use the non-legacy `ApiKey` query parameter instead of lowercase `api_key`, keeping portable HTML/image links compatible when Jellyfin legacy authorization is disabled.
 
 ---
 

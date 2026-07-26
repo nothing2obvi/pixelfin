@@ -478,12 +478,12 @@ def get_season_primary_image_url(season: dict, base_url: str, api_key: str, jell
 
 	if tag:
 		return add_jellytag_bypass(
-			f"{base_url.rstrip('/')}/Items/{season_id}/Images/Primary?tag={tag}&api_key={api_key}",
+			f"{base_url.rstrip('/')}/Items/{season_id}/Images/Primary?tag={tag}&ApiKey={api_key}",
 			jellytag_bypass,
 		)
 
 	url = add_jellytag_bypass(
-		f"{base_url.rstrip('/')}/Items/{season_id}/Images/Primary?api_key={api_key}",
+		f"{base_url.rstrip('/')}/Items/{season_id}/Images/Primary?ApiKey={api_key}",
 		jellytag_bypass,
 	)
 	try:
@@ -554,7 +554,7 @@ def find_image_tags(item, image_type, base_url, api_key, first_only=False, jelly
 	if image_type_lower == "backdrop":
 		backdrop_tags = item.get("BackdropImageTags", []) or []
 		for idx, tag in enumerate(backdrop_tags):
-			url = f"{base_url.rstrip('/')}/Items/{item['Id']}/Images/Backdrop/{idx}?tag={tag}&api_key={api_key}"
+			url = f"{base_url.rstrip('/')}/Items/{item['Id']}/Images/Backdrop/{idx}?tag={tag}&ApiKey={api_key}"
 			url = add_jellytag_bypass(url, jellytag_bypass)
 			width, height = get_image_resolution(url, api_key)
 			label = "Backdrop" if len(backdrop_tags) == 1 else f"Backdrop {idx + 1}"
@@ -565,7 +565,7 @@ def find_image_tags(item, image_type, base_url, api_key, first_only=False, jelly
 	for key, tag in image_tags_dict.items():
 		key_lower = (key or "").lower()
 		if key_lower.startswith(image_type_lower):
-			url = f"{base_url.rstrip('/')}/Items/{item['Id']}/Images/{image_type}?tag={tag}&api_key={api_key}"
+			url = f"{base_url.rstrip('/')}/Items/{item['Id']}/Images/{image_type}?tag={tag}&ApiKey={api_key}"
 			url = add_jellytag_bypass(url, jellytag_bypass)
 			width, height = get_image_resolution(url, api_key)
 			tags.append((image_type, url, width, height))
@@ -573,7 +573,7 @@ def find_image_tags(item, image_type, base_url, api_key, first_only=False, jelly
 				return tags
 
 	if not tags:
-		url = f"{base_url.rstrip('/')}/Items/{item['Id']}/Images/{image_type}?api_key={api_key}"
+		url = f"{base_url.rstrip('/')}/Items/{item['Id']}/Images/{image_type}?ApiKey={api_key}"
 		url = add_jellytag_bypass(url, jellytag_bypass)
 		width, height = get_image_resolution(url, api_key)
 		if width != 0:
@@ -1154,7 +1154,7 @@ if __name__ == "__main__":
 			data = None
 
 			try:
-				url_sys = f"{args.server.rstrip('/')}/Items/{item_id}?api_key={args.apikey}"
+				url_sys = f"{args.server.rstrip('/')}/Items/{item_id}?ApiKey={args.apikey}"
 				r = session.get(url_sys, headers=jellyfin_headers(args.apikey), timeout=10)
 				r.raise_for_status()
 				data = r.json()
@@ -1163,7 +1163,7 @@ if __name__ == "__main__":
 
 			if not data:
 				try:
-					url_usr = f"{args.server.rstrip('/')}/Users/{user_id}/Items/{item_id}?api_key={args.apikey}"
+					url_usr = f"{args.server.rstrip('/')}/Users/{user_id}/Items/{item_id}?ApiKey={args.apikey}"
 					r = session.get(url_usr, headers=jellyfin_headers(args.apikey), timeout=10)
 					r.raise_for_status()
 					data = r.json()

@@ -159,8 +159,8 @@ def library_thumbnail_url(server, view):
 	view_id = view.get("Id")
 	tag = (view.get("ImageTags") or {}).get("Primary")
 	if tag:
-		return f"{server['url'].rstrip('/')}/Items/{view_id}/Images/Primary?tag={tag}&api_key={server['api_key']}"
-	return f"{server['url'].rstrip('/')}/Items/{view_id}/Images/Primary?api_key={server['api_key']}"
+		return f"{server['url'].rstrip('/')}/Items/{view_id}/Images/Primary?tag={tag}&ApiKey={server['api_key']}"
+	return f"{server['url'].rstrip('/')}/Items/{view_id}/Images/Primary?ApiKey={server['api_key']}"
 
 
 def item_details_url(server, item_id):
