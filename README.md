@@ -1,6 +1,17 @@
 ![Pixelfin](assets/Pixelfin.png)
 
-<a href="https://ko-fi.com/yeahnoforsure_" target="_blank" rel="noopener noreferrer"><img src="assets/support_me_on_kofi_blue.png" alt="Support me on Ko-fi" width="240"></a>
+<p align="center">
+  <a href="https://ko-fi.com/yeahnoforsure_" target="_blank" rel="noopener noreferrer">
+    <img src="assets/support_me_on_kofi_blue.png" alt="Support me on Ko-fi" width="240">
+  </a>
+</p>
+
+<p align="center">
+  Also by me:
+  <a href="https://github.com/nothing2obvi/mediawall">MediaWall</a>,
+  <a href="https://github.com/nothing2obvi/jellyfin-plugins/tree/main/Jellytag">JellyTag-Plus</a>,
+  <a href="https://github.com/nothing2obvi/jellyfin-plugins/tree/main/TaskGrid">TaskGrid</a>
+</p>
 
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
 [![All Contributors](https://img.shields.io/badge/all_contributors-4-orange.svg?style=flat-square)](#contributors-)
