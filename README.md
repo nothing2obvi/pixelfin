@@ -19,6 +19,14 @@
 
 # Pixelfin: Jellyfin Artwork Inspector
 
+## TL;DR
+
+Pixelfin is a Jellyfin artwork inspector. It helps you see which images are missing, which images are low or high resolution, and which artwork needs a human judgment call instead of whatever Jellyfin grabbed automatically.
+
+It also gives you a practical way to back up Jellyfin artwork to ZIP files and restore those images later, including dry runs and side-by-side comparisons before you write anything back to Jellyfin.
+
+## Intro
+
 I’m a bit obsessive about Jellyfin.
 
 One thing I’m especially obsessive about is artwork. Posters, backdrops, logos, thumbnails, ClearArt, all of it. To me, a big part of what makes a media library feel “premium” is the artwork. Consistent, high-quality images can make a collection of files feel curated, browsable, and actually enjoyable to explore. Not boasting, but I’ve gotten a lot of great feedback about, and donations for, my Jellyfin server, and I think I owe a lot of that to curating my images well.
