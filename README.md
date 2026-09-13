@@ -8,8 +8,8 @@
 
 <p align="center">
   Also by me:
-  <a href="https://github.com/nothing2obvi/mediawall">MediaWall</a>,
-  <a href="https://github.com/nothing2obvi/jellyfin-plugins/tree/main/Jellytag">JellyTag-Plus</a>,
+  <a href="https://github.com/nothing2obvi/mediawall">MediaWall</a> ·
+  <a href="https://github.com/nothing2obvi/jellyfin-plugins/tree/main/Jellytag">JellyTag-Plus</a> ·
   <a href="https://github.com/nothing2obvi/jellyfin-plugins/tree/main/TaskGrid">TaskGrid</a>
 </p>
 
