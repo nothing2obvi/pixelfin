@@ -90,6 +90,7 @@ def jellyfin_headers(api_key):
 	}
 _session: Optional[requests.Session] = None
 _SAFE_NAME_RE = re.compile(r'[\\/:*?"<>|\r\n]+')
+_JELLYFIN_ROUTE_CACHE: Dict[str, str] = {}
 
 
 def _private_host_fallback_url(url: str) -> Optional[str]:
@@ -116,19 +117,39 @@ def _private_host_fallback_url(url: str) -> Optional[str]:
 	return urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
 
 
+def _jellyfin_route_key(url: str) -> str:
+	parts = urlsplit(url)
+	return f"{parts.scheme}://{parts.netloc}"
+
+
+def _replace_route(url: str, route: str) -> str:
+	parts = urlsplit(url)
+	route_parts = urlsplit(route)
+	return urlunsplit((route_parts.scheme or parts.scheme, route_parts.netloc or parts.netloc, parts.path, parts.query, parts.fragment))
+
+
 def jellyfin_request(session: requests.Session, method: str, url: str, api_key: str = "", **kwargs) -> requests.Response:
 	headers = kwargs.pop("headers", None)
 	if api_key:
 		headers = jellyfin_headers(api_key) if headers is None else jellyfin_headers(api_key) | dict(headers)
 	timeout = kwargs.pop("timeout", _DEFAULT_TIMEOUT)
-	candidates = [url]
+	route_key = _jellyfin_route_key(url)
+	cached_route = _JELLYFIN_ROUTE_CACHE.get(route_key)
+	candidates = [_replace_route(url, cached_route)] if cached_route else [url]
 	fallback_url = _private_host_fallback_url(url)
-	if fallback_url and fallback_url != url:
+	if fallback_url and fallback_url != url and fallback_url not in candidates:
 		candidates.append(fallback_url)
+	if url not in candidates:
+		candidates.append(url)
 	last_exc = None
 	for idx, candidate in enumerate(candidates):
 		try:
-			return session.request(method, candidate, headers=headers, timeout=timeout, **kwargs)
+			response = session.request(method, candidate, headers=headers, timeout=timeout, **kwargs)
+			if candidate == fallback_url:
+				_JELLYFIN_ROUTE_CACHE[route_key] = _jellyfin_route_key(candidate)
+			elif candidate == url and route_key in _JELLYFIN_ROUTE_CACHE:
+				_JELLYFIN_ROUTE_CACHE.pop(route_key, None)
+			return response
 		except (requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout) as exc:
 			last_exc = exc
 			if idx == len(candidates) - 1:

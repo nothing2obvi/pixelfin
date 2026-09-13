@@ -9,6 +9,13 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.0.9 - 2026-09-13
+
+#### Fixed
+- **Fast Docker host-IP Jellyfin fallback:** Pixelfin now remembers when a private Jellyfin URL needs the Docker host fallback and uses the working route first on later requests, avoiding repeated timeout delays during scans, image loading, exports, and restores.
+
+---
+
 ## v1.0.8 - 2026-09-13
 
 #### Added
