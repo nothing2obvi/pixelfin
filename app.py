@@ -39,6 +39,7 @@ from fresh_jellyfin import (
 	check_high_res,
 	is_supported_library,
 	jellyfin_headers,
+	jellyfin_request,
 	list_admin_users,
 	list_views,
 	scan_library,
@@ -2275,7 +2276,7 @@ def fresh_library_cover(library_id):
 		with open(image_path, "rb") as fh:
 			return Response(fh.read(), mimetype=content_type, headers={"Cache-Control": "public, max-age=3600"})
 	try:
-		resp = requests.get(library["thumbnail_url"], headers=jellyfin_headers(server["api_key"]), timeout=(5, 20))
+		resp = jellyfin_request(requests.Session(), "GET", library["thumbnail_url"], server["api_key"], timeout=(5, 20))
 		resp.raise_for_status()
 		content_type = resp.headers.get("Content-Type") or content_type
 		with open(image_path, "wb") as fh:
@@ -2305,9 +2306,12 @@ def fresh_item_image(item_id, code, label):
 		return Response(status=404)
 	try:
 		image_url = _fresh_jellyfin_image_url(image["url"], server["api_key"])
-		resp = requests.get(
+		resp = jellyfin_request(
+			requests.Session(),
+			"GET",
 			image_url,
-			headers={**jellyfin_headers(server["api_key"]), "Cache-Control": "no-cache", "Pragma": "no-cache"},
+			server["api_key"],
+			headers={"Cache-Control": "no-cache", "Pragma": "no-cache"},
 			timeout=(5, 30),
 		)
 		resp.raise_for_status()
@@ -2616,9 +2620,11 @@ def fresh_restore_preview_current(token, match, filename):
 				url = f"{server.rstrip('/')}/Items/{target['Id']}/Images/{image_type}"
 		if (_FRESH_RESTORE_CONTEXT.get("restore_filename_overrides") or {}).get("__jellytag_bypass"):
 			url = generate_add_jellytag_bypass(url, True)
-		response = SESSION.get(
+		response = jellyfin_request(
+			SESSION,
+			"GET",
 			url,
-			headers=restore_jellyfin_headers(apikey),
+			apikey,
 			timeout=_DEFAULT_TIMEOUT,
 		)
 		if not response.ok or not response.content:

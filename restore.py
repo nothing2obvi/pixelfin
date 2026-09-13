@@ -24,7 +24,7 @@ import requests
 from datetime import datetime
 from typing import Dict, List, Tuple, Optional
 from difflib import SequenceMatcher
-from generate_html import add_jellytag_bypass
+from generate_html import add_jellytag_bypass, jellyfin_request
 import re
 
 # ---------------------------------------------------------------------
@@ -186,17 +186,18 @@ def _path_under_locations(item_path: str, library_locations: List[str]) -> bool:
 # =============================================================================
 def _req(method: str, url: str, apikey: str, **kwargs) -> requests.Response:
 	headers = kwargs.pop("headers", {})
-	headers = jellyfin_headers(apikey, headers)
-	r = SESSION.request(method, url, headers=headers, timeout=_DEFAULT_TIMEOUT, **kwargs)
+	r = jellyfin_request(SESSION, method, url, apikey, headers=headers, timeout=_DEFAULT_TIMEOUT, **kwargs)
 	if not r.ok:
 		raise RuntimeError(f"{method} {url} failed {r.status_code}: {r.text[:300]}")
 	return r
 
 
 def _pick_user(server: str, apikey: str) -> str:
-	r = SESSION.get(
+	r = jellyfin_request(
+		SESSION,
+		"GET",
 		f"{server.rstrip('/')}/Users",
-		headers=jellyfin_headers(apikey),
+		apikey,
 		timeout=_DEFAULT_TIMEOUT,
 	)
 	r.raise_for_status()
@@ -217,9 +218,11 @@ def _pick_user(server: str, apikey: str) -> str:
 
 
 def _get_views(server: str, apikey: str, user_id: str) -> List[Dict]:
-	r = SESSION.get(
+	r = jellyfin_request(
+		SESSION,
+		"GET",
 		f"{server.rstrip('/')}/Users/{user_id}/Views",
-		headers=jellyfin_headers(apikey),
+		apikey,
 		timeout=_DEFAULT_TIMEOUT,
 	)
 	r.raise_for_status()
@@ -551,9 +554,11 @@ def get_library_items(server: str, apikey: str, library: str) -> Tuple[List[Dict
 def delete_images(server: str, apikey: str, item_id: str, image_type: str) -> None:
 	url = f"{server.rstrip('/')}/Items/{item_id}/Images/{image_type}"
 	try:
-		r = SESSION.delete(
+		r = jellyfin_request(
+			SESSION,
+			"DELETE",
 			url,
-			headers=jellyfin_headers(apikey),
+			apikey,
 			timeout=_DEFAULT_TIMEOUT,
 		)
 		if r.status_code not in (200, 204):
@@ -592,7 +597,7 @@ def upload_image(server: str, apikey: str, item_id: str, image_type: str, image_
 
 	for attempt in range(1, max_retries + 1):
 		try:
-			r = SESSION.post(url, headers=headers, data=img_b64, timeout=_DEFAULT_TIMEOUT)
+			r = jellyfin_request(SESSION, "POST", url, apikey, headers={"Content-Type": mime}, data=img_b64, timeout=_DEFAULT_TIMEOUT)
 			if r.status_code in (200, 204):
 				log(f"Uploaded {image_type} for {item_id} ({os.path.basename(image_path)}) attempt {attempt}/{max_retries}")
 				return
@@ -1153,9 +1158,11 @@ def run_restore(
 					before_suffix = f"{img_type}{backdrop_index + 1:02d}" if backdrop_index is not None else img_type
 					before_path = os.path.join(before_dir, f"{safe_basename(item_name)}_{before_suffix}_before.jpg")
 				try:
-					r = SESSION.get(
+					r = jellyfin_request(
+						SESSION,
+						"GET",
 						before_url,
-						headers=jellyfin_headers(apikey),
+						apikey,
 						timeout=_DEFAULT_TIMEOUT,
 					)
 					if r.ok and r.content:

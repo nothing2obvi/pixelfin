@@ -9,6 +9,13 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.0.8 - 2026-09-13
+
+#### Added
+- **Docker host-IP Jellyfin fallback:** When Pixelfin is running in Docker and a private Jellyfin URL like `http://192.168.x.x:8096` times out from inside the container, Pixelfin now retries the same request through `host.docker.internal` behind the scenes. This keeps the configured Jellyfin URL intact while fixing common Docker host-routing issues.
+
+---
+
 ## v1.0.7 - 2026-09-13
 
 #### Changed

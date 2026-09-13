@@ -7,6 +7,7 @@ import tempfile
 import json
 import base64
 import shutil
+import ipaddress
 from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
 from PIL import Image, ImageFile
 from datetime import datetime, timezone
@@ -89,6 +90,52 @@ def jellyfin_headers(api_key):
 	}
 _session: Optional[requests.Session] = None
 _SAFE_NAME_RE = re.compile(r'[\\/:*?"<>|\r\n]+')
+
+
+def _private_host_fallback_url(url: str) -> Optional[str]:
+	fallback_host = os.environ.get("PIXELFIN_DOCKER_HOST_FALLBACK", "host.docker.internal").strip()
+	if not fallback_host or fallback_host.lower() in {"0", "false", "off", "none"}:
+		return None
+	try:
+		parts = urlsplit(url)
+	except Exception:
+		return None
+	host = parts.hostname
+	if not host or host == fallback_host:
+		return None
+	try:
+		ip = ipaddress.ip_address(host)
+		should_fallback = ip.is_private or ip.is_loopback or ip.is_link_local
+	except ValueError:
+		should_fallback = host.lower() in {"localhost", "host.lan"} or host.lower().endswith(".local")
+	if not should_fallback:
+		return None
+	netloc = fallback_host
+	if parts.port:
+		netloc = f"{fallback_host}:{parts.port}"
+	return urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
+
+
+def jellyfin_request(session: requests.Session, method: str, url: str, api_key: str = "", **kwargs) -> requests.Response:
+	headers = kwargs.pop("headers", None)
+	if api_key:
+		headers = jellyfin_headers(api_key) if headers is None else jellyfin_headers(api_key) | dict(headers)
+	timeout = kwargs.pop("timeout", _DEFAULT_TIMEOUT)
+	candidates = [url]
+	fallback_url = _private_host_fallback_url(url)
+	if fallback_url and fallback_url != url:
+		candidates.append(fallback_url)
+	last_exc = None
+	for idx, candidate in enumerate(candidates):
+		try:
+			return session.request(method, candidate, headers=headers, timeout=timeout, **kwargs)
+		except (requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError, requests.exceptions.Timeout) as exc:
+			last_exc = exc
+			if idx == len(candidates) - 1:
+				raise
+	if last_exc:
+		raise last_exc
+	raise RuntimeError("Jellyfin request failed")
 
 
 # ----------------------------------------------------------------------
@@ -257,8 +304,7 @@ def pick_extension(url: str, content_type: Optional[str]) -> str:
 
 
 def stream_to_bytes(url: str, api_key: str = "") -> tuple[bytes, str]:
-	headers = jellyfin_headers(api_key) if api_key else None
-	resp = _get_session().get(url, headers=headers, stream=True, timeout=_DEFAULT_TIMEOUT)
+	resp = jellyfin_request(_get_session(), "GET", url, api_key, stream=True, timeout=_DEFAULT_TIMEOUT)
 	resp.raise_for_status()
 	content_type = resp.headers.get("Content-Type", "")
 	chunks = []
@@ -288,8 +334,7 @@ def _parse_timestamp_arg(timestamp_str: Optional[str]) -> datetime:
 # ----------------------------------------------------------------------
 def get_first_user_id(base_url, api_key):
 	url = urljoin(base_url.rstrip("/") + "/", "Users")
-	headers = jellyfin_headers(api_key)
-	resp = _get_session().get(url, headers=headers, timeout=_DEFAULT_TIMEOUT)
+	resp = jellyfin_request(_get_session(), "GET", url, api_key, timeout=_DEFAULT_TIMEOUT)
 	resp.raise_for_status()
 	users = resp.json() or []
 	for user in users:
@@ -305,8 +350,7 @@ def get_first_user_id(base_url, api_key):
 
 def get_library_id(base_url, api_key, user_id, library_name):
 	url = urljoin(base_url.rstrip("/") + "/", f"Users/{user_id}/Views")
-	headers = jellyfin_headers(api_key)
-	resp = _get_session().get(url, headers=headers, timeout=_DEFAULT_TIMEOUT)
+	resp = jellyfin_request(_get_session(), "GET", url, api_key, timeout=_DEFAULT_TIMEOUT)
 	resp.raise_for_status()
 	for item in resp.json()["Items"]:
 		if item["Name"].lower() == library_name.lower():
@@ -351,7 +395,6 @@ def get_library_items_iter(
 	recursive: bool = False,
 	page_size: int = 100,
 ) -> Generator[dict, None, None]:
-	headers = jellyfin_headers(api_key)
 	start_index = 0
 	lib_type_lower = (library_type or "").lower()
 
@@ -364,7 +407,7 @@ def get_library_items_iter(
 			f"&StartIndex={start_index}"
 			f"&Limit={page_size}",
 		)
-		resp = _get_session().get(url, headers=headers, timeout=_DEFAULT_TIMEOUT)
+		resp = jellyfin_request(_get_session(), "GET", url, api_key, timeout=_DEFAULT_TIMEOUT)
 		resp.raise_for_status()
 		data = resp.json()
 		page_items = data.get("Items", []) or []
@@ -441,7 +484,6 @@ def _parse_season_number(season: dict) -> Optional[int]:
 
 
 def get_series_seasons(base_url: str, api_key: str, user_id: str, series_id: str) -> List[dict]:
-	headers = jellyfin_headers(api_key)
 	url = urljoin(
 		base_url.rstrip("/") + "/",
 		f"Users/{user_id}/Items"
@@ -453,7 +495,7 @@ def get_series_seasons(base_url: str, api_key: str, user_id: str, series_id: str
 		f"&Fields=PrimaryImageAspectRatio"
 	)
 
-	resp = _get_session().get(url, headers=headers, timeout=_DEFAULT_TIMEOUT)
+	resp = jellyfin_request(_get_session(), "GET", url, api_key, timeout=_DEFAULT_TIMEOUT)
 	resp.raise_for_status()
 	items = resp.json().get("Items", []) or []
 
@@ -523,8 +565,7 @@ def _probe_image_size_stream(resp_raw) -> Tuple[int, int]:
 
 def get_image_resolution(url, api_key: str = ""):
 	try:
-		headers = jellyfin_headers(api_key) if api_key else None
-		with _get_session().get(url, headers=headers, stream=True, timeout=_DEFAULT_TIMEOUT) as resp:
+		with jellyfin_request(_get_session(), "GET", url, api_key, stream=True, timeout=_DEFAULT_TIMEOUT) as resp:
 			resp.raise_for_status()
 			if hasattr(resp, "raw") and resp.raw:
 				return _probe_image_size_stream(resp.raw)
@@ -1155,7 +1196,7 @@ if __name__ == "__main__":
 
 			try:
 				url_sys = f"{args.server.rstrip('/')}/Items/{item_id}?ApiKey={args.apikey}"
-				r = session.get(url_sys, headers=jellyfin_headers(args.apikey), timeout=10)
+				r = jellyfin_request(session, "GET", url_sys, args.apikey, timeout=10)
 				r.raise_for_status()
 				data = r.json()
 			except Exception:
@@ -1164,7 +1205,7 @@ if __name__ == "__main__":
 			if not data:
 				try:
 					url_usr = f"{args.server.rstrip('/')}/Users/{user_id}/Items/{item_id}?ApiKey={args.apikey}"
-					r = session.get(url_usr, headers=jellyfin_headers(args.apikey), timeout=10)
+					r = jellyfin_request(session, "GET", url_usr, args.apikey, timeout=10)
 					r.raise_for_status()
 					data = r.json()
 				except Exception:
@@ -1191,7 +1232,7 @@ if __name__ == "__main__":
 
 			def fetch_item_meta(item_id):
 				meta_url = f"{args.server.rstrip('/')}/Users/{user_id}/Items/{item_id}"
-				resp = session.get(meta_url, timeout=15)
+				resp = jellyfin_request(session, "GET", meta_url, args.apikey, timeout=15)
 				resp.raise_for_status()
 				return resp.json()
 
@@ -1217,7 +1258,7 @@ if __name__ == "__main__":
 						f"?ParentId={item_id}&Recursive=true"
 					)
 					try:
-						resp = session.get(children_url, timeout=15)
+						resp = jellyfin_request(session, "GET", children_url, args.apikey, timeout=15)
 						resp.raise_for_status()
 						for child in resp.json().get("Items", []):
 							child_date = parse_item_datetime(child.get("DateAdded") or child.get("DateCreated"))

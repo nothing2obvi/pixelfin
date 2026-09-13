@@ -16,6 +16,7 @@ from generate_html import (
 	get_image_resolution,
 	get_season_primary_image_url,
 	get_series_seasons,
+	jellyfin_request,
 	_parse_season_number,
 )
 
@@ -95,9 +96,11 @@ def jellyfin_headers(api_key):
 
 
 def test_server(server):
-	resp = requests.get(
+	resp = jellyfin_request(
+		requests.Session(),
+		"GET",
 		f"{server['url'].rstrip('/')}/System/Info",
-		headers=jellyfin_headers(server["api_key"]),
+		server["api_key"],
 		timeout=JELLYFIN_TEST_TIMEOUT,
 	)
 	resp.raise_for_status()
@@ -105,9 +108,11 @@ def test_server(server):
 
 
 def list_admin_users(server):
-	resp = requests.get(
+	resp = jellyfin_request(
+		requests.Session(),
+		"GET",
 		f"{server['url'].rstrip('/')}/Users",
-		headers=jellyfin_headers(server["api_key"]),
+		server["api_key"],
 		timeout=JELLYFIN_TEST_TIMEOUT,
 	)
 	resp.raise_for_status()
@@ -131,9 +136,11 @@ def _server_user_id(server):
 
 def list_views(server):
 	user_id = _server_user_id(server)
-	resp = requests.get(
+	resp = jellyfin_request(
+		requests.Session(),
+		"GET",
 		f"{server['url'].rstrip('/')}/Users/{user_id}/Views",
-		headers=jellyfin_headers(server["api_key"]),
+		server["api_key"],
 		timeout=(5, 30),
 	)
 	resp.raise_for_status()
@@ -295,7 +302,7 @@ def scan_library(conn, server, library_row, global_thresholds=None, global_high_
 		if not item_id:
 			continue
 		try:
-			resp = session.get(f"{server['url'].rstrip('/')}/Users/{user_id}/Items/{item_id}", timeout=(5, 20))
+			resp = jellyfin_request(session, "GET", f"{server['url'].rstrip('/')}/Users/{user_id}/Items/{item_id}", server["api_key"], timeout=(5, 20))
 			resp.raise_for_status()
 			full = resp.json()
 			full["Id"] = item_id
@@ -387,7 +394,7 @@ def scan_media_item(conn, server, library_row, item_id, global_thresholds=None, 
 	user_id = _server_user_id(server)
 	session = requests.Session()
 	session.headers.update(jellyfin_headers(server["api_key"]))
-	resp = session.get(f"{server['url'].rstrip('/')}/Users/{user_id}/Items/{item_id}", timeout=(5, 20))
+	resp = jellyfin_request(session, "GET", f"{server['url'].rstrip('/')}/Users/{user_id}/Items/{item_id}", server["api_key"], timeout=(5, 20))
 	resp.raise_for_status()
 	item = resp.json()
 	item["Id"] = item_id
