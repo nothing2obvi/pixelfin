@@ -59,6 +59,7 @@ DEFAULT_ZIP_BASENAMES = {
 
 UNSUPPORTED_LIBRARY_TYPES = {"livetv", "playlists", "playlist"}
 UNSUPPORTED_LIBRARY_NAMES = {"live tv", "livetv", "playlists", "playlist"}
+JELLYFIN_TEST_TIMEOUT = (3, 8)
 
 
 def _norm_library_kind(value):
@@ -95,9 +96,9 @@ def jellyfin_headers(api_key):
 
 def test_server(server):
 	resp = requests.get(
-		f"{server['url'].rstrip('/')}/System/Info/Public",
+		f"{server['url'].rstrip('/')}/System/Info",
 		headers=jellyfin_headers(server["api_key"]),
-		timeout=(5, 15),
+		timeout=JELLYFIN_TEST_TIMEOUT,
 	)
 	resp.raise_for_status()
 	return resp.json()
@@ -107,7 +108,7 @@ def list_admin_users(server):
 	resp = requests.get(
 		f"{server['url'].rstrip('/')}/Users",
 		headers=jellyfin_headers(server["api_key"]),
-		timeout=(5, 15),
+		timeout=JELLYFIN_TEST_TIMEOUT,
 	)
 	resp.raise_for_status()
 	users = []

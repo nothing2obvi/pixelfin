@@ -9,6 +9,16 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.0.7 - 2026-09-13
+
+#### Changed
+- **Server testing:** Test now validates the saved API key against Jellyfin's authenticated system info endpoint and returns faster, clearer messages when the configured Jellyfin URL cannot be reached from Pixelfin.
+
+#### Fixed
+- **Jellyfin v12 cached image URLs:** Cached image proxy requests now normalize legacy lowercase `api_key` image URLs to Jellyfin's current `ApiKey` query parameter, so previously scanned artwork still loads after moving to Jellyfin 12.
+
+---
+
 ## v1.0.6 - 2026-07-26
 
 #### Fixed

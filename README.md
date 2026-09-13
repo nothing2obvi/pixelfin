@@ -318,7 +318,7 @@ ghcr.io/nothing2obvi/pixelfin:latest
 The current release image is:
 
 ```text
-ghcr.io/nothing2obvi/pixelfin:v1.0.6
+ghcr.io/nothing2obvi/pixelfin:v1.0.7
 ```
 
 Open:
@@ -336,7 +336,7 @@ The current Docker release publishes multi-architecture images for:
 
 Tags:
 
-- `ghcr.io/nothing2obvi/pixelfin:v1.0.6`
+- `ghcr.io/nothing2obvi/pixelfin:v1.0.7`
 - `ghcr.io/nothing2obvi/pixelfin:latest`
 
 ## Useful Notes

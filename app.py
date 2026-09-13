@@ -24,7 +24,7 @@ import requests
 import shutil
 import zipfile
 import uuid
-from urllib.parse import quote
+from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 from restore import run_restore, run_restore_streamed
 from io import BytesIO
 from generate_html import add_jellytag_bypass as generate_add_jellytag_bypass
@@ -1780,6 +1780,24 @@ def _fresh_image_proxy_url(item_id, code, label, version=""):
 	return url_for("fresh_item_image", item_id=item_id, code=code, label=label or "")
 
 
+def _fresh_jellyfin_image_url(url, api_key):
+	if not url:
+		return url
+	parts = urlsplit(url)
+	query = []
+	has_api_key = False
+	for key, value in parse_qsl(parts.query, keep_blank_values=True):
+		if key.lower() == "api_key" or key == "ApiKey":
+			if not has_api_key:
+				query.append(("ApiKey", api_key))
+				has_api_key = True
+			continue
+		query.append((key, value))
+	if not has_api_key and api_key:
+		query.append(("ApiKey", api_key))
+	return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
+
+
 def _fresh_attach_image_urls(item):
 	for image in item.get("images") or []:
 		if image.get("url") and not image.get("is_missing"):
@@ -1915,6 +1933,30 @@ def fresh_test_server(server_id):
 		)
 		conn.commit()
 		return _json_response({"status": "ok", "message": "Connection successful", "admin_users": admin_users})
+	except (requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.Timeout) as e:
+		message = (
+			"Connection timed out. Pixelfin could not reach this Jellyfin URL from where Pixelfin is running. "
+			"If Pixelfin is in Docker, make sure the Server URL is reachable from the container."
+		)
+		conn.execute(
+			"UPDATE servers SET last_checked = ?, last_status = ? WHERE id = ?",
+			(fresh_state.utc_now(), message, server_id),
+		)
+		conn.commit()
+		app.logger.warning("Jellyfin server test timed out for %s: %s", server.get("url"), e)
+		return _json_response({"status": "error", "message": message}, 502)
+	except requests.exceptions.ConnectionError as e:
+		message = (
+			"Connection failed. Pixelfin could not connect to this Jellyfin URL from where Pixelfin is running. "
+			"If Pixelfin is in Docker, make sure the Server URL is reachable from the container."
+		)
+		conn.execute(
+			"UPDATE servers SET last_checked = ?, last_status = ? WHERE id = ?",
+			(fresh_state.utc_now(), message, server_id),
+		)
+		conn.commit()
+		app.logger.warning("Jellyfin server test connection failed for %s: %s", server.get("url"), e)
+		return _json_response({"status": "error", "message": message}, 502)
 	except Exception as e:
 		conn.execute(
 			"UPDATE servers SET last_checked = ?, last_status = ? WHERE id = ?",
@@ -2262,8 +2304,9 @@ def fresh_item_image(item_id, code, label):
 	if not image or not image["url"]:
 		return Response(status=404)
 	try:
+		image_url = _fresh_jellyfin_image_url(image["url"], server["api_key"])
 		resp = requests.get(
-			image["url"],
+			image_url,
 			headers={**jellyfin_headers(server["api_key"]), "Cache-Control": "no-cache", "Pragma": "no-cache"},
 			timeout=(5, 30),
 		)
