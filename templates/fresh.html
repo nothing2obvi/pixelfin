@@ -941,6 +941,7 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 	.full-box-row { grid-template-columns: 1fr; }
 }
 </style>
+<link rel="stylesheet" href="/assets/image-editor.css">
 </head>
 <body>
 <div class="shell">
@@ -1247,7 +1248,7 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 				</a>
 				<p><button class="primary" onclick="saveJellytag()">Save</button></p>
 			</section>
-			<div class="settings-version">v1.0.9</div>
+			<div class="settings-version">v1.1.0</div>
 		</div>
 	</div>
 </div>
@@ -2222,9 +2223,11 @@ function startGlobalScanStatusPolling() {
 	globalScanStatusTimer = setInterval(updateGlobalScanStatus, 5000);
 }
 function scheduleScanCompletionReload() {
+	if (typeof imageEditor !== "undefined" && imageEditor) return;
 	if (scanReloadScheduled) return;
 	scanReloadScheduled = true;
 	setTimeout(() => {
+		if (typeof imageEditor !== "undefined" && imageEditor) { scanReloadScheduled = false; return; }
 		completionReloadInProgress = true;
 		saveScanCompletionNavigationState();
 		try {
@@ -2495,7 +2498,7 @@ function renderEntry(item, displayName) {
 	const seasonButton = seasonImagesForItem(item).length
 		? `<button type="button" onclick="openSeasonPosters('${item.id}')">View Season Posters</button>`
 		: "";
-	return `<article class="entry" id="item-${item.id}"><h3><a href="${item.details_url}" target="_blank" rel="noopener noreferrer">${escapeHtml(displayName)}</a><span>${seasonButton}<button type="button"${disabled} onclick="updateMediaItem('${item.library_id}', '${item.id}', this)">${label}</button></span></h3><div class="${layoutClass}">${inner}</div></article>`;
+	return `<article class="entry" id="item-${item.id}"><h3><a href="${item.details_url}" target="_blank" rel="noopener noreferrer">${escapeHtml(displayName)}</a><span>${seasonButton}<button type="button" class="edit-images-button" onclick="openImageEditor('${item.library_id}', '${item.id}', this)">Edit Images</button><button type="button"${disabled} onclick="updateMediaItem('${item.library_id}', '${item.id}', this)">${label}</button></span></h3><div class="${layoutClass}">${inner}</div></article>`;
 }
 function renderCompactImages(item) {
 	return item.images.filter(img => img.code !== "sp").map((img, index) => renderImageTile(item, img, index)).join("");
@@ -2882,7 +2885,8 @@ async function downloadLibraryFile(event, libraryId) {
 		if (status) status.textContent = "Downloaded";
 		setTimeout(() => {
 			if (isZip) {
-				completionReloadInProgress = true;
+				if (typeof imageEditor !== "undefined" && imageEditor) { scanReloadScheduled = false; return; }
+		completionReloadInProgress = true;
 				saveScanCompletionNavigationState();
 			} else {
 				saveNavigationState();
@@ -2901,5 +2905,6 @@ async function downloadLibraryFile(event, libraryId) {
 	return false;
 }
 </script>
+<script src="/assets/image-editor.js"></script>
 </body>
 </html>

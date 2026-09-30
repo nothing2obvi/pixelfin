@@ -2,3 +2,8 @@ __pycache__/
 *.py[cod]
 data/
 output/
+cache/
+.env
+.env.*
+*.zip
+.DS_Store

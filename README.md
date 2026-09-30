@@ -23,6 +23,8 @@
 
 Pixelfin is a Jellyfin artwork inspector. It helps you see which images are missing, which images are low or high resolution, and which artwork needs a human judgment call instead of whatever Jellyfin grabbed automatically.
 
+You can edit images directly inside Pixelfin, using the image sources available through your Jellyfin server.
+
 It also gives you a practical way to back up Jellyfin artwork to ZIP files and restore those images later, including dry runs and side-by-side comparisons before you write anything back to Jellyfin.
 
 ## Intro
@@ -47,7 +49,7 @@ Things like:
 - This thumbnail doesn’t have a logo on it.
 - This poster doesn’t go with this backdrop.
 
-Pixelfin gives you a summary table, and you can click a title to jump directly to that item’s gallery section. From there, you can click the gallery title to open the item in Jellyfin and make your changes.
+Pixelfin gives you a summary table, and you can click a title to jump directly to that item’s gallery section. From there, click the gallery title to open the item in Jellyfin to make or preview changes, or click **Edit Images** to edit artwork directly in Pixelfin.
 
 It can also generate HTML galleries that embed your images, export a library’s artwork to ZIP files, and restore artwork back to Jellyfin from ZIP, complete with dry-run and a side-by-side comparison.
 
@@ -58,22 +60,6 @@ The backup and restore features are nice, but the main reason Pixelfin exists is
 **Disclaimer:** Pixelfin is vibecoded with Codex. I use it, it works well for me, and other people have found it useful too. That said, it’s still a local tool built by someone solving a very specific Jellyfin artwork problem, not a hardened production app.
 
 **Security Note:** Pixelfin is not built with security in mind. Run it locally only, or on a trusted private network. Don’t expose it to the internet.
-
-## What Changed in v1.0.0
-
-Pixelfin v0.35.8 was mainly a Flask app around Python scripts that generated static HTML reports.
-
-Pixelfin v1.0.0 turns Pixelfin into a proper local, server-backed web app. It keeps the core Jellyfin and Python logic, but adds cached scan state, dynamic library views, settings, restore review screens, and per-item updates.
-
-You can now scan, filter, inspect, export, restore, and adjust rules from one interactive UI, while still keeping the classic HTML and ZIP exports when you want portable files.
-
-Breaking or migration notes:
-
-- The new app is now the default page at `http://localhost:1280`.
-- The older classic interface is still available at `/classic`.
-- v1.0.0 stores its server, library, scan, and settings state in `data/fresh.db`.
-- Older v0.35.8 files like `data/history.json`, old generated HTML files, and old ZIP exports are not deleted.
-- Existing exports under `output/<Library>/` stay where they are. Pixelfin can still list and download generated files from `output/`, but the new app uses its own settings and scan cache.
 
 ## Screenshots
 
@@ -104,6 +90,9 @@ Breaking or migration notes:
 ### Season Posters
 ![Season Posters](assets/screenshots/pixelfin-season-posters.png)
 
+### Edit Images
+![Edit Images](assets/screenshots/pixelfin-edit-images.png)
+
 ### Lightbox
 ![Lightbox](assets/screenshots/pixelfin-lightbox.png)
 
@@ -127,7 +116,7 @@ Breaking or migration notes:
 - See how many media items need attention.
 - Click a library to review every scanned media item.
 - Click a count to view only media items with missing or low-resolution artwork.
-- Click a media item title to open that item in Jellyfin and take action.
+- Click a media item title to open it in Jellyfin to make or preview changes, or click **Edit Images** beside **Update** to edit images inside Pixelfin.
 - Use one of the built-in themes, including Light, Dark, Dracula, Nord, Solarized, Gruvbox, Monokai, Tokyo Night, Catppuccin, pastel themes, neon themes, and more.
 
 ### Artwork Review
@@ -166,7 +155,9 @@ Live TV and Playlists are intentionally hidden because Pixelfin can’t work wit
 
 Pixelfin uses cached scan state so it doesn’t have to request every image from Jellyfin constantly. That keeps the app faster and helps avoid hammering Jellyfin while real clients are using it.
 
-Because of that, changes made in Jellyfin don’t appear instantly. After changing artwork in Jellyfin, use one of these:
+Edits made through **Edit Images** save immediately to Jellyfin and automatically refresh that media item in the background.
+
+Changes made separately in Jellyfin don’t appear instantly. After changing artwork in Jellyfin, use one of these:
 
 - `Update` on a single media item.
 - `Refresh` while viewing a library.
@@ -183,7 +174,15 @@ Pixelfin can also opt into extra checks:
 
 - High Resolution, useful if you want to catch oversized images.
 
-### Keyboard Shortcuts
+### Edit Images (v1.1.0)
+
+Click **Edit Images**, to the left of **Update** on a media item, to view all Jellyfin image types, search your server’s image providers, delete images, and reorder backdrops. Use the single **+** button to drag/drop or choose a PNG/JPEG/WebP/GIF file up to 10 MB, select its image type, and click **Add** if that image type is missing, or **Replace** if it already exists. Backdrops always use **Add**. Uploads replace the existing image of that type; Backdrop uploads add another backdrop. No additional image metadata API keys are needed in Pixelfin; availability depends on the providers configured on your Jellyfin server.
+
+Click any image to enlarge it. Use **Left/Right** or the arrow buttons to browse images of the same type, **Enter** to select a search result, **Backspace** to delete an existing image, and **Escape** to return one dialog level at a time. Search uses Jellyfin-style Source and Type selectors, pages of 30 images with previous/next arrows, and an **All languages** option.
+
+Edits save immediately on Jellyfin. Closing or going back does not undo saved changes. The media item’s listing automatically refreshes after each edit and when you exit the editor.
+
+## Keyboard Shortcuts
 
 - `\`, show keyboard shortcuts.
 - `t`, scroll to top.
@@ -318,7 +317,7 @@ ghcr.io/nothing2obvi/pixelfin:latest
 The current release image is:
 
 ```text
-ghcr.io/nothing2obvi/pixelfin:v1.0.9
+ghcr.io/nothing2obvi/pixelfin:v1.1.0
 ```
 
 Open:
@@ -336,7 +335,7 @@ The current Docker release publishes multi-architecture images for:
 
 Tags:
 
-- `ghcr.io/nothing2obvi/pixelfin:v1.0.9`
+- `ghcr.io/nothing2obvi/pixelfin:v1.1.0`
 - `ghcr.io/nothing2obvi/pixelfin:latest`
 
 ## Useful Notes

@@ -2213,6 +2213,10 @@ def fresh_scan_media_item(library_id, item_id):
 		return _json_response({"status": "error", "message": str(e)}, 502)
 
 
+from image_editor import register_image_editor
+register_image_editor(app, _fresh_conn, _fresh_active_server, _fresh_start_scan_job)
+
+
 @app.route("/fresh/api/tasks")
 def fresh_all_tasks():
 	conn = _fresh_conn()

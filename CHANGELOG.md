@@ -9,6 +9,17 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.1.0 - 2026-09-30
+
+#### Added
+- **Edit Images:** Edit all Jellyfin image types directly from each media item, search Jellyfin’s image providers without additional API keys, upload or delete images, and reorder backdrops. Enlarged previews support arrow keys, Enter, Backspace, and Escape.
+- **Automatic item refresh:** Image edits save immediately to Jellyfin and refresh the media listing in the background.
+
+#### Changed
+- Updated the README’s TL;DR and image editing guidance; removed the historical v1.0.0 overview.
+
+---
+
 ## v1.0.9 - 2026-09-13
 
 #### Fixed

@@ -1,0 +1,13 @@
+.git
+.agents
+.codex
+.aws
+.env
+.env.*
+data
+output
+cache
+*.zip
+__pycache__
+*.py[cod]
+.DS_Store

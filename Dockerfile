@@ -5,7 +5,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app.py generate_html.py restore.py fresh_jellyfin.py fresh_state.py /app/
+COPY app.py generate_html.py restore.py fresh_jellyfin.py fresh_state.py image_editor.py /app/
 COPY assets /app/assets
 COPY templates /app/templates
 
