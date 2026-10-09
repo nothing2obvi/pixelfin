@@ -9,6 +9,16 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.1.1 - 2026-10-09
+
+#### Added
+- Attention filter to ignore missing season posters in counts while retaining season poster previews.
+
+#### Fixed
+- Image edits now update the listing without reloading the page or jumping away from the current scroll position.
+
+---
+
 ## v1.1.0 - 2026-09-30
 
 #### Added

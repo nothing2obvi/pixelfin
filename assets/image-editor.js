@@ -52,8 +52,8 @@ function closeImageEditorLevel() {
     document.body.style.overflow = editor.previousOverflow;
     editor.overlay.remove(); imageEditor = null;
     const button = document.querySelector(`#item-${CSS.escape(editor.itemId)} .edit-images-button`);
-    (button || editor.trigger)?.focus();
-    if (editor.changed) refreshCurrentDetailView().catch(error => showToast(error.message));
+    (button || editor.trigger)?.focus({preventScroll:true});
+    if (editor.changed) refreshCurrentDetailView({preserveScrollPosition:true}).catch(error => showToast(error.message));
     return;
   }
   editor.error = ''; renderImageEditor();
@@ -141,7 +141,7 @@ async function mutateEditorImage(body) {
     editor.preview=null; if (editor.upload?.url) URL.revokeObjectURL(editor.upload.url); editor.upload=null;
     if (body.action==='select' && body.type!=='Backdrop') editor.search=null;
     if (currentDetailMode !== 'library' || hideCompleteItems) pinnedTaskItemIds.add(editor.itemId);
-    if (result.job_id) pollScanJob(result.job_id,{kind:'item',libraryId:editor.libraryId,itemId:editor.itemId});
+    if (result.job_id) pollScanJob(result.job_id,{kind:'item',libraryId:editor.libraryId,itemId:editor.itemId,imageEdit:true});
     if (result.warning) showToast(result.warning);
   });
 }
