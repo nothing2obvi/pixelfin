@@ -10,12 +10,12 @@ function load(context,names) {
   vm.runInContext(prefix+source.slice(start,source.indexOf('\n}',start)+2),context);
  }
 }
-test('missing-season filter preserves other missing images and season resolution warnings',()=>{
+test('obsolete season-filter preference no longer excludes missing season posters',()=>{
  const context=vm.createContext({localStorage:{getItem:key=>key==='pixelfin_ignore_missing_seasons'?'1':'0'},imageSelectedForItem:()=>true});
  load(context,['getIssueFilters','imageVisibleByIssueFilter','listedIssueImages']);
- const result=vm.runInContext(`listedIssueImages({images:[{code:'sp',status:'missing'},{code:'sp',status:'low'},{code:'p',status:'missing'}]})`,context);
- assert.equal(result.missing.length,1);assert.equal(result.missing[0].code,'p');
- assert.equal(result.low.length,1);assert.equal(result.low[0].code,'sp');
+ const result=vm.runInContext(`listedIssueImages({images:[{code:'sp',status:'missing'},{code:'p',status:'missing'}]})`,context);
+ assert.equal(result.missing.length,2);
+ assert.equal(result.missing[1].code,'sp');
 });
 test('image-edit scan completion refreshes without scheduling a reload after the editor closes',async()=>{
  let reloads=0,options;

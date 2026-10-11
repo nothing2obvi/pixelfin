@@ -9,6 +9,13 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.1.2 - 2026-10-10
+
+#### Changed
+- Removed the separate “Ignore missing season posters in counts” option. Missing season posters again follow the general missing-image count filter, including for browsers that previously enabled the removed option.
+
+---
+
 ## v1.1.1 - 2026-10-09
 
 #### Added

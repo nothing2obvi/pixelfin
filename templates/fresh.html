@@ -1000,7 +1000,6 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 					<button class="icon-btn toolbar-menu-button" onclick="toggleIssueMenu(event)" title="Attention filters">⋯</button>
 					<div class="menu" id="issueFilterMenu">
 						<label><input type="checkbox" id="hideMissingToggle" onchange="saveIssueFilters()"> Ignore missing images in counts</label>
-						<label><input type="checkbox" id="ignoreMissingSeasonsToggle" onchange="saveIssueFilters()"> Ignore missing season posters in counts</label>
 						<label><input type="checkbox" id="hideLowToggle" onchange="saveIssueFilters()"> Ignore low-resolution images in counts</label>
 						<label class="high-filter-action" {% if not additional_criteria.high_resolution %}style="display:none;"{% endif %}><input type="checkbox" id="hideHighToggle" onchange="saveIssueFilters()"> Ignore high-resolution images in counts</label>
 					</div>
@@ -1249,7 +1248,7 @@ h1 { font-size: 30px; line-height: 1.1; margin: 0 0 6px; }
 				</a>
 				<p><button class="primary" onclick="saveJellytag()">Save</button></p>
 			</section>
-			<div class="settings-version">v1.1.1</div>
+			<div class="settings-version">v1.1.2</div>
 		</div>
 	</div>
 </div>
@@ -1559,14 +1558,12 @@ function toggleIssueMenu(event) {
 function getIssueFilters() {
 	return {
 		hideMissing: localStorage.getItem("pixelfin_hide_missing_images") === "1",
-		ignoreMissingSeasons: localStorage.getItem("pixelfin_ignore_missing_seasons") === "1",
 		hideLow: localStorage.getItem("pixelfin_hide_low_images") === "1",
 		hideHigh: localStorage.getItem("pixelfin_hide_high_images") === "1"
 	};
 }
 function imageVisibleByIssueFilter(img) {
 	const filters = getIssueFilters();
-	if (filters.ignoreMissingSeasons && img.code === "sp" && (img.is_missing || img.status === "missing")) return false;
 	if (filters.hideMissing && (img.is_missing || img.status === "missing")) return false;
 	if (filters.hideLow && (img.is_low || img.status === "low")) return false;
 	if (filters.hideHigh && (img.is_high || img.status === "high")) return false;
@@ -1673,13 +1670,10 @@ function syncIssueFilterControls() {
 	const low = document.getElementById("hideLowToggle");
 	const high = document.getElementById("hideHighToggle");
 	if (missing) missing.checked = filters.hideMissing;
-	const seasons = document.getElementById("ignoreMissingSeasonsToggle");
-	if (seasons) seasons.checked = filters.ignoreMissingSeasons;
 	if (low) low.checked = filters.hideLow;
 	if (high) high.checked = filters.hideHigh;
 }
 function saveIssueFilters() {
-	localStorage.setItem("pixelfin_ignore_missing_seasons", document.getElementById("ignoreMissingSeasonsToggle")?.checked ? "1" : "0");
 	localStorage.setItem("pixelfin_hide_missing_images", document.getElementById("hideMissingToggle")?.checked ? "1" : "0");
 	localStorage.setItem("pixelfin_hide_low_images", document.getElementById("hideLowToggle")?.checked ? "1" : "0");
 	localStorage.setItem("pixelfin_hide_high_images", document.getElementById("hideHighToggle")?.checked ? "1" : "0");
