@@ -7,6 +7,9 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+#### Added
+- Stable GitHub Releases publish multi-architecture GHCR images with `latest`, `vX.Y.Z`, `vX.Y`, and `vX` tags. The app version label now comes from the release tag.
+
 ---
 
 ## v1.1.2 - 2026-10-10

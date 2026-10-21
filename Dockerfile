@@ -1,5 +1,8 @@
 FROM python:3.12-slim
 
+ARG PIXELFIN_VERSION=dev
+ENV PIXELFIN_VERSION=${PIXELFIN_VERSION}
+
 WORKDIR /app
 
 COPY requirements.txt .
