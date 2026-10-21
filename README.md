@@ -14,7 +14,7 @@
 </p>
 
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-4-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-5-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 # Pixelfin: Jellyfin Artwork Inspector
@@ -376,6 +376,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/avassor"><img src="https://avatars.githubusercontent.com/u/10287940?v=4?s=100" width="100px;" alt="avassor"/><br /><sub><b>avassor</b></sub></a><br /><a href="#ideas-avassor" title="Ideas, Planning, & Feedback">🤔</a> <a href="https://github.com/nothing2obvi/pixelfin/pulls?q=is%3Apr+reviewed-by%3Aavassor" title="Reviewed Pull Requests">👀</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/KingOfBadgers"><img src="https://avatars.githubusercontent.com/KingOfBadgers?s=100" width="100px;" alt="KingOfBadgers"/><br /><sub><b>KingOfBadgers</b></sub></a><br /><a href="https://github.com/nothing2obvi/pixelfin/commits?author=KingOfBadgers" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/pnthach95"><img src="https://avatars.githubusercontent.com/pnthach95?s=100" width="100px;" alt="pnthach95"/><br /><sub><b>pnthach95</b></sub></a><br /><a href="https://github.com/nothing2obvi/pixelfin/commits?author=pnthach95" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/danimart1991"><img src="https://avatars.githubusercontent.com/danimart1991?s=100" width="100px;" alt="Daniel Martin Gonzalez"/><br /><sub><b>Daniel Martin Gonzalez</b></sub></a><br /><a href="https://github.com/nothing2obvi/pixelfin/commits?author=danimart1991" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
