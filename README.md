@@ -16,6 +16,7 @@
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
 [![All Contributors](https://img.shields.io/badge/all_contributors-5-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
+![Latest release](https://img.shields.io/github/v/release/nothing2obvi/pixelfin?label=latest%20release)
 
 # Pixelfin: Jellyfin Artwork Inspector
 
@@ -314,11 +315,13 @@ The default image is:
 ghcr.io/nothing2obvi/pixelfin:latest
 ```
 
-The current release image is:
+To pin a specific release, use its full semantic version tag:
 
 ```text
-ghcr.io/nothing2obvi/pixelfin:v1.1.2
+ghcr.io/nothing2obvi/pixelfin:vX.Y.Z
 ```
+
+The app displays the version from the GitHub Release tag. Stable releases are also published with rolling `vX.Y` and `vX` tags; `latest` tracks the latest stable release.
 
 Open:
 
@@ -335,8 +338,12 @@ The current Docker release publishes multi-architecture images for:
 
 Tags:
 
-- `ghcr.io/nothing2obvi/pixelfin:v1.1.2`
+- `ghcr.io/nothing2obvi/pixelfin:vX.Y.Z`
+- `ghcr.io/nothing2obvi/pixelfin:vX.Y`
+- `ghcr.io/nothing2obvi/pixelfin:vX`
 - `ghcr.io/nothing2obvi/pixelfin:latest`
+
+Pre-releases are published using their exact release tag and do not update `latest`.
 
 ## Useful Notes
 

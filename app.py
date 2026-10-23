@@ -57,6 +57,7 @@ AUTO_FILE = "data/auto_jobs.json"
 KEEP_FILE = "data/keep.json"  # ✅ NEW: Keep/Dont-Keep storage
 
 app = Flask(__name__, template_folder="templates")
+PIXELFIN_VERSION = os.environ.get("PIXELFIN_VERSION", "dev")
 BASE_OUTPUT_DIR = "output"
 ASSETS_DIR = "assets"
 FRESH_COVER_CACHE_DIR = os.path.join("data", "fresh_cover_cache")
@@ -1880,6 +1881,7 @@ def fresh_index():
 		auto=load_auto(),
 		generated=list_generated_htmls(),
 		active_page="fresh",
+		app_version=PIXELFIN_VERSION,
 	)
 
 

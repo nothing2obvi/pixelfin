@@ -9,6 +9,7 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 #### Added
 - Added a lightweight `/health` endpoint and a Docker `HEALTHCHECK` using a localhost probe.
+- Stable GitHub Releases publish multi-architecture GHCR images with `latest`, `vX.Y.Z`, `vX.Y`, and `vX` tags. The app version label now comes from the release tag.
 
 ---
 
