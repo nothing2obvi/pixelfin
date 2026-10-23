@@ -1848,6 +1848,11 @@ def _fresh_sync_libraries(conn, server):
 	return len(seen)
 
 
+@app.route("/health", methods=["GET"])
+def health():
+	return {"status": "ok"}
+
+
 @app.route("/", methods=["GET"])
 def fresh_index():
 	conn = _fresh_conn()
