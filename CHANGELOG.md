@@ -7,6 +7,9 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+#### Added
+- Added a lightweight `/health` endpoint and a Docker `HEALTHCHECK` using a localhost probe.
+
 ---
 
 ## v1.1.2 - 2026-10-10
